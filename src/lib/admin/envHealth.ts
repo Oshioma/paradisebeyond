@@ -159,6 +159,60 @@ export function getEnvHealth(): EnvHealth {
   };
 }
 
+export interface ReadinessCheck {
+  label: string;
+  ok: boolean;
+  detail: string;
+  /** Which migration/setup provides this, for a quick fix pointer. */
+  fix?: string;
+}
+
+/**
+ * Live readiness board for the end-to-end flows (create → publish → book).
+ * Each check runs a harmless probe against the live DB so a missing migration
+ * shows up here instead of as a cryptic error mid-flow. Admin-gated page.
+ */
+export async function probeReadiness(): Promise<ReadinessCheck[] | null> {
+  if (!isSupabaseConfigured()) return null;
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = createClient();
+  const checks: ReadinessCheck[] = [];
+
+  async function column(label: string, table: string, col: string, fix: string) {
+    const { error } = await supabase.from(table).select(col).limit(1);
+    checks.push({ label, ok: !error, detail: error ? error.message : "present", fix: error ? fix : undefined });
+  }
+
+  // Schema pieces the flows depend on.
+  await column("experiences.content", "experiences", "content", "Run 0005_go_live.sql");
+  await column("departures.code", "departures", "code", "Run 0005_go_live.sql");
+  await column("room_types.code", "room_types", "code", "Run 0005_go_live.sql");
+  await column("experiences.retreat_draft_id", "experiences", "retreat_draft_id", "Run 0010_publish.sql");
+  await column("retreat_drafts table", "retreat_drafts", "id", "Run 0004_retreat_drafts.sql");
+  await column("messages table", "messages", "id", "Run 0008_messages.sql");
+  await column("app_settings table", "app_settings", "key", "Run 0009_app_settings.sql");
+
+  // Data presence.
+  const counts: Array<[string, string, Record<string, string> | null]> = [
+    ["Destinations", "destinations", null],
+    ["Published experiences", "experiences", { status: "published" }],
+    ["Departures", "departures", null],
+  ];
+  for (const [label, table, filter] of counts) {
+    let q = supabase.from(table).select("*", { count: "exact", head: true });
+    if (filter) for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
+    const { count, error } = await q;
+    checks.push({
+      label,
+      ok: !error && (count ?? 0) > 0,
+      detail: error ? error.message : `${count ?? 0} row(s)`,
+      fix: error ? "Check migrations & seed" : (count ?? 0) === 0 ? "None yet — create/seed some" : undefined,
+    });
+  }
+
+  return checks;
+}
+
 /**
  * Live connectivity probe — only meaningful when Supabase is configured. Runs a
  * trivial read and reports whether the DB is reachable and the schema present.

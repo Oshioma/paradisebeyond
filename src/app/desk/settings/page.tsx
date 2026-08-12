@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getEnvHealth, probeSupabase, type Level } from "@/lib/admin/envHealth";
+import { getEnvHealth, probeSupabase, probeReadiness, type Level } from "@/lib/admin/envHealth";
 import { isAiEnabled } from "@/lib/ai/anthropic";
 import { getSelectedModel, getModelSource } from "@/lib/ai/settings";
 import { AI_MODELS } from "@/lib/ai/models";
@@ -13,7 +13,7 @@ export default async function SettingsPage() {
   await requireRole("admin", "/desk/settings");
   const health = getEnvHealth();
   const probe = await probeSupabase();
-  const [aiModel, aiSource] = await Promise.all([getSelectedModel(), getModelSource()]);
+  const [aiModel, aiSource, readiness] = await Promise.all([getSelectedModel(), getModelSource(), probeReadiness()]);
 
   return (
     <div className="container-editorial py-12">
@@ -54,6 +54,34 @@ export default async function SettingsPage() {
             These <code>NEXT_PUBLIC_</code> variables contain what looks like a secret key and are shipped to the browser. Move them to a non-public variable immediately: {health.dangerous.join(", ")}
           </p>
         </div>
+      )}
+
+      {/* Live readiness board */}
+      {readiness && (
+        <section className="mt-8">
+          <h2 className="font-display text-2xl font-semibold text-ink">Live readiness</h2>
+          <p className="mt-1 text-sm text-ink-muted">End-to-end checks for create → publish → book. A red row points at the migration to run.</p>
+          <div className="mt-4 overflow-hidden rounded-xl2 border border-ink/10">
+            <table className="w-full text-left text-sm">
+              <tbody className="divide-y divide-ink/10">
+                {readiness.map((c) => (
+                  <tr key={c.label} className="bg-sand-50">
+                    <td className="px-4 py-3 font-medium text-ink">{c.label}</td>
+                    <td className="px-4 py-3 text-ink-soft">
+                      {c.detail}
+                      {c.fix && <span className="ml-2 rounded bg-clay-500/10 px-2 py-0.5 text-[0.62rem] text-clay-600">{c.fix}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[0.66rem] font-medium uppercase tracking-eyebrow ${c.ok ? "bg-palm-500/15 text-palm-600" : "bg-clay-500/15 text-clay-600"}`}>
+                        {c.ok ? "OK" : "Fix"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       {/* Groups */}
