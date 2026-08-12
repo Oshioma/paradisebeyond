@@ -18,6 +18,10 @@ import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { ShareButton } from "@/components/experience/ShareButton";
 import { ReservePanel } from "@/components/experience/ReservePanel";
 import { Itinerary } from "@/components/experience/Itinerary";
+import { getExperienceReviews } from "@/lib/data/reviews";
+import { summarize } from "@/lib/reviews/types";
+import { Stars, RatingSummary } from "@/components/reviews/Stars";
+import { ReviewList } from "@/components/reviews/ReviewList";
 import { FlightsNote } from "@/components/experience/FlightsNote";
 
 export async function generateStaticParams() {
@@ -40,13 +44,12 @@ export async function generateMetadata({
     openGraph: {
       title: `${e.name} · ${e.duration} Days in ${e.location}`,
       description: desc,
-      images: [{ url: hero(e.heroImageSeed), width: 2000, height: 1200, alt: e.name }],
+      // OG/Twitter images come from the branded opengraph-image.tsx card.
     },
     twitter: {
       card: "summary_large_image",
       title: `${e.name} · Paradise Beyond`,
       description: desc,
-      images: [hero(e.heroImageSeed)],
     },
     alternates: { canonical: `/experiences/${e.slug}` },
     other: next ? { "pb:next-departure": next.startDate } : {},
@@ -65,6 +68,8 @@ export default async function ExperiencePage({
   const next = upcomingDeparture(e);
   const hosts = e.hostSlugs.map(getHost).filter(Boolean);
   const categories = e.categorySlugs.map(getCategory).filter(Boolean);
+  const reviews = await getExperienceReviews(params.slug);
+  const rsum = summarize(reviews);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -120,6 +125,11 @@ export default async function ExperiencePage({
             <span className="inline-flex items-center gap-1.5">
               From {formatFrom(e.priceFromMinor, e.currency)} pp
             </span>
+            {rsum.count > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <Stars value={rsum.average} /> {rsum.average.toFixed(1)} ({rsum.count})
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -260,6 +270,12 @@ export default async function ExperiencePage({
                   </Link>
                 ))}
               </div>
+            </Section>
+
+            {/* Reviews */}
+            <Section eyebrow="Reviews" title={rsum.count > 0 ? "What guests say" : "Reviews"}>
+              {rsum.count > 0 && <div className="mb-6"><RatingSummary average={rsum.average} count={rsum.count} /></div>}
+              <ReviewList reviews={reviews} />
             </Section>
 
             {/* Share */}

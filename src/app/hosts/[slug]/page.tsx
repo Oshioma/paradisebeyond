@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { hero, portrait } from "@/lib/images";
 import { HOSTS, getHost } from "@/lib/data/hosts";
 import { getExperiencesByHost } from "@/lib/data/repository";
+import { getHostReviewSummary } from "@/lib/data/reviews";
+import { RatingSummary } from "@/components/reviews/Stars";
 import { ExperienceGrid } from "@/components/experience/ExperienceGrid";
 import { VerifiedBadge } from "@/components/ui/Badge";
 
@@ -25,6 +27,7 @@ export default async function HostPage({ params }: { params: { slug: string } })
   const h = getHost(params.slug);
   if (!h) notFound();
   const experiences = await getExperiencesByHost(h.slug);
+  const reviewSummary = await getHostReviewSummary(experiences.map((e) => e.slug));
 
   return (
     <>
@@ -49,6 +52,7 @@ export default async function HostPage({ params }: { params: { slug: string } })
             </div>
             <p className="mt-1 text-lg text-ocean-700">{h.headline}</p>
             <p className="mt-1 text-sm text-ink-muted">Hosting with Paradise Beyond since {h.since}</p>
+            {reviewSummary.count > 0 && <div className="mt-2"><RatingSummary average={reviewSummary.average} count={reviewSummary.count} /></div>}
           </div>
         </div>
       </div>
