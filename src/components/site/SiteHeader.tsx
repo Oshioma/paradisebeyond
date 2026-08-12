@@ -12,9 +12,12 @@ const NAV = [
   { label: "Host a Retreat", href: "/host" },
 ];
 
+type Me = { role: "guest" | "host" | "admin" | null };
+
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<Me["role"]>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -22,6 +25,23 @@ export function SiteHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Fetch the current role so we can show Studio (host) / Admin (admin) links.
+  useEffect(() => {
+    let live = true;
+    fetch("/api/me")
+      .then((r) => (r.ok ? r.json() : { role: null }))
+      .then((d: Me) => { if (live) setRole(d.role); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const roleLink =
+    role === "admin"
+      ? { label: "Admin", href: "/desk" }
+      : role === "host"
+        ? { label: "Studio", href: "/studio" }
+        : null;
 
   return (
     <header
@@ -63,6 +83,14 @@ export function SiteHeader() {
             <HeartIcon className="h-4 w-4" />
             <WishlistCount />
           </Link>
+          {roleLink && (
+            <Link
+              href={roleLink.href}
+              className="hidden rounded-full border border-ink/20 px-3 py-1.5 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/50 hover:text-ink sm:inline-flex"
+            >
+              {roleLink.label}
+            </Link>
+          )}
           <Link
             href="/account"
             className="hidden text-sm text-ink-soft hover:text-ink sm:inline"
@@ -90,7 +118,11 @@ export function SiteHeader() {
       {open && (
         <div className="border-t border-ink/10 bg-sand-50 md:hidden">
           <nav className="container-editorial flex flex-col py-4">
-            {NAV.concat({ label: "Saved", href: "/saved" }, { label: "Account", href: "/account" }).map((item) => (
+            {NAV.concat(
+              { label: "Saved", href: "/saved" },
+              { label: "Account", href: "/account" },
+              ...(roleLink ? [roleLink] : []),
+            ).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

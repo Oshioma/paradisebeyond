@@ -83,5 +83,8 @@ and records the payment. Refunds issued from the Stripe dashboard sync back
 Test with Stripe **test mode** keys and card `4242 4242 4242 4242` first. Verify
 the whole flow on `/desk/settings` (all green) before going to live keys.
 
-> Not built yet (fast follow): in-app "pay balance later" and an in-app refund
-> button (refunds work from the Stripe dashboard today), and promo codes.
+Also live: **pay-balance-later** (trip page → Stripe checkout for the balance),
+an **in-app refund** button (Admin → Bookings; reverses charge + fee + transfer),
+**promo codes** (Admin → Promos; applied at checkout), and **automated emails**
+(booking confirmation, balance receipt, host-application decisions via Resend).
+Run migrations `0006_stripe.sql` and `0007_promos.sql` for these.

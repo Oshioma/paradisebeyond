@@ -8,6 +8,7 @@ import {
   validateForSubmit,
 } from "@/lib/retreat/schema";
 import {
+  aiDraftRetreat,
   saveRetreatDraft,
   submitRetreat,
   suggestCopy,
@@ -150,6 +151,7 @@ function StepContent({
     case 0:
       return (
         <div className="space-y-5">
+          <AiDraftPanel draft={draft} setDraft={setDraft} />
           <Field label="Retreat name" hint="Evocative, not generic. e.g. “Zanzibar Reconnection”">
             <input className={inp} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Zanzibar Reconnection" />
           </Field>
@@ -510,6 +512,93 @@ function AddBtn({ onClick, children }: { onClick: () => void; children: React.Re
 }
 function RemoveBtn({ onClick }: { onClick: () => void }) {
   return <button onClick={onClick} aria-label="Remove" className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full text-ink-muted hover:bg-clay-500/10 hover:text-clay-600">✕</button>;
+}
+
+/**
+ * "Draft with AI" — the host describes their retreat in a sentence or two and we
+ * generate starter copy for the whole listing (name, story, itinerary, and
+ * more). Everything lands in the wizard as an editable draft: the host reviews
+ * and changes anything before submitting, and admin still approves by hand
+ * before it goes live. AI assists; it never publishes.
+ */
+function AiDraftPanel({ draft, setDraft }: { draft: RetreatDraft; setDraft: React.Dispatch<React.SetStateAction<RetreatDraft>> }) {
+  const [open, setOpen] = useState(false);
+  const [brief, setBrief] = useState("");
+  const [pending, start] = useTransition();
+  const [note, setNote] = useState<string | null>(null);
+
+  const hasContent = Boolean(draft.name || draft.strapline || draft.story.some(Boolean) || draft.itinerary.some((d) => d.title));
+
+  function generate() {
+    if (!brief.trim()) return;
+    if (hasContent && !confirm("This replaces the copy fields on this step (name, strapline, story, ideal guest) and your itinerary, accommodation, inclusions and activities with AI suggestions you can then edit. Continue?")) return;
+    setNote(null);
+    start(async () => {
+      const s = await aiDraftRetreat(brief, draft);
+      setDraft((d) => ({
+        ...d,
+        name: s.name || d.name,
+        strapline: s.strapline || d.strapline,
+        idealGuest: s.idealGuest.length ? s.idealGuest : d.idealGuest,
+        story: s.story.length ? s.story : d.story,
+        propertyDescription: s.propertyDescription || d.propertyDescription,
+        inclusions: s.inclusions.length ? s.inclusions : d.inclusions,
+        highlights: s.highlights.length ? s.highlights : d.highlights,
+        itinerary: s.itinerary.length
+          ? resizeItinerary({ ...d, itinerary: s.itinerary.map((x) => ({ ...x, items: x.items.length ? x.items : [""] })) })
+          : d.itinerary,
+      }));
+      setNote(
+        s.ai
+          ? "Drafted with AI. Review and edit everything below — nothing is submitted until you say so."
+          : "Drafted from a template (AI isn't configured on this site). Edit everything below to make it yours.",
+      );
+    });
+  }
+
+  if (!open) {
+    return (
+      <div className="flex items-center justify-between gap-4 rounded-xl2 border border-ocean-500/30 bg-ocean-500/5 p-5">
+        <div>
+          <p className="font-display text-lg font-semibold text-ink">✨ Draft with AI</p>
+          <p className="mt-0.5 text-sm text-ink-muted">Describe your retreat in a sentence and we&apos;ll write a first draft you can edit.</p>
+        </div>
+        <button onClick={() => setOpen(true)} className="flex-none rounded-full bg-ocean-600 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ocean-700">
+          Try it
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl2 border border-ocean-500/30 bg-ocean-500/5 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-display text-lg font-semibold text-ink">✨ Draft with AI</p>
+        <button onClick={() => setOpen(false)} className="text-xs uppercase tracking-eyebrow text-ink-muted hover:text-ink">Close</button>
+      </div>
+      <p className="mt-1 text-sm text-ink-muted">
+        e.g. “A yoga &amp; breathwork retreat for women wanting to reset after burnout, slow mornings and beach walks.”
+      </p>
+      <textarea
+        rows={3}
+        value={brief}
+        onChange={(e) => setBrief(e.target.value)}
+        placeholder="Describe the retreat, who it's for, and the feeling you want guests to leave with…"
+        className={cn(inp, "mt-3")}
+      />
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          onClick={generate}
+          disabled={pending || !brief.trim()}
+          className="rounded-full bg-ocean-600 px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ocean-700 disabled:opacity-50"
+        >
+          {pending ? "Drafting…" : "Draft my retreat"}
+        </button>
+        <span className="text-xs text-ink-muted">Uses your duration ({draft.duration} days) &amp; destination ({draft.destinationName}).</span>
+      </div>
+      {note && <p className="mt-3 rounded-lg bg-palm-500/10 px-3 py-2 text-xs text-palm-600">{note}</p>}
+    </div>
+  );
 }
 
 function Suggest({ kind, draft, apply }: { kind: string; draft: RetreatDraft; apply: (v: string[]) => void }) {

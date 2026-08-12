@@ -6,7 +6,7 @@ import { formatMoney } from "@/lib/money";
 import { formatDateRange } from "@/lib/utils";
 import { priceBooking } from "@/lib/booking/pricing";
 import { cn } from "@/lib/utils";
-import { createBooking } from "@/app/book/[departureId]/actions";
+import { createBooking, checkPromo } from "@/app/book/[departureId]/actions";
 
 export function BookingFlow({
   experience,
@@ -20,6 +20,10 @@ export function BookingFlow({
   const [guests, setGuests] = useState(1);
   const [payFull, setPayFull] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [promoCode, setPromoCode] = useState("");
+  const [applied, setApplied] = useState<{ code: string; discountMinor: number; label: string } | null>(null);
+  const [promoMsg, setPromoMsg] = useState<string | null>(null);
+  const [checking, startChecking] = useTransition();
 
   const room = experience.stay.roomTypes.find((r) => r.id === roomId)!;
   const breakdown = useMemo(
@@ -27,8 +31,26 @@ export function BookingFlow({
     [experience, departure, room, guests],
   );
 
-  const dueNow = payFull ? breakdown.subtotalMinor : breakdown.depositDueNowMinor;
   const c = experience.currency;
+  const discount = applied?.discountMinor ?? 0;
+  const subtotalAfter = Math.max(0, breakdown.subtotalMinor - discount);
+  const depositAfter = Math.min(breakdown.depositDueNowMinor, subtotalAfter);
+  const dueNow = payFull ? subtotalAfter : depositAfter;
+  const balanceAfter = subtotalAfter - dueNow;
+
+  function applyPromo() {
+    setPromoMsg(null);
+    startChecking(async () => {
+      const res = await checkPromo(promoCode, breakdown.subtotalMinor);
+      if (res) {
+        setApplied(res);
+        setPromoMsg(`${res.label} applied`);
+      } else {
+        setApplied(null);
+        setPromoMsg("That code isn't valid.");
+      }
+    });
+  }
 
   function reserve() {
     const fd = new FormData();
@@ -36,8 +58,9 @@ export function BookingFlow({
     fd.set("roomId", roomId);
     fd.set("guests", String(guests));
     fd.set("payFull", String(payFull));
+    if (applied) fd.set("promo", applied.code);
     startTransition(() => {
-      // Server action creates the booking, takes payment, and redirects to the trip.
+      // Server action re-validates the promo, creates the booking, and redirects.
       createBooking(fd);
     });
   }
@@ -81,14 +104,14 @@ export function BookingFlow({
               active={!payFull}
               onClick={() => setPayFull(false)}
               title="Reserve with a deposit"
-              amount={formatMoney(breakdown.depositDueNowMinor, c)}
-              note={`Balance ${formatMoney(breakdown.balanceMinor, c)} due ${breakdown.balanceDueDays} days before`}
+              amount={formatMoney(depositAfter, c)}
+              note={`Balance ${formatMoney(subtotalAfter - depositAfter, c)} due ${breakdown.balanceDueDays} days before`}
             />
             <PayOption
               active={payFull}
               onClick={() => setPayFull(true)}
               title="Pay in full"
-              amount={formatMoney(breakdown.subtotalMinor, c)}
+              amount={formatMoney(subtotalAfter, c)}
               note="Nothing more to pay"
             />
           </div>
@@ -106,13 +129,38 @@ export function BookingFlow({
 
           <dl className="mt-5 space-y-2 border-t border-ink/10 pt-5 text-sm">
             <Row label={`${room.name} × ${guests}`} value={formatMoney(breakdown.perGuestMinor * guests, c)} />
-            <Row label="Package total" value={formatMoney(breakdown.subtotalMinor, c)} strong />
+            {discount > 0 && (
+              <Row label={`Discount (${applied?.code})`} value={`− ${formatMoney(discount, c)}`} />
+            )}
+            <Row label="Package total" value={formatMoney(subtotalAfter, c)} strong />
             <div className="my-2 border-t border-ink/10" />
             <Row label="Due now" value={formatMoney(dueNow, c)} strong />
             {!payFull && (
-              <Row label={`Balance in ${breakdown.balanceDueDays}d`} value={formatMoney(breakdown.balanceMinor, c)} muted />
+              <Row label={`Balance in ${breakdown.balanceDueDays}d`} value={formatMoney(balanceAfter, c)} muted />
             )}
           </dl>
+
+          {/* Promo code */}
+          <div className="mt-4">
+            <div className="flex gap-2">
+              <input
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Promo code"
+                className="w-full rounded-xl border border-ink/15 bg-sand-50 px-3 py-2 text-sm uppercase tracking-wide text-ink placeholder:normal-case placeholder:tracking-normal placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
+              />
+              <button
+                onClick={applyPromo}
+                disabled={checking || !promoCode.trim()}
+                className="rounded-xl border border-ink/20 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50"
+              >
+                {checking ? "…" : "Apply"}
+              </button>
+            </div>
+            {promoMsg && (
+              <p className={`mt-1.5 text-xs ${applied ? "text-palm-600" : "text-clay-600"}`}>{promoMsg}</p>
+            )}
+          </div>
 
           <button
             onClick={reserve}

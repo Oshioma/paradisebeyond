@@ -31,6 +31,8 @@ export async function startStripeCheckout(p: {
   platformFeeMinor: number;
   hostNetMinor: number;
   reference: string;
+  promoCode?: string;
+  discountMinor?: number;
 }): Promise<{ url?: string; soldOut?: boolean }> {
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = createClient();
@@ -59,6 +61,8 @@ export async function startStripeCheckout(p: {
       commission_rate_bps: p.commissionRateBps,
       platform_fee_minor: p.platformFeeMinor,
       host_net_minor: p.hostNetMinor,
+      promo_code: p.promoCode ?? null,
+      discount_minor: p.discountMinor ?? 0,
       status: "pending",
     })
     .select("id")
@@ -69,6 +73,7 @@ export async function startStripeCheckout(p: {
     return { soldOut: true };
   }
   const bookingId = inserted.id as string;
+  if (p.promoCode) await supabase.rpc("redeem_promo", { p_code: p.promoCode });
 
   // 3. Host's connected account (destination of the transfer).
   const { data: host } = await supabase
@@ -111,5 +116,74 @@ export async function startStripeCheckout(p: {
   });
 
   await supabase.from("bookings").update({ stripe_session_id: session.id }).eq("id", bookingId);
+  return { url: session.url ?? undefined };
+}
+
+/**
+ * Checkout for the remaining BALANCE on an existing booking (no new booking, no
+ * re-reservation). The webhook records the balance payment and confirms the trip.
+ */
+export async function startBalanceCheckout(
+  bookingId: string,
+  guestEmail: string,
+): Promise<{ url?: string; done?: boolean; error?: string }> {
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = createClient();
+
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("departure_id, balance_minor, subtotal_minor, platform_fee_minor, currency")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (!booking) return { error: "Booking not found" };
+  if ((booking.balance_minor ?? 0) <= 0) return { done: true };
+
+  const { getAllExperiences } = await import("@/lib/data/repository");
+  const all = await getAllExperiences();
+  let experience: Experience | undefined;
+  let departure: Departure | undefined;
+  for (const e of all) {
+    const d = e.departures.find((x) => x.id === booking.departure_id);
+    if (d) { experience = e; departure = d; break; }
+  }
+
+  const feeBalance = booking.subtotal_minor
+    ? Math.round((booking.platform_fee_minor * booking.balance_minor) / booking.subtotal_minor)
+    : 0;
+
+  const { data: host } = await supabase
+    .from("hosts")
+    .select("stripe_account_id, stripe_onboarded")
+    .eq("slug", experience?.hostSlugs[0] ?? "")
+    .maybeSingle();
+
+  const stripe = getStripe();
+  const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
+    metadata: { booking_id: bookingId, kind: "balance" },
+  };
+  if (host?.stripe_account_id && host?.stripe_onboarded) {
+    paymentIntentData.application_fee_amount = feeBalance;
+    paymentIntentData.transfer_data = { destination: host.stripe_account_id };
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    customer_email: guestEmail,
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: (booking.currency as string).toLowerCase(),
+          unit_amount: booking.balance_minor,
+          product_data: { name: `${experience?.name ?? "Your trip"} — balance` },
+        },
+      },
+    ],
+    payment_intent_data: paymentIntentData,
+    metadata: { booking_id: bookingId, kind: "balance" },
+    success_url: `${siteUrl()}/account/trips/${bookingId}?paid=1`,
+    cancel_url: `${siteUrl()}/account/trips/${bookingId}`,
+  });
+
   return { url: session.url ?? undefined };
 }

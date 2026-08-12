@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import type { Booking, FlightDetails } from "@/lib/booking/types";
 import type { ApplicationStatus } from "@/lib/demo/applications";
+import type { Message } from "@/lib/messaging/types";
 
 /**
  * Mutable demo state, persisted in a single cookie so actions taken in one
@@ -13,9 +14,15 @@ export interface DemoState {
   flights: Record<string, FlightDetails>;
   apps: Record<string, ApplicationStatus>;
   bookings: Booking[];
+  /** Booking ids whose balance was paid in demo. */
+  balancePaid: string[];
+  /** Booking ids refunded/cancelled in demo. */
+  refunded: string[];
+  /** Messages posted in demo. */
+  messages: Message[];
 }
 
-const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [] };
+const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [], messages: [] };
 
 export function readDemoState(): DemoState {
   try {

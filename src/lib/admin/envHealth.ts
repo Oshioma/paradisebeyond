@@ -31,6 +31,7 @@ function keyScheme(v: string): string {
   if (v.startsWith("sb_publishable_")) return "publishable (new)";
   if (v.startsWith("sb_secret_")) return "secret (new)";
   if (v.startsWith("eyJ")) return "legacy JWT";
+  if (v.startsWith("sk-ant-")) return "Anthropic key";
   if (v.startsWith("sk_")) return "Stripe secret";
   if (v.startsWith("pk_")) return "Stripe publishable";
   if (v.startsWith("whsec_")) return "Stripe webhook";
@@ -126,6 +127,15 @@ export function getEnvHealth(): EnvHealth {
     ],
   };
 
+  const aiGroup = {
+    title: "AI (Anthropic)",
+    note: `Powers "Draft with AI" in the Retreat Builder. Optional — without a key it falls back to local heuristic copy. Model: ${present("ANTHROPIC_MODEL") ?? "claude-opus-5 (default)"}.`,
+    checks: [
+      secretCheck("ANTHROPIC_API_KEY", "Anthropic API key", false, "Anthropic key"),
+      { key: "ANTHROPIC_MODEL", label: "Model override", level: "ok" as Level, detail: present("ANTHROPIC_MODEL") ?? "claude-opus-5 (default)", secret: false, required: false },
+    ],
+  };
+
   const siteGroup = {
     title: "Site",
     note: "Set the Site URL so auth email links resolve to your deployment, not localhost.",
@@ -144,7 +154,7 @@ export function getEnvHealth(): EnvHealth {
 
   return {
     mode: isSupabaseConfigured() ? "live" : "demo",
-    groups: [supabaseGroup, paymentsGroup, emailGroup, siteGroup],
+    groups: [supabaseGroup, paymentsGroup, emailGroup, aiGroup, siteGroup],
     dangerous,
   };
 }

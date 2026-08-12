@@ -13,6 +13,9 @@ import { StatusPill } from "@/components/dashboard/StatusPill";
 import { Itinerary } from "@/components/experience/Itinerary";
 import { BeforeYouGo } from "@/components/dashboard/BeforeYouGo";
 import { FlightForm } from "@/components/dashboard/FlightForm";
+import { MessageThread } from "@/components/messaging/MessageThread";
+import { getMessages } from "@/lib/data/messages";
+import { payBalance } from "./actions";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
 
@@ -24,6 +27,7 @@ export default async function TripPage({ params }: { params: { bookingId: string
   const destination = getDestination(trip.experience.destinationSlug);
   const host = getHost(trip.experience.hostSlugs[0]);
   const paidPct = Math.round((trip.paidMinor / trip.subtotalMinor) * 100);
+  const messages = await getMessages(trip.id);
 
   return (
     <div>
@@ -84,6 +88,17 @@ export default async function TripPage({ params }: { params: { bookingId: string
             </div>
           </section>
 
+          {/* Messages with the host */}
+          <section>
+            <SectionTitle>Messages{host ? ` with ${host.name.split(" ")[0]}` : ""}</SectionTitle>
+            <MessageThread
+              bookingId={trip.id}
+              messages={messages}
+              currentUserId={user.id}
+              names={{ host: host?.name ?? "Host", guest: user.name, admin: "Paradise Beyond" }}
+            />
+          </section>
+
           {/* Documents / questionnaire / packing */}
           <section>
             <SectionTitle>Documents & preparation</SectionTitle>
@@ -113,9 +128,12 @@ export default async function TripPage({ params }: { params: { bookingId: string
                   Balance of {formatMoney(trip.balanceMinor, trip.currency)} due by{" "}
                   <span className="font-medium">{formatFullDate(trip.balanceDueDate)}</span>.
                 </p>
-                <button className="mt-4 w-full rounded-full bg-clay-500 px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-                  Pay balance
-                </button>
+                <form action={payBalance} className="mt-4">
+                  <input type="hidden" name="bookingId" value={trip.id} />
+                  <button className="w-full rounded-full bg-clay-500 px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
+                    Pay balance
+                  </button>
+                </form>
               </>
             ) : (
               <p className="mt-4 text-sm text-palm-600">Fully paid — you&apos;re all set.</p>

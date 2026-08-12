@@ -13,7 +13,9 @@ Paste and run each file, top to bottom:
 3. `migrations/0003_media_overrides.sql` — image override table
 4. `migrations/0004_retreat_drafts.sql` — Retreat Builder drafts
 5. `migrations/0005_go_live.sql` — signup trigger, read model, reservation fns
-6. `seed.sql` — catalogue data (destinations, categories, hosts, experiences…)
+6. `migrations/0006_stripe.sql` — Stripe Connect fields on hosts/bookings
+7. `migrations/0007_promos.sql` — promo booking columns + validation fns
+8. `seed.sql` — catalogue data (destinations, categories, hosts, experiences…)
 
 > **Half-applied DB / "already exists" errors?** Run `reset.sql` FIRST to wipe
 > the `public` schema, then run 1–6 fresh. This deletes app data (auth users are

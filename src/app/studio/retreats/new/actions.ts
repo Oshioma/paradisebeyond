@@ -6,6 +6,8 @@ import { requireRole } from "@/lib/auth/session";
 import { saveDraft } from "@/lib/retreat/store";
 import { validateForSubmit, type RetreatDraft } from "@/lib/retreat/schema";
 import { saveUpload } from "@/lib/media/store";
+import { callClaude, isAiEnabled, parseJsonObject } from "@/lib/ai/anthropic";
+import { draftRetreat, type RetreatDraftSuggestion } from "@/lib/ai/retreat";
 
 /** Persist the current draft (autosave / "Save draft"). */
 export async function saveRetreatDraft(draft: RetreatDraft) {
@@ -40,15 +42,43 @@ export async function uploadRetreatPhoto(draftId: string, slot: string, formData
 }
 
 /**
- * Lightweight, local "AI assist". Real LLM-backed drafting is a Phase 2 wiring;
- * this generates useful starter copy from the host's inputs so the approve-
- * before-publish flow is demonstrable today. The host edits/approves everything.
+ * Full AI draft from a short brief. Calls Claude when ANTHROPIC_API_KEY is set,
+ * otherwise returns on-brand heuristic copy. Either way this only produces a
+ * *suggestion*: the host reviews and edits every field in the wizard, and admin
+ * still approves by hand before anything goes live. AI assists; never publishes.
+ */
+export async function aiDraftRetreat(brief: string, draft: RetreatDraft): Promise<RetreatDraftSuggestion> {
+  await requireRole("host");
+  return draftRetreat({
+    brief: brief.slice(0, 2000),
+    duration: draft.duration,
+    destinationName: draft.destinationName || "Zanzibar",
+    locationLabel: draft.locationLabel || undefined,
+    category: draft.categorySlugs[0],
+  });
+}
+
+/** Whether live AI drafting is available (so the UI can label the assist honestly). */
+export async function aiAvailable(): Promise<boolean> {
+  await requireRole("host");
+  return isAiEnabled();
+}
+
+/**
+ * Per-field "✨ Suggest". Uses Claude for a single field when configured, with a
+ * local heuristic fallback so the button always returns something useful.
  */
 export async function suggestCopy(kind: string, draft: RetreatDraft): Promise<string[]> {
   await requireRole("host");
   const place = draft.locationLabel || draft.destinationName || "Zanzibar";
   const cat = draft.categorySlugs[0] ?? "wellness";
   const nights = draft.duration;
+
+  if (isAiEnabled()) {
+    const ai = await suggestField(kind, { place, cat, nights, draft });
+    if (ai?.length) return ai;
+  }
+
   switch (kind) {
     case "strapline":
       return [`${nights} days of ${cat} in ${place} — come back different.`];
@@ -66,4 +96,37 @@ export async function suggestCopy(kind: string, draft: RetreatDraft): Promise<st
     default:
       return [];
   }
+}
+
+async function suggestField(
+  kind: string,
+  ctx: { place: string; cat: string; nights: number; draft: RetreatDraft },
+): Promise<string[] | null> {
+  const shapes: Record<string, string> = {
+    strapline: `{"lines": [one short strapline under 12 words]}`,
+    story: `{"lines": [2–3 short second-person paragraphs, no bullet lists]}`,
+    idealGuest: `{"lines": [3 short "this is for you if…" lines]}`,
+  };
+  const shape = shapes[kind];
+  if (!shape) return null;
+
+  const context = [
+    ctx.draft.name ? `Retreat name: ${ctx.draft.name}.` : "",
+    `A ${ctx.nights}-day ${ctx.cat} retreat in ${ctx.place}.`,
+    ctx.draft.strapline && kind !== "strapline" ? `Strapline: ${ctx.draft.strapline}.` : "",
+    ctx.draft.story.filter(Boolean).length && kind !== "story" ? `Story so far: ${ctx.draft.story.filter(Boolean).join(" ")}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const text = await callClaude({
+    system:
+      `You are a senior travel-magazine editor for "Paradise Beyond", writing warm, evocative, precise retreat copy — never salesy or generic. Reply with ONE JSON object and nothing else, in this shape: ${shape}`,
+    prompt: `${context}\n\nWrite the "${kind}" copy.`,
+    maxTokens: 600,
+  });
+  const parsed = parseJsonObject<{ lines?: unknown }>(text);
+  if (!parsed || !Array.isArray(parsed.lines)) return null;
+  const lines = parsed.lines.map((l) => (typeof l === "string" ? l.trim() : "")).filter(Boolean);
+  return lines.length ? lines : null;
 }

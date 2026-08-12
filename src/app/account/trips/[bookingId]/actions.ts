@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { updateDemoState } from "@/lib/demo/state";
@@ -46,4 +47,58 @@ export async function saveFlightDetails(bookingId: string, formData: FormData) {
   }
 
   revalidatePath(`/account/trips/${bookingId}`);
+}
+
+/** Pay the remaining balance on a booking. */
+export async function payBalance(formData: FormData) {
+  const user = await requireUser();
+  const bookingId = String(formData.get("bookingId") ?? "");
+  if (!bookingId) return;
+
+  const { isStripeEnabled } = await import("@/lib/payments/stripe");
+  if (isStripeEnabled() && isSupabaseConfigured()) {
+    const { startBalanceCheckout } = await import("@/lib/payments/stripeCheckout");
+    const res = await startBalanceCheckout(bookingId, user.email);
+    if (res.url) redirect(res.url);
+    redirect(`/account/trips/${bookingId}`);
+  }
+
+  if (isSupabaseConfigured()) {
+    // Mock provider: mark the balance settled.
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = createClient();
+    const { data: b } = await supabase
+      .from("bookings")
+      .select("balance_minor, currency")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (b && (b.balance_minor ?? 0) > 0) {
+      await supabase.from("bookings").update({ balance_minor: 0, status: "confirmed" }).eq("id", bookingId);
+      await supabase.from("payments").upsert(
+        { booking_id: bookingId, kind: "balance", amount_minor: b.balance_minor, currency: b.currency, provider: "mock", status: "succeeded", idempotency_key: `${bookingId}:balance` },
+        { onConflict: "idempotency_key", ignoreDuplicates: true },
+      );
+    }
+    await notifyBalancePaid(user, bookingId);
+    revalidatePath(`/account/trips/${bookingId}`);
+    redirect(`/account/trips/${bookingId}?paid=1`);
+  }
+
+  // Demo
+  updateDemoState((s) => {
+    if (!s.balancePaid.includes(bookingId)) s.balancePaid.push(bookingId);
+  });
+  await notifyBalancePaid(user, bookingId);
+  redirect(`/account/trips/${bookingId}?paid=1`);
+}
+
+async function notifyBalancePaid(user: { name: string; email: string }, bookingId: string) {
+  try {
+    const { getTrip } = await import("@/lib/data/bookings");
+    const trip = await getTrip(user as never, bookingId);
+    if (!trip) return;
+    const { sendEmail } = await import("@/lib/email");
+    const { balancePaidEmail } = await import("@/lib/email/templates");
+    await sendEmail({ to: user.email, ...balancePaidEmail(user.name, trip.experience.name) });
+  } catch { /* non-fatal */ }
 }
