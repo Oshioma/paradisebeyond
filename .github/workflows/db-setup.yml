@@ -16,5 +16,5 @@ jobs:
         env:
           # Add this in repo → Settings → Secrets → Actions:
           # Supabase → Project Settings → Database → Connection string (URI)
-          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          DATABASE_URL: ${{ https://arxtctddodrwrrnwdiih.supabase.co }}
         run: bash scripts/db-setup.sh
