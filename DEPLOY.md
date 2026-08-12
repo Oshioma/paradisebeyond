@@ -49,3 +49,39 @@ Once deployed, sign in at `…/login`, then the super admin lives at:
 
 `/desk` is gated by middleware + a server-side `role = 'admin'` check, so only
 admin accounts can open it once Supabase is configured.
+
+## 4. Payments — Stripe Connect (Phase 1c)
+
+Real payments use **Stripe Connect** (destination charges: the platform takes
+its commission as an application fee and the rest goes to the host's connected
+account — the platform never holds host funds). Deposits/balances are separate
+Checkout sessions, and a webhook confirms bookings (never the success redirect).
+
+1. **Enable Connect** in the Stripe dashboard (Connect → Get started → Platform).
+2. **Env vars** (Vercel) — then redeploy:
+   ```
+   PAYMENTS_PROVIDER=stripe
+   STRIPE_SECRET_KEY=sk_live_…            # or sk_test_… while testing
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_…
+   STRIPE_WEBHOOK_SECRET=whsec_…          # from step 3
+   NEXT_PUBLIC_SITE_URL=https://<your-domain>   # for success/cancel/return URLs
+   ```
+3. **Webhook** — Stripe → Developers → Webhooks → Add endpoint:
+   - URL: `https://<your-domain>/api/stripe/webhook`
+   - Events: `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`
+   - Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+4. **Run migration** `0006_stripe.sql` (adds `hosts.stripe_account_id` etc.).
+5. **Hosts connect their account**: a host opens **Studio → Payouts → Connect with
+   Stripe** and completes Express onboarding. Until a host is onboarded, their
+   bookings are collected by the platform (no auto-transfer).
+
+Booking flow once live: guest picks a date/room → **Reserve** → redirected to
+Stripe Checkout → pays the deposit (or full) → the webhook confirms the booking
+and records the payment. Refunds issued from the Stripe dashboard sync back
+(the `charge.refunded` webhook marks the booking refunded and frees the spot).
+
+Test with Stripe **test mode** keys and card `4242 4242 4242 4242` first. Verify
+the whole flow on `/desk/settings` (all green) before going to live keys.
+
+> Not built yet (fast follow): in-app "pay balance later" and an in-app refund
+> button (refunds work from the Stripe dashboard today), and promo codes.
