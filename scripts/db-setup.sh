@@ -11,11 +11,19 @@ set -euo pipefail
 
 : "${DATABASE_URL:?Set DATABASE_URL to your Supabase connection string}"
 
+# Set RESET=1 to wipe the public schema first (fresh setup / recover from a
+# half-applied state). This DELETES all app data. Auth users are untouched.
+if [ "${RESET:-0}" = "1" ]; then
+  echo "▶ RESET=1 — wiping public schema (supabase/reset.sql)"
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/reset.sql
+fi
+
 FILES=(
   supabase/migrations/0001_schema.sql
   supabase/migrations/0002_rls.sql
   supabase/migrations/0003_media_overrides.sql
   supabase/migrations/0004_retreat_drafts.sql
+  supabase/migrations/0005_go_live.sql
   supabase/seed.sql
 )
 

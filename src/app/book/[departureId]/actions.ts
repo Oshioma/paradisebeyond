@@ -8,7 +8,20 @@ import { getPaymentProvider } from "@/lib/payments";
 import { money } from "@/lib/money";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { updateDemoState } from "@/lib/demo/state";
+import { sendEmail } from "@/lib/email";
+import { bookingConfirmationEmail } from "@/lib/email/templates";
 import type { Booking } from "@/lib/booking/types";
+
+/** Fire the booking confirmation email (best-effort; never blocks the booking). */
+async function sendConfirmation(args: {
+  to: string; guestName: string; experienceName: string; location: string;
+  startDate: string; endDate: string; reference: string; paidMinor: number;
+  balanceMinor: number; currency: string; bookingId: string;
+}) {
+  try {
+    await sendEmail({ to: args.to, ...bookingConfirmationEmail(args) });
+  } catch { /* non-fatal */ }
+}
 
 /**
  * Create a booking. Computes the price and the commission split, snapshots the
@@ -96,6 +109,11 @@ export async function createBooking(formData: FormData) {
       idempotency_key: `${reference}:${kind}`,
     });
 
+    await sendConfirmation({
+      to: user.email, guestName: user.name, experienceName: experience.name, location: experience.location,
+      startDate: departure.startDate, endDate: departure.endDate, reference,
+      paidMinor, balanceMinor, currency: breakdown.currency, bookingId: newId,
+    });
     redirect(`/account/trips/${newId}?new=1`);
   }
 
@@ -132,6 +150,11 @@ export async function createBooking(formData: FormData) {
   };
   updateDemoState((s) => {
     s.bookings.push(booking);
+  });
+  await sendConfirmation({
+    to: user.email, guestName: user.name, experienceName: experience.name, location: experience.location,
+    startDate: departure.startDate, endDate: departure.endDate, reference,
+    paidMinor, balanceMinor, currency: breakdown.currency, bookingId,
   });
   redirect(`/account/trips/${bookingId}?new=1`);
 }
