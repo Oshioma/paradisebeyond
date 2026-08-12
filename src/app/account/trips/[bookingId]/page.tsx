@@ -19,6 +19,12 @@ import { getBookingReview } from "@/lib/data/reviews";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
 import { Stars } from "@/components/reviews/Stars";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getTripPrep } from "@/lib/trip/prep";
+import { packingList } from "@/lib/trip/packing";
+import { supportContacts } from "@/lib/trip/support";
+import { TripQuestionnaire } from "@/components/trip/TripQuestionnaire";
+import { PackingList } from "@/components/trip/PackingList";
+import { EmergencyContacts } from "@/components/trip/EmergencyContacts";
 import { payBalance } from "./actions";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
@@ -35,6 +41,9 @@ export default async function TripPage({ params }: { params: { bookingId: string
   const existingReview = await getBookingReview(trip.id, user.id);
   // Live: reviews open once the trip is completed. Demo: always, so it's clickable.
   const canReview = trip.status === "completed" || !isSupabaseConfigured();
+  const prep = await getTripPrep(trip.id);
+  const packing = packingList(trip.experience);
+  const contacts = supportContacts(trip.experience.destinationSlug);
 
   return (
     <div>
@@ -135,9 +144,9 @@ export default async function TripPage({ params }: { params: { bookingId: string
           <section>
             <SectionTitle>Documents & preparation</SectionTitle>
             <div className="grid gap-3 sm:grid-cols-3">
-              <PrepCard title="Guest questionnaire" body="Tell your host about dietary needs, experience level and anything else." cta="Complete" />
-              <PrepCard title="Packing list" body="A tailored packing list for your experience and the season." cta="View" />
-              <PrepCard title="Emergency contacts" body="Local contacts and 24/7 support details for your trip." cta="View" />
+              <TripQuestionnaire bookingId={trip.id} initial={prep} />
+              <PackingList bookingId={trip.id} groups={packing} />
+              <EmergencyContacts contacts={contacts} prep={prep} />
             </div>
           </section>
         </div>
@@ -210,14 +219,3 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-function PrepCard({ title, body, cta }: { title: string; body: string; cta: string }) {
-  return (
-    <div className="flex flex-col rounded-xl2 border border-ink/10 bg-sand-50 p-5">
-      <h4 className="font-display text-lg font-semibold text-ink">{title}</h4>
-      <p className="mt-1.5 flex-1 text-sm text-ink-muted">{body}</p>
-      <button className="mt-4 self-start rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">
-        {cta}
-      </button>
-    </div>
-  );
-}

@@ -3,6 +3,7 @@ import type { Booking, FlightDetails } from "@/lib/booking/types";
 import type { ApplicationStatus } from "@/lib/demo/applications";
 import type { Message } from "@/lib/messaging/types";
 import type { Review } from "@/lib/reviews/types";
+import type { TripPrep } from "@/lib/trip/types";
 
 /**
  * Mutable demo state, persisted in a single cookie so actions taken in one
@@ -23,11 +24,13 @@ export interface DemoState {
   messages: Message[];
   /** Guest reviews submitted in demo (may be pending or published). */
   reviews: Review[];
+  /** Per-booking pre-trip questionnaire answers (demo). */
+  tripPrep: Record<string, TripPrep>;
   /** Admin-selected AI model (demo mode; per-browser). */
   aiModelId?: string;
 }
 
-const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [], messages: [], reviews: [] };
+const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [], messages: [], reviews: [], tripPrep: {} };
 
 export function readDemoState(): DemoState {
   try {
