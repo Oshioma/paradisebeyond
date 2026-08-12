@@ -1,0 +1,32 @@
+name: Migrate database
+
+# Auto-applies PENDING migrations to Supabase. Runs on every push to main that
+# changes a migration (i.e. when a PR that adds one is merged), and can also be
+# run by hand from the Actions tab. Idempotent — it only applies what's not yet
+# recorded in the public._schema_migrations ledger, so re-runs are safe.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/db-migrate.sh"
+
+# Don't let two migration runs race each other.
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply pending migrations
+        env:
+          # POSTGRES connection string, NOT the API URL:
+          #   ✓ postgresql://postgres:<PW>@db.<ref>.supabase.co:5432/postgres
+          # Store it as a repo secret: Settings → Secrets and variables →
+          # Actions → New secret → SUPABASE_DB_URL
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/db-migrate.sh
