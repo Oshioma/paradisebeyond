@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paradise-nav-h: 4.5rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-sand-50 text-ink font-sans antialiased;
+  }
+  ::selection {
+    @apply bg-ocean-500/20;
+  }
+  /* Editorial defaults */
+  h1, h2, h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .container-editorial {
+    @apply mx-auto w-full max-w-[1240px] px-5 sm:px-8;
+  }
+  .eyebrow {
+    @apply text-xs font-medium uppercase tracking-eyebrow text-ink-muted;
+  }
+  .link-underline {
+    @apply relative inline-flex items-center gap-1 after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-current after:transition-transform after:duration-500 after:ease-out-soft hover:after:origin-left hover:after:scale-x-100;
+  }
+  /* Reveal-on-scroll (progressive enhancement; visible by default without JS) */
+  .reveal {
+    @apply opacity-0 translate-y-4;
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .reveal.is-visible {
+    @apply opacity-100 translate-y-0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1 !important; transform: none !important; }
+  * { animation-duration: 0.001ms !important; }
+}
