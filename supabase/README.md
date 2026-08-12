@@ -12,7 +12,32 @@ Paste and run each file, top to bottom:
 2. `migrations/0002_rls.sql` — Row Level Security policies
 3. `migrations/0003_media_overrides.sql` — image override table
 4. `migrations/0004_retreat_drafts.sql` — Retreat Builder drafts
-5. `seed.sql` — catalogue data (destinations, categories, hosts, experiences…)
+5. `migrations/0005_go_live.sql` — signup trigger, read model, reservation fns
+6. `seed.sql` — catalogue data (destinations, categories, hosts, experiences…)
+
+> **Half-applied DB / "already exists" errors?** Run `reset.sql` FIRST to wipe
+> the `public` schema, then run 1–6 fresh. This deletes app data (auth users are
+> untouched). It's the reliable way to recover from an earlier partial run.
+
+### Auth emails hit a rate limit? (Resend)
+
+Supabase's built-in email is limited to a few messages/hour. To send auth emails
+(confirmation, password reset) via **Resend**: Supabase → **Authentication →
+SMTP Settings** → enable Custom SMTP:
+
+```
+Host:     smtp.resend.com
+Port:     465        (or 587)
+Username: resend
+Password: <your Resend API key, re_...>
+Sender:   hello@paradisebeyond.com   (a verified domain address)
+```
+
+(Setting `RESEND_API_KEY` in the app only powers the app's own emails, e.g.
+booking confirmations — it does not change Supabase's auth emails.)
+
+To just get in immediately without email: Supabase → Authentication → Providers
+→ Email → turn **off** "Confirm email", then sign up and sign in.
 
 Then, from your machine, create the auth users and roles:
 

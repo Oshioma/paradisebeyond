@@ -117,8 +117,18 @@ export function getEnvHealth(): EnvHealth {
     ],
   };
 
+  const emailGroup = {
+    title: "Email (Resend)",
+    note: "For the app's transactional emails. Supabase auth emails are configured separately (Auth → SMTP Settings → point at Resend).",
+    checks: [
+      secretCheck("RESEND_API_KEY", "Resend API key", false),
+      publicCheck("EMAIL_FROM", "From address", false),
+    ],
+  };
+
   const siteGroup = {
     title: "Site",
+    note: "Set the Site URL so auth email links resolve to your deployment, not localhost.",
     checks: [publicCheck("NEXT_PUBLIC_SITE_URL", "Site URL", false, { url: true })],
   };
 
@@ -134,7 +144,7 @@ export function getEnvHealth(): EnvHealth {
 
   return {
     mode: isSupabaseConfigured() ? "live" : "demo",
-    groups: [supabaseGroup, paymentsGroup, siteGroup],
+    groups: [supabaseGroup, paymentsGroup, emailGroup, siteGroup],
     dangerous,
   };
 }
