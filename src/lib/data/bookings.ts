@@ -18,7 +18,16 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 function allDemoBookings(): Booking[] {
   const state = readDemoState();
   const merged = [...DEMO_BOOKINGS, ...state.bookings];
-  return merged.map((b) => ({ ...b, flight: state.flights[b.id] ?? b.flight }));
+  return merged.map((b) => {
+    let next: Booking = { ...b, flight: state.flights[b.id] ?? b.flight };
+    if (state.balancePaid?.includes(b.id)) {
+      next = { ...next, paidMinor: next.subtotalMinor, balanceMinor: 0, status: "confirmed" };
+    }
+    if (state.refunded?.includes(b.id)) {
+      next = { ...next, status: "refunded" };
+    }
+    return next;
+  });
 }
 
 export function hydrate(booking: Booking): HydratedBooking | null {

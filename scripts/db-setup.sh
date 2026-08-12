@@ -24,6 +24,8 @@ FILES=(
   supabase/migrations/0003_media_overrides.sql
   supabase/migrations/0004_retreat_drafts.sql
   supabase/migrations/0005_go_live.sql
+  supabase/migrations/0006_stripe.sql
+  supabase/migrations/0007_promos.sql
   supabase/seed.sql
 )
 

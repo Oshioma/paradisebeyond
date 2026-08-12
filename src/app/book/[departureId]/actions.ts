@@ -5,7 +5,8 @@ import { requireUser } from "@/lib/auth/session";
 import { getAllExperiences } from "@/lib/data/repository";
 import { findByDeparture, priceBooking } from "@/lib/booking/pricing";
 import { getPaymentProvider } from "@/lib/payments";
-import { money } from "@/lib/money";
+import { money, splitCommission } from "@/lib/money";
+import { promoDiscount } from "@/lib/promo/validate";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { updateDemoState } from "@/lib/demo/state";
 import { sendEmail } from "@/lib/email";
@@ -43,15 +44,28 @@ export async function createBooking(formData: FormData) {
   const { experience, departure } = found;
   const room = experience.stay.roomTypes.find((r) => r.id === roomId) ?? experience.stay.roomTypes[0];
 
-  const breakdown = priceBooking(experience, departure, room, guests);
-  const dueNowMinor = payFull ? breakdown.subtotalMinor : breakdown.depositDueNowMinor;
+  const raw = priceBooking(experience, departure, room, guests);
+
+  // Apply a promo code (if valid) to the subtotal, then recompute the split.
+  const promoInput = String(formData.get("promo") ?? "").trim();
+  const promo = promoInput ? await promoDiscount(promoInput, raw.subtotalMinor) : null;
+  const discountMinor = promo?.discountMinor ?? 0;
+
+  const commissionRateBps = raw.commissionRateBps;
+  const currency = raw.currency;
+  const subtotalMinor = Math.max(0, raw.subtotalMinor - discountMinor);
+  const split = splitCommission(subtotalMinor, commissionRateBps);
+  const platformFeeMinor = split.platformFeeMinor;
+  const hostNetMinor = split.hostNetMinor;
+  const depositMinor = Math.min(raw.depositDueNowMinor, subtotalMinor);
+  const dueNowMinor = payFull ? subtotalMinor : depositMinor;
   const paidMinor = dueNowMinor;
-  const balanceMinor = breakdown.subtotalMinor - paidMinor;
+  const balanceMinor = subtotalMinor - paidMinor;
+  const feeDueNowMinor = subtotalMinor > 0 ? Math.round((platformFeeMinor * paidMinor) / subtotalMinor) : 0;
 
   const bookingId = "bk-" + crypto.randomUUID().slice(0, 8);
   const reference = "PB-" + crypto.randomUUID().slice(0, 8).toUpperCase();
   const kind = payFull ? "full" : "deposit";
-  const feeDueNowMinor = Math.round((breakdown.platformFeeMinor * paidMinor) / breakdown.subtotalMinor);
   const soldOut = `/experiences/${experience.slug}?soldout=1`;
   const provider = getPaymentProvider();
 
@@ -61,10 +75,9 @@ export async function createBooking(formData: FormData) {
     const { startStripeCheckout } = await import("@/lib/payments/stripeCheckout");
     const res = await startStripeCheckout({
       guestId: user.id, guestEmail: user.email, experience, departure, room, guests, kind,
-      currency: breakdown.currency, subtotalMinor: breakdown.subtotalMinor,
-      depositMinor: breakdown.depositDueNowMinor, balanceMinor, dueNowMinor, feeDueNowMinor,
-      commissionRateBps: breakdown.commissionRateBps, platformFeeMinor: breakdown.platformFeeMinor,
-      hostNetMinor: breakdown.hostNetMinor, reference,
+      currency, subtotalMinor, depositMinor, balanceMinor, dueNowMinor, feeDueNowMinor,
+      commissionRateBps, platformFeeMinor, hostNetMinor, reference,
+      promoCode: promo?.code, discountMinor,
     });
     if (res.soldOut || !res.url) redirect(soldOut);
     redirect(res.url); // → Stripe hosted checkout
@@ -85,7 +98,7 @@ export async function createBooking(formData: FormData) {
     await provider.createPaymentIntent({
       bookingId: reference,
       kind,
-      amount: money(dueNowMinor, breakdown.currency),
+      amount: money(dueNowMinor, currency),
       applicationFeeMinor: feeDueNowMinor,
       idempotencyKey: `${reference}:${kind}`,
     });
@@ -99,14 +112,16 @@ export async function createBooking(formData: FormData) {
         departure_id: departure.id,
         room_type_id: room.id,
         guest_count: guests,
-        currency: breakdown.currency,
-        subtotal_minor: breakdown.subtotalMinor,
-        deposit_minor: breakdown.depositDueNowMinor,
+        currency,
+        subtotal_minor: subtotalMinor,
+        deposit_minor: depositMinor,
         balance_minor: balanceMinor,
         balance_due_date: departure.startDate,
-        commission_rate_bps: breakdown.commissionRateBps,
-        platform_fee_minor: breakdown.platformFeeMinor,
-        host_net_minor: breakdown.hostNetMinor,
+        commission_rate_bps: commissionRateBps,
+        platform_fee_minor: platformFeeMinor,
+        host_net_minor: hostNetMinor,
+        promo_code: promo?.code ?? null,
+        discount_minor: discountMinor,
         status: payFull ? "confirmed" : "reserved",
       })
       .select("id")
@@ -117,17 +132,18 @@ export async function createBooking(formData: FormData) {
       booking_id: newId,
       kind,
       amount_minor: dueNowMinor,
-      currency: breakdown.currency,
+      currency,
       application_fee_minor: feeDueNowMinor,
       provider: provider.name,
       status: "succeeded",
       idempotency_key: `${reference}:${kind}`,
     });
+    if (promo) await supabase.rpc("redeem_promo", { p_code: promo.code });
 
     await sendConfirmation({
       to: user.email, guestName: user.name, experienceName: experience.name, location: experience.location,
       startDate: departure.startDate, endDate: departure.endDate, reference,
-      paidMinor, balanceMinor, currency: breakdown.currency, bookingId: newId,
+      paidMinor, balanceMinor, currency, bookingId: newId,
     });
     redirect(`/account/trips/${newId}?new=1`);
   }
@@ -137,7 +153,7 @@ export async function createBooking(formData: FormData) {
   await provider.createPaymentIntent({
     bookingId,
     kind,
-    amount: money(dueNowMinor, breakdown.currency),
+    amount: money(dueNowMinor, currency),
     applicationFeeMinor: feeDueNowMinor,
     idempotencyKey: `${bookingId}:${kind}`,
   });
@@ -151,15 +167,15 @@ export async function createBooking(formData: FormData) {
     departureId: departure.id,
     roomTypeId: room.id,
     guestCount: guests,
-    currency: breakdown.currency,
-    subtotalMinor: breakdown.subtotalMinor,
-    depositMinor: breakdown.depositDueNowMinor,
+    currency,
+    subtotalMinor,
+    depositMinor,
     balanceMinor,
     paidMinor,
     balanceDueDate: departure.startDate,
-    commissionRateBps: breakdown.commissionRateBps,
-    platformFeeMinor: breakdown.platformFeeMinor,
-    hostNetMinor: breakdown.hostNetMinor,
+    commissionRateBps,
+    platformFeeMinor,
+    hostNetMinor,
     status: payFull ? "confirmed" : "reserved",
     createdAt: new Date().toISOString().slice(0, 10),
   };
@@ -169,7 +185,12 @@ export async function createBooking(formData: FormData) {
   await sendConfirmation({
     to: user.email, guestName: user.name, experienceName: experience.name, location: experience.location,
     startDate: departure.startDate, endDate: departure.endDate, reference,
-    paidMinor, balanceMinor, currency: breakdown.currency, bookingId,
+    paidMinor, balanceMinor, currency, bookingId,
   });
   redirect(`/account/trips/${bookingId}?new=1`);
+}
+
+/** Preview a promo code against a subtotal (for the booking summary). */
+export async function checkPromo(code: string, subtotalMinor: number) {
+  return promoDiscount(code, subtotalMinor);
 }

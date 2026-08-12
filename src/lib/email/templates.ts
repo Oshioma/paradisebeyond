@@ -45,6 +45,50 @@ export function bookingConfirmationEmail(b: {
   return { subject, html };
 }
 
+function shell(heading: string, bodyHtml: string) {
+  return `
+  <div style="font-family:Georgia,serif;background:#faf7f2;padding:32px;color:#1c1a16">
+    <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #eee">
+      <div style="background:#1b4242;color:#faf7f2;padding:26px">
+        <div style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.8">Paradise Beyond</div>
+        <div style="font-size:24px;margin-top:8px">${heading}</div>
+      </div>
+      <div style="padding:26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#3a352c">${bodyHtml}</div>
+    </div>
+  </div>`;
+}
+
+/** Host application decision email. */
+export function applicationStatusEmail(name: string, status: string, notes?: string) {
+  const map: Record<string, { subject: string; heading: string; body: string }> = {
+    approved: {
+      subject: "Your Paradise Beyond application is approved 🎉",
+      heading: "You're in.",
+      body: `<p>Dear ${name},</p><p>We'd love to have you host with Paradise Beyond. You can now open the Retreat Builder and create your listing — we'll do a final review before it goes live.</p><p><a href="${siteUrl()}/studio/retreats/new" style="background:#c9744a;color:#faf7f2;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Build your retreat</a></p>`,
+    },
+    changes_requested: {
+      subject: "A note on your Paradise Beyond application",
+      heading: "Nearly there.",
+      body: `<p>Dear ${name},</p><p>Thanks for applying. Before we can approve, we'd love a few tweaks:</p><p style="background:#f4efe6;border-radius:10px;padding:12px">${notes || "We'll follow up with details."}</p>`,
+    },
+    rejected: {
+      subject: "Your Paradise Beyond application",
+      heading: "Thank you for applying.",
+      body: `<p>Dear ${name},</p><p>Thank you for your interest in hosting with Paradise Beyond. On this occasion we're not able to move forward, but we'd welcome a future application as our collection grows.</p>`,
+    },
+  };
+  const m = map[status] ?? { subject: "Update on your application", heading: "Application update", body: `<p>Dear ${name},</p><p>Your application status is now: ${status}.</p>` };
+  return { subject: m.subject, html: shell(m.heading, m.body) };
+}
+
+/** Balance-paid receipt. */
+export function balancePaidEmail(name: string, experienceName: string) {
+  return {
+    subject: `Balance settled — you're all set for ${experienceName}`,
+    html: shell("You're all set.", `<p>Dear ${name},</p><p>We've received your balance for <strong>${experienceName}</strong> — nothing more to pay. We can't wait to welcome you.</p><p><a href="${siteUrl()}/account" style="background:#c9744a;color:#faf7f2;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:13px;letter-spacing:.1em;text-transform:uppercase">View your trip</a></p>`),
+  };
+}
+
 export function bookingConfirmationFromHydrated(b: HydratedBooking, guestEmail: string) {
   return {
     to: guestEmail,

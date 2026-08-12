@@ -13,6 +13,7 @@ import { StatusPill } from "@/components/dashboard/StatusPill";
 import { Itinerary } from "@/components/experience/Itinerary";
 import { BeforeYouGo } from "@/components/dashboard/BeforeYouGo";
 import { FlightForm } from "@/components/dashboard/FlightForm";
+import { payBalance } from "./actions";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
 
@@ -113,9 +114,12 @@ export default async function TripPage({ params }: { params: { bookingId: string
                   Balance of {formatMoney(trip.balanceMinor, trip.currency)} due by{" "}
                   <span className="font-medium">{formatFullDate(trip.balanceDueDate)}</span>.
                 </p>
-                <button className="mt-4 w-full rounded-full bg-clay-500 px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-                  Pay balance
-                </button>
+                <form action={payBalance} className="mt-4">
+                  <input type="hidden" name="bookingId" value={trip.id} />
+                  <button className="w-full rounded-full bg-clay-500 px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
+                    Pay balance
+                  </button>
+                </form>
               </>
             ) : (
               <p className="mt-4 text-sm text-palm-600">Fully paid — you&apos;re all set.</p>

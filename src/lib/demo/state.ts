@@ -13,9 +13,13 @@ export interface DemoState {
   flights: Record<string, FlightDetails>;
   apps: Record<string, ApplicationStatus>;
   bookings: Booking[];
+  /** Booking ids whose balance was paid in demo. */
+  balancePaid: string[];
+  /** Booking ids refunded/cancelled in demo. */
+  refunded: string[];
 }
 
-const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [] };
+const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [] };
 
 export function readDemoState(): DemoState {
   try {

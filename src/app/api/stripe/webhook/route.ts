@@ -38,13 +38,12 @@ export async function POST(req: NextRequest) {
         const bookingId = session.metadata?.booking_id;
         const kind = (session.metadata?.kind as string) ?? "deposit";
         if (bookingId && session.payment_status === "paid") {
-          await supabase
-            .from("bookings")
-            .update({
-              status: kind === "full" ? "confirmed" : "reserved",
-              stripe_payment_intent: String(session.payment_intent ?? ""),
-            })
-            .eq("id", bookingId);
+          const update: Record<string, unknown> = {
+            status: kind === "deposit" ? "reserved" : "confirmed",
+            stripe_payment_intent: String(session.payment_intent ?? ""),
+          };
+          if (kind === "balance" || kind === "full") update.balance_minor = 0;
+          await supabase.from("bookings").update(update).eq("id", bookingId);
 
           // Record the payment (idempotent on the session+kind key).
           await supabase.from("payments").upsert(
