@@ -21,7 +21,10 @@ set -euo pipefail
 # Migrations assumed already present on an existing DB. Override with BASELINE=""
 # to force everything to be (re-)applied — only safe if every migration is
 # idempotent.
-BASELINE_DEFAULT="0001_schema 0002_rls 0003_media_overrides 0004_retreat_drafts 0005_go_live 0006_stripe 0007_promos 0008_messages"
+# Only the base migrations that are NOT re-runnable (create type / create table
+# without guards). Everything from 0008 on is idempotent, so the runner applies
+# it even on an existing DB — recovering a DB that's missing a later migration.
+BASELINE_DEFAULT="0001_schema 0002_rls 0003_media_overrides 0004_retreat_drafts 0005_go_live 0006_stripe 0007_promos"
 BASELINE="${BASELINE-$BASELINE_DEFAULT}"
 
 run() { psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "$1"; }
