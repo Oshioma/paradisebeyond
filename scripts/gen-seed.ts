@@ -112,10 +112,10 @@ for (const e of EXPERIENCES) {
       `${S(propId)}, ${S(id("destination", e.destinationSlug))}, ${S(e.stay.property)}, ${S(e.stay.description)}, ${S(e.location)}, ${B(e.verified)}) on conflict (id) do nothing;`,
   );
 
-  // Experience
+  // Experience (with the full editorial read model in `content`)
   w(
-    `insert into experiences (id, slug, name, strapline, status, duration, destination_id, property_id, location_label, currency, price_from_minor, max_group_size, verified, featured, hero_image_url, story, for_you_if) values (` +
-      `${S(expId)}, ${S(e.slug)}, ${S(e.name)}, ${S(e.strapline)}, 'published', ${S(String(e.duration))}, ${S(id("destination", e.destinationSlug))}, ${S(propId)}, ${S(e.location)}, ${S(e.currency)}, ${N(e.priceFromMinor)}, ${N(e.maxGroupSize)}, ${B(e.verified)}, ${B(e.featured)}, ${S(img(e.heroImageSeed, 2000, 1200))}, ${jsonb(e.story)}, ${jsonb(e.forYouIf)}) on conflict (id) do nothing;`,
+    `insert into experiences (id, slug, name, strapline, status, duration, destination_id, property_id, location_label, currency, price_from_minor, max_group_size, verified, featured, hero_image_url, story, for_you_if, content) values (` +
+      `${S(expId)}, ${S(e.slug)}, ${S(e.name)}, ${S(e.strapline)}, 'published', ${S(String(e.duration))}, ${S(id("destination", e.destinationSlug))}, ${S(propId)}, ${S(e.location)}, ${S(e.currency)}, ${N(e.priceFromMinor)}, ${N(e.maxGroupSize)}, ${B(e.verified)}, ${B(e.featured)}, ${S(img(e.heroImageSeed, 2000, 1200))}, ${jsonb(e.story)}, ${jsonb(e.forYouIf)}, ${jsonb(e)}) on conflict (id) do nothing;`,
   );
 
   // Host links
@@ -153,7 +153,7 @@ for (const e of EXPERIENCES) {
   // Room types
   e.stay.roomTypes.forEach((r, i) => {
     w(
-      `insert into room_types (id, experience_id, name, description, occupancy, price_delta_minor, sort_order) values (${S(id("room", `${e.slug}:${r.id}`))}, ${S(expId)}, ${S(r.name)}, ${S(r.description)}, ${S(r.occupancy)}, ${N(r.priceDeltaMinor)}, ${N(i)}) on conflict (id) do nothing;`,
+      `insert into room_types (id, experience_id, code, name, description, occupancy, price_delta_minor, sort_order) values (${S(id("room", `${e.slug}:${r.id}`))}, ${S(expId)}, ${S(r.id)}, ${S(r.name)}, ${S(r.description)}, ${S(r.occupancy)}, ${N(r.priceDeltaMinor)}, ${N(i)}) on conflict (id) do nothing;`,
     );
   });
 
@@ -174,7 +174,7 @@ for (const e of EXPERIENCES) {
   for (const dep of e.departures) {
     const depId = id("departure", dep.id);
     w(
-      `insert into departures (id, experience_id, start_date, end_date, currency, price_from_minor, deposit_minor, balance_due_days, capacity, spaces_remaining, status) values (${S(depId)}, ${S(expId)}, ${S(dep.startDate)}, ${S(dep.endDate)}, ${S(dep.currency)}, ${N(dep.priceFromMinor)}, ${N(dep.depositMinor)}, ${N(dep.balanceDueDays)}, ${N(dep.capacity)}, ${N(dep.spacesRemaining)}, ${S(dep.status)}) on conflict (id) do nothing;`,
+      `insert into departures (id, experience_id, code, start_date, end_date, currency, price_from_minor, deposit_minor, balance_due_days, capacity, spaces_remaining, status) values (${S(depId)}, ${S(expId)}, ${S(dep.id)}, ${S(dep.startDate)}, ${S(dep.endDate)}, ${S(dep.currency)}, ${N(dep.priceFromMinor)}, ${N(dep.depositMinor)}, ${N(dep.balanceDueDays)}, ${N(dep.capacity)}, ${N(dep.spacesRemaining)}, ${S(dep.status)}) on conflict (id) do nothing;`,
     );
     e.stay.roomTypes.forEach((r) => {
       w(

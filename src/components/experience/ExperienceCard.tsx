@@ -4,7 +4,7 @@ import type { Experience } from "@/lib/types";
 import { img } from "@/lib/images";
 import { formatFrom } from "@/lib/money";
 import { formatDateRange } from "@/lib/utils";
-import { upcomingDeparture } from "@/lib/data/repository";
+import { upcomingDeparture } from "@/lib/data/helpers";
 import { getCategory, categoryLabel } from "@/lib/data/categories";
 import { getHost } from "@/lib/data/hosts";
 import { DurationBadge, VerifiedBadge } from "@/components/ui/Badge";

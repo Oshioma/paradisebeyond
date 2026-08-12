@@ -37,15 +37,76 @@ export async function createBooking(formData: FormData) {
 
   const bookingId = "bk-" + crypto.randomUUID().slice(0, 8);
   const reference = "PB-" + crypto.randomUUID().slice(0, 8).toUpperCase();
-
-  // Take payment for the amount due now. Idempotency prevents double charges.
+  const kind = payFull ? "full" : "deposit";
+  const feeDueNowMinor = Math.round((breakdown.platformFeeMinor * paidMinor) / breakdown.subtotalMinor);
+  const soldOut = `/experiences/${experience.slug}?soldout=1`;
   const provider = getPaymentProvider();
+
+  if (isSupabaseConfigured()) {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = createClient();
+
+    // 1. Reserve the spot ATOMICALLY before charging — prevents overbooking.
+    const { data: reserved, error: reserveError } = await supabase.rpc("reserve_departure", {
+      p_departure: departure.id,
+      p_qty: guests,
+    });
+    if (reserveError || !reserved) redirect(soldOut);
+
+    // 2. Take payment for the amount due now (idempotent).
+    await provider.createPaymentIntent({
+      bookingId: reference,
+      kind,
+      amount: money(dueNowMinor, breakdown.currency),
+      applicationFeeMinor: feeDueNowMinor,
+      idempotencyKey: `${reference}:${kind}`,
+    });
+
+    // 3. Persist the booking (DB generates the id) with the commission snapshot.
+    const { data: inserted } = await supabase
+      .from("bookings")
+      .insert({
+        reference,
+        guest_id: user.id,
+        departure_id: departure.id,
+        room_type_id: room.id,
+        guest_count: guests,
+        currency: breakdown.currency,
+        subtotal_minor: breakdown.subtotalMinor,
+        deposit_minor: breakdown.depositDueNowMinor,
+        balance_minor: balanceMinor,
+        balance_due_date: departure.startDate,
+        commission_rate_bps: breakdown.commissionRateBps,
+        platform_fee_minor: breakdown.platformFeeMinor,
+        host_net_minor: breakdown.hostNetMinor,
+        status: payFull ? "confirmed" : "reserved",
+      })
+      .select("id")
+      .single();
+
+    const newId = inserted?.id ?? bookingId;
+    await supabase.from("payments").insert({
+      booking_id: newId,
+      kind,
+      amount_minor: dueNowMinor,
+      currency: breakdown.currency,
+      application_fee_minor: feeDueNowMinor,
+      provider: provider.name,
+      status: "succeeded",
+      idempotency_key: `${reference}:${kind}`,
+    });
+
+    redirect(`/account/trips/${newId}?new=1`);
+  }
+
+  // --- Demo path -----------------------------------------------------------
+  if (departure.spacesRemaining < guests) redirect(soldOut);
   await provider.createPaymentIntent({
     bookingId,
-    kind: payFull ? "full" : "deposit",
+    kind,
     amount: money(dueNowMinor, breakdown.currency),
-    applicationFeeMinor: Math.round((breakdown.platformFeeMinor * paidMinor) / breakdown.subtotalMinor),
-    idempotencyKey: `${bookingId}:${payFull ? "full" : "deposit"}`,
+    applicationFeeMinor: feeDueNowMinor,
+    idempotencyKey: `${bookingId}:${kind}`,
   });
 
   const booking: Booking = {
@@ -62,40 +123,15 @@ export async function createBooking(formData: FormData) {
     depositMinor: breakdown.depositDueNowMinor,
     balanceMinor,
     paidMinor,
-    balanceDueDate: departure.startDate, // simplified: balance by start; real path uses schedule
+    balanceDueDate: departure.startDate,
     commissionRateBps: breakdown.commissionRateBps,
     platformFeeMinor: breakdown.platformFeeMinor,
     hostNetMinor: breakdown.hostNetMinor,
     status: payFull ? "confirmed" : "reserved",
     createdAt: new Date().toISOString().slice(0, 10),
   };
-
-  if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
-    // RLS: a guest may insert only their own booking. Money/commission columns
-    // are computed server-side here (not trusted from the client).
-    await supabase.from("bookings").insert({
-      id: bookingId,
-      reference,
-      guest_id: user.id,
-      departure_id: departure.id,
-      room_type_id: room.id,
-      guest_count: guests,
-      currency: breakdown.currency,
-      subtotal_minor: breakdown.subtotalMinor,
-      deposit_minor: breakdown.depositDueNowMinor,
-      balance_minor: balanceMinor,
-      commission_rate_bps: breakdown.commissionRateBps,
-      platform_fee_minor: breakdown.platformFeeMinor,
-      host_net_minor: breakdown.hostNetMinor,
-      status: booking.status,
-    });
-  } else {
-    updateDemoState((s) => {
-      s.bookings.push(booking);
-    });
-  }
-
+  updateDemoState((s) => {
+    s.bookings.push(booking);
+  });
   redirect(`/account/trips/${bookingId}?new=1`);
 }
