@@ -373,7 +373,8 @@ function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; valida
       const res = await submitRetreat(draft);
       if (res.ok) {
         try { localStorage.removeItem(`pb:retreat:${draft.id}`); } catch { /* ignore */ }
-        router.push("/studio/retreats?submitted=1");
+        // Admin direct-publish returns the live slug; hosts go to the queue.
+        router.push(res.slug ? `/experiences/${res.slug}` : "/studio/retreats?submitted=1");
       } else {
         setErrors(res.errors ?? ["Something went wrong."]);
       }

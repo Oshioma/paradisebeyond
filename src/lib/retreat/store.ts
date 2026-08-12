@@ -50,10 +50,12 @@ export async function saveDraft(draft: RetreatDraft): Promise<void> {
   if (isSupabaseConfigured()) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = createClient();
-    await supabase.from("retreat_drafts").upsert(
+    const { error } = await supabase.from("retreat_drafts").upsert(
       { id: draft.id, host_id: draft.hostId ?? null, status: draft.status, data: draft, updated_at: draft.updatedAt },
       { onConflict: "id" },
     );
+    // Surface RLS/constraint failures instead of silently losing the draft.
+    if (error) throw new Error(`Could not save draft: ${error.message}`);
     return;
   }
   const all = await readAll();

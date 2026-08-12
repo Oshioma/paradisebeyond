@@ -6,23 +6,62 @@ import { requireRole } from "@/lib/auth/session";
 import { saveDraft } from "@/lib/retreat/store";
 import { validateForSubmit, type RetreatDraft } from "@/lib/retreat/schema";
 import { saveUpload } from "@/lib/media/store";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { callClaude, isAiEnabled, parseJsonObject } from "@/lib/ai/anthropic";
 import { draftRetreat, type RetreatDraftSuggestion } from "@/lib/ai/retreat";
+
+/**
+ * Resolve the hosts.id owned by the current host user, so drafts carry the
+ * right host_id (RLS on retreat_drafts checks host ownership). Returns undefined
+ * for admins or when the user owns no host row.
+ */
+async function ownedHostId(userId: string): Promise<string | undefined> {
+  if (!isSupabaseConfigured()) return undefined;
+  const { createClient } = await import("@/lib/supabase/server");
+  const { data } = await createClient().from("hosts").select("id").eq("owner_id", userId).maybeSingle();
+  return (data?.id as string) ?? undefined;
+}
 
 /** Persist the current draft (autosave / "Save draft"). */
 export async function saveRetreatDraft(draft: RetreatDraft) {
   const user = await requireRole("host");
-  draft.hostId = user.hostSlug ? undefined : draft.hostId; // hostId is a hosts.id in live mode
+  if (user.role === "host") {
+    const hostId = await ownedHostId(user.id);
+    if (hostId) draft.hostId = hostId; // hostId is a hosts.id in live mode
+  }
   if (draft.status === "approved" || draft.status === "submitted") return; // don't overwrite a submitted draft
   await saveDraft(draft);
   revalidatePath("/studio/retreats");
 }
 
-/** Submit for approval. Validates required fields; sets status → submitted. */
-export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean; errors?: string[] }> {
-  await requireRole("host");
+/**
+ * Submit a retreat. A host submits for admin review; an admin building directly
+ * publishes it straight to the live catalogue. Validates required fields first.
+ */
+export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean; errors?: string[]; slug?: string }> {
+  const user = await requireRole("host");
   const check = validateForSubmit(draft);
   if (!check.ok) return { ok: false, errors: check.errors };
+
+  // Admin direct-create → publish immediately.
+  if (user.role === "admin") {
+    if (!isSupabaseConfigured()) return { ok: false, errors: ["Publishing requires a live Supabase connection (demo mode is read-only)."] };
+    draft.status = "approved";
+    await saveDraft(draft);
+    const { publishDraft } = await import("@/lib/retreat/publish");
+    const res = await publishDraft(draft, user.id);
+    if (!res.ok) return { ok: false, errors: [res.error] };
+    revalidatePath("/desk/experiences");
+    revalidatePath("/experiences");
+    revalidatePath(`/experiences/${res.slug}`);
+    return { ok: true, slug: res.slug };
+  }
+
+  // Host → queue for review.
+  if (!draft.hostId) {
+    const hostId = await ownedHostId(user.id);
+    if (hostId) draft.hostId = hostId;
+  }
   draft.status = "submitted";
   await saveDraft(draft);
   revalidatePath("/studio/retreats");

@@ -27,6 +27,8 @@ FILES=(
   supabase/migrations/0006_stripe.sql
   supabase/migrations/0007_promos.sql
   supabase/migrations/0008_messages.sql
+  supabase/migrations/0009_app_settings.sql
+  supabase/migrations/0010_publish.sql
   supabase/seed.sql
 )
 
