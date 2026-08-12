@@ -27,5 +27,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# runtime image overrides (demo mode)
+/.data
+/public/uploads
+
 # typescript
 *.tsbuildinfo

@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "gen:seed": "node --experimental-strip-types scripts/gen-seed.ts",
+    "bootstrap:auth": "node scripts/bootstrap-auth.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.5.1",
