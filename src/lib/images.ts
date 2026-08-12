@@ -1,17 +1,19 @@
 /**
- * Placeholder photography.
+ * Imagery.
  *
  * Every image in the magazine flows through this single helper, so swapping the
  * demo placeholders for real photography (Supabase Storage, Cloudinary, etc.)
- * is a one-file change. Seeds are deterministic, so the same experience always
- * renders the same imagery.
+ * is a one-file change: return your CDN URL from `img()` and re-enable
+ * `next/image` optimisation + `remotePatterns` in next.config.mjs.
+ *
+ * Today it returns a self-contained, deterministic gradient from the local
+ * /api/placeholder route — no external photo host required, so the site renders
+ * identically online or offline.
  */
 
-const BASE = "https://picsum.photos/seed";
-
 export function img(seed: string, width: number, height: number): string {
-  const safe = encodeURIComponent(seed);
-  return `${BASE}/pb-${safe}/${Math.round(width)}/${Math.round(height)}`;
+  const s = encodeURIComponent(`pb-${seed}`);
+  return `/api/placeholder?seed=${s}&w=${Math.round(width)}&h=${Math.round(height)}`;
 }
 
 /** A wide editorial/hero crop. */

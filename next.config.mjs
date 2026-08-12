@@ -2,12 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    // Placeholder photography source. Swap remotePatterns for your real media CDN
-    // (e.g. Supabase Storage / Cloudinary) — image URLs are centralised in src/lib/images.ts.
+    // Demo imagery is generated locally by /api/placeholder (SVG), so image
+    // optimisation is disabled to serve it directly. When you point
+    // src/lib/images.ts at a real media CDN (Supabase Storage / Cloudinary),
+    // set `unoptimized: false` and add the CDN host to `remotePatterns` below
+    // to get automatic resizing, format negotiation and lazy loading.
+    unoptimized: true,
     remotePatterns: [
-      { protocol: "https", hostname: "picsum.photos" },
-      { protocol: "https", hostname: "fastly.picsum.photos" },
-      { protocol: "https", hostname: "images.unsplash.com" },
+      // { protocol: "https", hostname: "<your-project>.supabase.co" },
     ],
   },
 };

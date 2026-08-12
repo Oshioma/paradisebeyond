@@ -47,6 +47,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${sans.variable}`}>
       <body className="min-h-screen bg-sand-50 text-ink">
+        {/* Enable scroll-reveal only when JS is present (flash-free, no-JS safe). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "document.documentElement.classList.add('js-reveal')",
+          }}
+        />
         <WishlistProvider>
           <SiteHeader />
           <main>{children}</main>
