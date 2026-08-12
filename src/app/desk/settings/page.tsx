@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getEnvHealth, probeSupabase, type Level } from "@/lib/admin/envHealth";
+import { isAiEnabled } from "@/lib/ai/anthropic";
+import { getSelectedModel, getModelSource } from "@/lib/ai/settings";
+import { AI_MODELS } from "@/lib/ai/models";
+import { ModelSwitcher } from "@/components/admin/ModelSwitcher";
 
 export const metadata: Metadata = { title: "System", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -9,6 +13,7 @@ export default async function SettingsPage() {
   await requireRole("admin", "/desk/settings");
   const health = getEnvHealth();
   const probe = await probeSupabase();
+  const [aiModel, aiSource] = await Promise.all([getSelectedModel(), getModelSource()]);
 
   return (
     <div className="container-editorial py-12">
@@ -85,6 +90,17 @@ export default async function SettingsPage() {
           </section>
         ))}
       </div>
+
+      {/* AI model switch */}
+      <section className="mt-12">
+        <h2 className="font-display text-2xl font-semibold text-ink">AI model</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Choose the model that powers &ldquo;Draft with AI&rdquo; in the Retreat Builder. Applies immediately — no redeploy.
+        </p>
+        <div className="mt-4">
+          <ModelSwitcher models={AI_MODELS} selected={aiModel} source={aiSource} aiEnabled={isAiEnabled()} />
+        </div>
+      </section>
 
       <p className="mt-8 text-xs text-ink-muted">
         Set these in <code>.env.local</code> (local) or your host&apos;s environment settings (Vercel / Claude Code environment). Publishable key → <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>; secret key → <code>SUPABASE_SERVICE_ROLE_KEY</code> (never a <code>NEXT_PUBLIC_</code> var).

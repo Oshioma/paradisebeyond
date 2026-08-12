@@ -20,6 +20,8 @@ export interface DemoState {
   refunded: string[];
   /** Messages posted in demo. */
   messages: Message[];
+  /** Admin-selected AI model (demo mode; per-browser). */
+  aiModelId?: string;
 }
 
 const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [], messages: [] };

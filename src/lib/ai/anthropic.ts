@@ -40,6 +40,9 @@ export async function callClaude({ system, prompt, maxTokens = 2000, timeoutMs =
   const key = process.env.ANTHROPIC_API_KEY?.trim();
   if (!key) return null;
 
+  const { getSelectedModel } = await import("@/lib/ai/settings");
+  const model = await getSelectedModel();
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -51,7 +54,7 @@ export async function callClaude({ system, prompt, maxTokens = 2000, timeoutMs =
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: aiModel(),
+        model,
         max_tokens: maxTokens,
         system,
         messages: [{ role: "user", content: prompt }],
