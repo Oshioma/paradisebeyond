@@ -15,6 +15,10 @@ import { BeforeYouGo } from "@/components/dashboard/BeforeYouGo";
 import { FlightForm } from "@/components/dashboard/FlightForm";
 import { MessageThread } from "@/components/messaging/MessageThread";
 import { getMessages } from "@/lib/data/messages";
+import { getBookingReview } from "@/lib/data/reviews";
+import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { Stars } from "@/components/reviews/Stars";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { payBalance } from "./actions";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
@@ -28,6 +32,9 @@ export default async function TripPage({ params }: { params: { bookingId: string
   const host = getHost(trip.experience.hostSlugs[0]);
   const paidPct = Math.round((trip.paidMinor / trip.subtotalMinor) * 100);
   const messages = await getMessages(trip.id);
+  const existingReview = await getBookingReview(trip.id, user.id);
+  // Live: reviews open once the trip is completed. Demo: always, so it's clickable.
+  const canReview = trip.status === "completed" || !isSupabaseConfigured();
 
   return (
     <div>
@@ -97,6 +104,31 @@ export default async function TripPage({ params }: { params: { bookingId: string
               currentUserId={user.id}
               names={{ host: host?.name ?? "Host", guest: user.name, admin: "Paradise Beyond" }}
             />
+          </section>
+
+          {/* Your review */}
+          <section>
+            <SectionTitle>Your review</SectionTitle>
+            {existingReview ? (
+              <div className="rounded-xl2 border border-ink/10 bg-sand-100 p-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Stars value={existingReview.ratingOverall} className="text-xl" />
+                  <span className={`rounded-full px-3 py-1 text-[0.62rem] uppercase tracking-eyebrow ${existingReview.published ? "bg-palm-500/15 text-palm-600" : "bg-clay-500/10 text-clay-600"}`}>
+                    {existingReview.published ? "Published" : "Pending review"}
+                  </span>
+                </div>
+                {existingReview.body && <p className="mt-3 text-ink-soft">{existingReview.body}</p>}
+              </div>
+            ) : canReview ? (
+              <>
+                <p className="mb-4 max-w-prose text-sm text-ink-muted">
+                  How was it? Your honest review helps future guests — and your host. It&apos;s checked by our team before it goes live.
+                </p>
+                <ReviewForm bookingId={trip.id} experienceSlug={trip.experience.slug} />
+              </>
+            ) : (
+              <p className="text-sm text-ink-muted">You&apos;ll be able to leave a review once your trip is complete.</p>
+            )}
           </section>
 
           {/* Documents / questionnaire / packing */}

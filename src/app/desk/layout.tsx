@@ -16,6 +16,7 @@ export default async function DeskLayout({ children }: { children: React.ReactNo
           { label: "Submissions", href: "/desk/submissions" },
           { label: "Experiences", href: "/desk/experiences" },
           { label: "Bookings", href: "/desk/bookings" },
+          { label: "Reviews", href: "/desk/reviews" },
           { label: "Commissions", href: "/desk/commissions" },
           { label: "Promos", href: "/desk/promos" },
           { label: "Media", href: "/desk/media" },
