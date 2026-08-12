@@ -14,7 +14,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply migrations + seed
         env:
-          # Add this in repo → Settings → Secrets → Actions:
-          # Supabase → Project Settings → Database → Connection string (URI)
-          DATABASE_URL: ${{ https://arxtctddodrwrrnwdiih.supabase.co }}
+          # DATABASE_URL must be the POSTGRES CONNECTION STRING, not the API URL.
+          #   ✗ https://<ref>.supabase.co               (this is the API URL)
+          #   ✓ postgresql://postgres:<PW>@db.<ref>.supabase.co:5432/postgres
+          # Get it from: Supabase → Project Settings → Database → Connection string (URI).
+          # Store it as a secret (it contains your DB password) — never hardcode it here:
+          #   Repo → Settings → Secrets and variables → Actions → New secret → SUPABASE_DB_URL
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: bash scripts/db-setup.sh
