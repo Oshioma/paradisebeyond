@@ -86,11 +86,29 @@ itinerary/rooms), date-led departures with per-room inventory, bookings with a
 commission snapshot, payments/schedules/refunds/payouts, and guest artefacts
 (flights, wishlists, reviews, questionnaires).
 
+## Authentication & dashboards (Phase 1b)
+
+- **Auth + roles**: Supabase Auth via `@supabase/ssr`, `middleware.ts` refreshes
+  the session and guards `/account`, `/studio`, `/desk`. Role resolution and
+  server-side `requireUser` / `requireRole` in `src/lib/auth`.
+- **Guest dashboard** `/account`: My Trips, trip detail with payment status,
+  itinerary, **Before You Go**, and **flight entry** (saved via server action).
+- **Host studio** `/studio`: overview, retreats + departures, bookings/guests
+  with your net earnings.
+- **Admin desk** `/desk`: overview, host-application review (approve / request
+  changes / reject — audited, never auto-published), experiences, bookings, and
+  the configurable commission view.
+- **Real booking writes**: `createBooking` computes pricing + commission,
+  snapshots the rate, charges the amount due via the payment provider, and
+  persists the booking.
+
+**Demo mode.** With no Supabase configured, a cookie-backed session and seeded
+data stand in for auth and the database, so every dashboard is fully clickable
+and the build stays green. Sign in at `/login` as guest, host or admin. Setting
+the Supabase env vars switches everything to the real, RLS-enforced path.
+
 ## Roadmap
 
-- **Phase 1b** — Supabase auth + roles, live repository, real booking writes,
-  guest dashboard (My Trips / Before You Go / flight entry), host dashboard,
-  admin desk (approvals, curation, Verified, commissions, homepage content).
 - **Phase 1c** — Stripe Connect: deposits, balances, payouts, refunds, webhooks.
 - **Phase 2** — reviews, promo codes, guest messaging, AI retreat builder,
   automated emails, richer search.

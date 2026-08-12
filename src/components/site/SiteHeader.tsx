@@ -56,12 +56,18 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-4">
           <Link
-            href="/account/saved"
+            href="/saved"
             className="hidden items-center gap-1.5 text-sm text-ink-soft hover:text-ink sm:flex"
             aria-label="Saved experiences"
           >
             <HeartIcon className="h-4 w-4" />
             <WishlistCount />
+          </Link>
+          <Link
+            href="/account"
+            className="hidden text-sm text-ink-soft hover:text-ink sm:inline"
+          >
+            Account
           </Link>
           <Link
             href="/experiences"
@@ -84,7 +90,7 @@ export function SiteHeader() {
       {open && (
         <div className="border-t border-ink/10 bg-sand-50 md:hidden">
           <nav className="container-editorial flex flex-col py-4">
-            {NAV.concat({ label: "Saved", href: "/account/saved" }).map((item) => (
+            {NAV.concat({ label: "Saved", href: "/saved" }, { label: "Account", href: "/account" }).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

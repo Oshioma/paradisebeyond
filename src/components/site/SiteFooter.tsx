@@ -40,7 +40,7 @@ export function SiteFooter() {
             links={[
               { label: "Host a retreat", href: "/host" },
               { label: "Apply to host", href: "/host/apply" },
-              { label: "Saved experiences", href: "/account/saved" },
+              { label: "Saved experiences", href: "/saved" },
               { label: "How it works", href: "/host" },
             ]}
           />

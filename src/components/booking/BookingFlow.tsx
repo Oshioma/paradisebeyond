@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { Departure, Experience } from "@/lib/types";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange } from "@/lib/utils";
 import { priceBooking } from "@/lib/booking/pricing";
 import { cn } from "@/lib/utils";
+import { createBooking } from "@/app/book/[departureId]/actions";
 
 export function BookingFlow({
   experience,
@@ -19,7 +19,7 @@ export function BookingFlow({
   const [roomId, setRoomId] = useState(experience.stay.roomTypes[0].id);
   const [guests, setGuests] = useState(1);
   const [payFull, setPayFull] = useState(false);
-  const [done, setDone] = useState(false);
+  const [pending, startTransition] = useTransition();
 
   const room = experience.stay.roomTypes.find((r) => r.id === roomId)!;
   const breakdown = useMemo(
@@ -30,30 +30,16 @@ export function BookingFlow({
   const dueNow = payFull ? breakdown.subtotalMinor : breakdown.depositDueNowMinor;
   const c = experience.currency;
 
-  if (done) {
-    return (
-      <div className="rounded-xl2 bg-ocean-700 p-10 text-center text-sand-50">
-        <p className="font-display text-3xl font-semibold">Your place is reserved.</p>
-        <p className="mx-auto mt-3 max-w-md text-sand-100/90">
-          {experience.name} · {formatDateRange(departure.startDate, departure.endDate)}.
-          We&apos;ve taken your {payFull ? "full payment" : "deposit"} of{" "}
-          {formatMoney(dueNow, c)}. Check your email for confirmation and your
-          Before You Go guide.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/experiences" className="rounded-full bg-sand-50 px-6 py-3 text-xs uppercase tracking-eyebrow text-ink hover:bg-sand-100">
-            Browse more
-          </Link>
-          <Link href={`/experiences/${experience.slug}`} className="rounded-full border border-sand-50/40 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-sand-50/10">
-            Back to experience
-          </Link>
-        </div>
-        <p className="mx-auto mt-6 max-w-md text-xs text-sand-100/70">
-          Demo checkout — no real payment was taken. Wired to a mock provider;
-          swap in Stripe Connect for live deposits, balances and host payouts.
-        </p>
-      </div>
-    );
+  function reserve() {
+    const fd = new FormData();
+    fd.set("departureId", departure.id);
+    fd.set("roomId", roomId);
+    fd.set("guests", String(guests));
+    fd.set("payFull", String(payFull));
+    startTransition(() => {
+      // Server action creates the booking, takes payment, and redirects to the trip.
+      createBooking(fd);
+    });
   }
 
   return (
@@ -129,13 +115,14 @@ export function BookingFlow({
           </dl>
 
           <button
-            onClick={() => setDone(true)}
-            className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift"
+            onClick={reserve}
+            disabled={pending}
+            className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift disabled:opacity-60"
           >
-            Reserve my place
+            {pending ? "Securing…" : "Reserve my place"}
           </button>
           <p className="mt-3 text-center text-xs text-ink-muted">
-            Flights not included · free to hold, secure your dates now
+            Flights not included · secure your dates with {formatMoney(dueNow, c)} now
           </p>
         </div>
       </aside>
