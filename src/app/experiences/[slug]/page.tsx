@@ -44,13 +44,12 @@ export async function generateMetadata({
     openGraph: {
       title: `${e.name} · ${e.duration} Days in ${e.location}`,
       description: desc,
-      images: [{ url: hero(e.heroImageSeed), width: 2000, height: 1200, alt: e.name }],
+      // OG/Twitter images come from the branded opengraph-image.tsx card.
     },
     twitter: {
       card: "summary_large_image",
       title: `${e.name} · Paradise Beyond`,
       description: desc,
-      images: [hero(e.heroImageSeed)],
     },
     alternates: { canonical: `/experiences/${e.slug}` },
     other: next ? { "pb:next-departure": next.startDate } : {},

@@ -24,7 +24,7 @@ const SITE_DESC =
   "Curated 7 & 14-day experiences in extraordinary places. Come for more than a holiday.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://paradisebeyond.example"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://paradisebeyond.example"),
   title: {
     default: `${SITE_NAME} — Come for more than a holiday`,
     template: `%s · ${SITE_NAME}`,
