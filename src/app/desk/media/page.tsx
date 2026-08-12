@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getMediaGroups, type Slot } from "@/lib/media/registry";
 import { getAllOverrides } from "@/lib/media/store";
-import { uploadImage, setImageUrl, resetImage, loadDemoPhotos, clearAllPhotos } from "./actions";
+import { uploadImage, setImageUrl, resetImage } from "./actions";
+import { MediaBulkActions } from "@/components/dashboard/MediaBulkActions";
 
 export const metadata: Metadata = { title: "Media", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -26,18 +27,7 @@ export default async function MediaPage() {
           {" "}
           <span className="text-ink">{set}</span> of {totalSlots} slots customised.
         </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <form action={loadDemoPhotos}>
-            <button className="rounded-full bg-ink px-5 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
-              Load demo photography
-            </button>
-          </form>
-          <form action={clearAllPhotos}>
-            <button className="rounded-full border border-ink/15 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">
-              Clear all
-            </button>
-          </form>
-        </div>
+        <MediaBulkActions />
         <p className="mt-2 text-xs text-ink-muted">
           Demo photography uses generic stock and resolves on a live deployment
           (external image hosts are blocked in this sandbox). Replace any slot

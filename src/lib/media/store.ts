@@ -3,17 +3,13 @@ import path from "node:path";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 /**
- * Image override store — maps an image slot key (the seed) to an uploaded image
- * URL, so admins can replace the placeholder for any slot.
+ * Image override store — maps an image slot key (the seed) to an image URL, so
+ * admins can replace the placeholder for any slot.
  *
- *  - Live (Supabase configured): overrides live in the `media_overrides` table
- *    and files upload to the Storage bucket `media`. Persistent and shared.
- *  - Demo (no Supabase): overrides persist to a local JSON file and files write
- *    to `public/uploads`. Works while the container lives (ephemeral) — fine for
- *    local/sandbox use; on read-only hosts (Vercel), use the Supabase path.
- *
- * The seed key is the full `seed` query value used by the image route
- * (e.g. "pb-reconnection-hero").
+ *  - Live (Supabase): overrides in `media_overrides`; uploads to Storage bucket
+ *    `media`. Reads are cached in-memory (short TTL) so serving many images on a
+ *    page doesn't hammer the DB. Bulk operations use a single query.
+ *  - Demo (no Supabase): a local JSON file + `public/uploads`.
  */
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -21,67 +17,96 @@ const OVERRIDES_FILE = path.join(DATA_DIR, "image-overrides.json");
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const BUCKET = "media";
 
-// ---- read ------------------------------------------------------------------
-export async function getOverride(seed: string): Promise<string | null> {
-  const all = await getAllOverrides();
-  return all[seed] ?? null;
+// Short-lived cache of the full overrides map, shared across the many image
+// requests a single page render fires. Invalidated on any write.
+let cache: { at: number; map: Record<string, string> } | null = null;
+const TTL_MS = 30_000;
+function invalidate() {
+  cache = null;
 }
 
+// ---- read ------------------------------------------------------------------
 export async function getAllOverrides(): Promise<Record<string, string>> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache.map;
+  const map = await loadOverrides();
+  cache = { at: Date.now(), map };
+  return map;
+}
+
+async function loadOverrides(): Promise<Record<string, string>> {
   if (isSupabaseConfigured()) {
     try {
-      const { createClient } = await import("@/lib/supabase/server");
-      const supabase = createClient();
+      const { createAnonClient } = await import("@/lib/supabase/server");
+      const supabase = createAnonClient();
       const { data } = await supabase.from("media_overrides").select("seed, url");
       const map: Record<string, string> = {};
-      for (const row of data ?? []) map[row.seed] = row.url;
+      for (const row of data ?? []) map[row.seed as string] = row.url as string;
       return map;
     } catch {
       return {};
     }
   }
   try {
-    const raw = await fs.readFile(OVERRIDES_FILE, "utf8");
-    return JSON.parse(raw);
+    return JSON.parse(await fs.readFile(OVERRIDES_FILE, "utf8"));
   } catch {
     return {};
   }
 }
 
+export async function getOverride(seed: string): Promise<string | null> {
+  const all = await getAllOverrides();
+  return all[seed] ?? null;
+}
+
 // ---- write -----------------------------------------------------------------
-async function setOverrideRecord(seed: string, url: string) {
+async function writeFileOverrides(map: Record<string, string>) {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(OVERRIDES_FILE, JSON.stringify(map, null, 2));
+}
+
+export async function setOverrideUrl(seed: string, url: string) {
+  await setOverridesBulk([{ seed, url }]);
+}
+
+/** Set many overrides in ONE operation (single upsert / single file write). */
+export async function setOverridesBulk(entries: { seed: string; url: string }[]) {
+  if (!entries.length) return;
   if (isSupabaseConfigured()) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = createClient();
-    await supabase.from("media_overrides").upsert(
-      { seed, url, updated_at: new Date().toISOString() },
-      { onConflict: "seed" },
-    );
-    return;
+    const now = new Date().toISOString();
+    await supabase
+      .from("media_overrides")
+      .upsert(entries.map((e) => ({ seed: e.seed, url: e.url, updated_at: now })), { onConflict: "seed" });
+  } else {
+    const map = await loadOverrides();
+    for (const e of entries) map[e.seed] = e.url;
+    await writeFileOverrides(map);
   }
-  const all = await getAllOverrides();
-  all[seed] = url;
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(OVERRIDES_FILE, JSON.stringify(all, null, 2));
+  invalidate();
 }
 
-/** Point a slot at an existing image URL (no upload). */
-export async function setOverrideUrl(seed: string, url: string) {
-  await setOverrideRecord(seed, url);
-}
-
-/** Remove an override so the slot falls back to the generated placeholder. */
 export async function clearOverride(seed: string) {
   if (isSupabaseConfigured()) {
     const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
-    await supabase.from("media_overrides").delete().eq("seed", seed);
-    return;
+    await createClient().from("media_overrides").delete().eq("seed", seed);
+  } else {
+    const map = await loadOverrides();
+    delete map[seed];
+    await writeFileOverrides(map);
   }
-  const all = await getAllOverrides();
-  delete all[seed];
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(OVERRIDES_FILE, JSON.stringify(all, null, 2));
+  invalidate();
+}
+
+/** Remove every override in ONE operation. */
+export async function clearAllOverrides() {
+  if (isSupabaseConfigured()) {
+    const { createClient } = await import("@/lib/supabase/server");
+    await createClient().from("media_overrides").delete().neq("seed", "");
+  } else {
+    await writeFileOverrides({});
+  }
+  invalidate();
 }
 
 /** Store uploaded bytes and point the slot at them. Returns the public URL. */
@@ -99,13 +124,13 @@ export async function saveUpload(seed: string, file: { name: string; bytes: Uint
       upsert: true,
     });
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);
-    await setOverrideRecord(seed, data.publicUrl);
+    await setOverrideUrl(seed, data.publicUrl);
     return data.publicUrl;
   }
 
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   await fs.writeFile(path.join(UPLOAD_DIR, filename), file.bytes);
   const url = `/uploads/${filename}`;
-  await setOverrideRecord(seed, url);
+  await setOverrideUrl(seed, url);
   return url;
 }
