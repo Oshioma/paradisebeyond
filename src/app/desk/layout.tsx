@@ -13,6 +13,7 @@ export default async function DeskLayout({ children }: { children: React.ReactNo
         nav={[
           { label: "Overview", href: "/desk" },
           { label: "Applications", href: "/desk/applications" },
+          { label: "Submissions", href: "/desk/submissions" },
           { label: "Experiences", href: "/desk/experiences" },
           { label: "Bookings", href: "/desk/bookings" },
           { label: "Commissions", href: "/desk/commissions" },
