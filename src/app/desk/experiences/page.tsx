@@ -18,9 +18,9 @@ export default async function DeskExperiencesPage() {
           <p className="eyebrow text-ocean-700">Admin Desk</p>
           <h1 className="mt-2 text-display font-semibold text-ink">Experiences</h1>
         </div>
-        <button className="rounded-full bg-clay-500 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600" title="Admins can create curated experiences directly">
+        <Link href="/studio/retreats/new" className="rounded-full bg-clay-500 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600" title="Build a curated experience — publishes on submit">
           + Create experience
-        </button>
+        </Link>
       </header>
 
       <div className="mt-10 overflow-x-auto rounded-xl2 border border-ink/10">

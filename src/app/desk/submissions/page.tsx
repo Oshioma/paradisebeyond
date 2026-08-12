@@ -7,7 +7,7 @@ import { reviewSubmission } from "./actions";
 export const metadata: Metadata = { title: "Retreat submissions", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default async function SubmissionsPage() {
+export default async function SubmissionsPage({ searchParams }: { searchParams: { published?: string; error?: string; status?: string } }) {
   await requireRole("admin", "/desk/submissions");
   const submissions = await listSubmissions();
 
@@ -17,10 +17,28 @@ export default async function SubmissionsPage() {
         <p className="eyebrow text-ocean-700">Admin Desk</p>
         <h1 className="mt-2 text-display font-semibold text-ink">Retreat submissions</h1>
         <p className="mt-3 max-w-2xl text-ink-muted">
-          Retreats built by hosts, awaiting review. Approve to let the host take
-          it live, or request changes with a note. Nothing publishes on its own.
+          Retreats built by hosts, awaiting review. Approve to publish it as a
+          live, bookable experience, or request changes with a note. Nothing
+          publishes on its own.
         </p>
       </header>
+
+      {searchParams.published && (
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl2 border border-palm-500/40 bg-palm-500/5 p-4 text-sm text-palm-600">
+          <span>✓ Published — it&apos;s now live in the catalogue.</span>
+          <a href={`/experiences/${searchParams.published}`} className="rounded-full bg-palm-500 px-4 py-1.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-palm-600">View experience</a>
+        </div>
+      )}
+      {searchParams.error && (
+        <div className="mt-6 rounded-xl2 border border-clay-500/50 bg-clay-500/10 p-4 text-sm text-clay-600">
+          ✗ {searchParams.error}
+        </div>
+      )}
+      {searchParams.status && !searchParams.published && (
+        <div className="mt-6 rounded-xl2 border border-ink/15 bg-sand-100 p-4 text-sm text-ink-soft">
+          Submission updated — status set to {searchParams.status.replace(/_/g, " ")}.
+        </div>
+      )}
 
       {submissions.length === 0 ? (
         <p className="mt-10 rounded-xl2 border border-dashed border-ink/20 py-16 text-center text-ink-muted">
