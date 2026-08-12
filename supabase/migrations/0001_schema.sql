@@ -38,7 +38,9 @@ create table profiles (
 -- hosts: a public host persona/organisation, owned by a profile.
 create table hosts (
   id            uuid primary key default gen_random_uuid(),
-  owner_id      uuid not null references profiles(id) on delete cascade,
+  -- Nullable: catalogue hosts are seeded before any auth user exists, then
+  -- linked to their owning profile by scripts/bootstrap-auth.mjs.
+  owner_id      uuid references profiles(id) on delete set null,
   slug          text unique not null,
   name          text not null,
   headline      text,

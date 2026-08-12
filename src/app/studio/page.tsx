@@ -28,7 +28,7 @@ export default async function StudioPage() {
           <p className="eyebrow text-ocean-700">Welcome, {user.name.split(" ")[0]}</p>
           <h1 className="mt-2 text-display font-semibold text-ink">Host Studio</h1>
         </div>
-        <Link href="/studio/retreats" className="rounded-full bg-clay-500 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
+        <Link href="/studio/retreats/new" className="rounded-full bg-clay-500 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
           + New retreat
         </Link>
       </header>
