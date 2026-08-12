@@ -1,0 +1,20 @@
+name: Database setup
+
+# Runs all migrations + seed against your Supabase database.
+# Trigger manually from the Actions tab (safer than on every push, since the
+# raw migrations are not re-runnable — for incremental auto-migration on deploy
+# use the Supabase CLI `supabase db push`, which tracks applied migrations).
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations + seed
+        env:
+          # Add this in repo → Settings → Secrets → Actions:
+          # Supabase → Project Settings → Database → Connection string (URI)
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/db-setup.sh
