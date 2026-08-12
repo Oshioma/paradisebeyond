@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string; error?: string };
+  searchParams: { next?: string; error?: string; message?: string };
 }) {
   const existing = await getSessionUser();
   const next = searchParams.next ?? "";
@@ -46,6 +46,11 @@ export default async function LoginPage({
               {searchParams.error}
             </p>
           )}
+          {searchParams.message && (
+            <p className="mt-4 rounded-lg bg-palm-500/10 px-4 py-3 text-sm text-palm-600">
+              {searchParams.message}
+            </p>
+          )}
 
           {configured ? (
             <form action={signInWithPassword} className="mt-8 space-y-4">
@@ -59,6 +64,14 @@ export default async function LoginPage({
               <button className="w-full rounded-full bg-ink px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
                 Sign in
               </button>
+              <div className="flex items-center justify-between text-sm">
+                <Link href="/forgot-password" className="text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+                  Forgot password?
+                </Link>
+                <Link href="/signup" className="text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+                  Create account
+                </Link>
+              </div>
             </form>
           ) : (
             <div className="mt-8">

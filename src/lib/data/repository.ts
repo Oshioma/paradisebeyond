@@ -8,13 +8,32 @@ import { CATEGORIES } from "./categories";
 import { DESTINATIONS } from "./destinations";
 import { HOSTS } from "./hosts";
 import { EXPERIENCES } from "./experiences";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { nextOpenDeparture, upcomingDeparture } from "./helpers";
 
 /**
  * The repository is the single seam between the magazine and its data source.
- * Today it serves curated seed content (synchronously). When Supabase is wired,
- * a SupabaseRepository implementing the same shape drops in behind these
- * functions — pages already `await`, so nothing above this layer changes.
+ * When Supabase is configured, experiences (and their live departures/rooms)
+ * come from the database via supabaseRepository; otherwise the curated seed is
+ * served. Categories/destinations/hosts are config-like and served from seed in
+ * both modes. Nothing above this layer changes — pages already `await`.
+ *
+ * Experiences are read through a single `source()` so every query below stays
+ * consistent whichever backend is active.
  */
+
+let cache: { at: number; data: Experience[] } | null = null;
+
+async function source(): Promise<Experience[]> {
+  if (!isSupabaseConfigured()) return EXPERIENCES;
+  // Small per-request-ish cache to avoid refetching the catalogue repeatedly
+  // within a single render pass.
+  if (cache && Date.now() - cache.at < 5000) return cache.data;
+  const supa = await import("./supabaseRepository");
+  const data = await supa.getAllExperiences();
+  cache = { at: Date.now(), data };
+  return data.length ? data : EXPERIENCES;
+}
 
 export interface ExperienceFilter {
   duration?: 7 | 14;
@@ -26,29 +45,18 @@ export interface ExperienceFilter {
   maxPriceMinor?: number;
 }
 
-function nextOpenDeparture(e: Experience) {
-  return [...e.departures]
-    .filter((d) => d.status === "open" || d.status === "waitlist")
-    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-}
-
-/** The soonest upcoming departure regardless of status (for display). */
-export function upcomingDeparture(e: Experience) {
-  return [...e.departures].sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-}
-
 export async function getAllExperiences(): Promise<Experience[]> {
-  return EXPERIENCES;
+  return source();
 }
 
 export async function getFeaturedExperiences(limit = 6): Promise<Experience[]> {
-  return EXPERIENCES.filter((e) => e.featured).slice(0, limit);
+  return (await source()).filter((e) => e.featured).slice(0, limit);
 }
 
 export async function filterExperiences(
   filter: ExperienceFilter,
 ): Promise<Experience[]> {
-  return EXPERIENCES.filter((e) => {
+  return (await source()).filter((e) => {
     if (filter.duration && e.duration !== filter.duration) return false;
     if (filter.category && !e.categorySlugs.includes(filter.category as never)) return false;
     if (filter.destination && e.destinationSlug !== filter.destination) return false;
@@ -65,19 +73,19 @@ export async function filterExperiences(
 }
 
 export async function getExperienceBySlug(slug: string): Promise<Experience | undefined> {
-  return EXPERIENCES.find((e) => e.slug === slug);
+  return (await source()).find((e) => e.slug === slug);
 }
 
 export async function getExperiencesByHost(hostSlug: string): Promise<Experience[]> {
-  return EXPERIENCES.filter((e) => e.hostSlugs.includes(hostSlug));
+  return (await source()).filter((e) => e.hostSlugs.includes(hostSlug));
 }
 
 export async function getExperiencesByCategory(categorySlug: string): Promise<Experience[]> {
-  return EXPERIENCES.filter((e) => e.categorySlugs.includes(categorySlug as never));
+  return (await source()).filter((e) => e.categorySlugs.includes(categorySlug as never));
 }
 
 export async function getExperiencesByDestination(destinationSlug: string): Promise<Experience[]> {
-  return EXPERIENCES.filter((e) => e.destinationSlug === destinationSlug);
+  return (await source()).filter((e) => e.destinationSlug === destinationSlug);
 }
 
 export async function getAllCategories(): Promise<Category[]> {
@@ -92,4 +100,4 @@ export async function getAllHosts(): Promise<Host[]> {
   return HOSTS;
 }
 
-export { nextOpenDeparture };
+export { nextOpenDeparture, upcomingDeparture };
