@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
   const override = await getOverride(seed);
   if (override) {
     const target = override.startsWith("http") ? override : new URL(override, req.url).toString();
-    return NextResponse.redirect(target, 307);
+    const res = NextResponse.redirect(target, 307);
+    // Let the browser/CDN cache the redirect so repeat views don't re-hit the DB.
+    res.headers.set("Cache-Control", "public, max-age=600, stale-while-revalidate=86400");
+    return res;
   }
 
   return new Response(placeholderSvg(seed, w, h), {

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
-import { saveUpload, setOverrideUrl, clearOverride, getAllOverrides } from "@/lib/media/store";
+import { saveUpload, setOverrideUrl, setOverridesBulk, clearOverride, clearAllOverrides } from "@/lib/media/store";
 import { allDemoPhotos } from "@/lib/media/demoPhotos";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -41,21 +41,19 @@ export async function resetImage(formData: FormData) {
   revalidatePath("/desk/media");
 }
 
-/** Point every slot at demo stock photography (resolves on a live deployment). */
-export async function loadDemoPhotos() {
+/** Point every slot at demo stock photography, in a SINGLE write. */
+export async function loadDemoPhotos(): Promise<{ ok: boolean; count: number }> {
   await requireRole("admin");
-  for (const { key, url } of allDemoPhotos()) {
-    await setOverrideUrl(key, url);
-  }
+  const entries = allDemoPhotos().map(({ key, url }) => ({ seed: key, url }));
+  await setOverridesBulk(entries);
   revalidatePath("/desk/media");
+  return { ok: true, count: entries.length };
 }
 
-/** Clear every override, restoring the generated placeholders. */
-export async function clearAllPhotos() {
+/** Clear every override, restoring the generated placeholders — SINGLE write. */
+export async function clearAllPhotos(): Promise<{ ok: boolean }> {
   await requireRole("admin");
-  const all = await getAllOverrides();
-  for (const key of Object.keys(all)) {
-    await clearOverride(key);
-  }
+  await clearAllOverrides();
   revalidatePath("/desk/media");
+  return { ok: true };
 }
