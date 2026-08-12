@@ -26,6 +26,10 @@ export interface DemoState {
   reviews: Review[];
   /** Per-booking pre-trip questionnaire answers (demo). */
   tripPrep: Record<string, TripPrep>;
+  /** Admin-edited verification criteria (demo). */
+  verificationCriteria?: string[];
+  /** Experience slugs the admin marked verified (demo). */
+  verifiedSlugs?: string[];
   /** Admin-selected AI model (demo mode; per-browser). */
   aiModelId?: string;
 }
