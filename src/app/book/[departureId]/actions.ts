@@ -55,6 +55,21 @@ export async function createBooking(formData: FormData) {
   const soldOut = `/experiences/${experience.slug}?soldout=1`;
   const provider = getPaymentProvider();
 
+  // --- Stripe path: redirect to hosted Checkout; the webhook confirms. -------
+  const { isStripeEnabled } = await import("@/lib/payments/stripe");
+  if (isStripeEnabled() && isSupabaseConfigured()) {
+    const { startStripeCheckout } = await import("@/lib/payments/stripeCheckout");
+    const res = await startStripeCheckout({
+      guestId: user.id, guestEmail: user.email, experience, departure, room, guests, kind,
+      currency: breakdown.currency, subtotalMinor: breakdown.subtotalMinor,
+      depositMinor: breakdown.depositDueNowMinor, balanceMinor, dueNowMinor, feeDueNowMinor,
+      commissionRateBps: breakdown.commissionRateBps, platformFeeMinor: breakdown.platformFeeMinor,
+      hostNetMinor: breakdown.hostNetMinor, reference,
+    });
+    if (res.soldOut || !res.url) redirect(soldOut);
+    redirect(res.url); // → Stripe hosted checkout
+  }
+
   if (isSupabaseConfigured()) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = createClient();

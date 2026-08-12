@@ -14,6 +14,7 @@ export default async function StudioLayout({ children }: { children: React.React
           { label: "Overview", href: "/studio" },
           { label: "My Retreats", href: "/studio/retreats" },
           { label: "Bookings", href: "/studio/bookings" },
+          { label: "Payouts", href: "/studio/payouts" },
         ]}
       />
       {children}
