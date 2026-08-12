@@ -11,9 +11,15 @@
  * identically online or offline.
  */
 
+/** The slot key for a seed — also what the admin media manager keys uploads by. */
+export function slotKey(seed: string): string {
+  return `pb-${seed}`;
+}
+
 export function img(seed: string, width: number, height: number): string {
-  const s = encodeURIComponent(`pb-${seed}`);
-  return `/api/placeholder?seed=${s}&w=${Math.round(width)}&h=${Math.round(height)}`;
+  const s = encodeURIComponent(slotKey(seed));
+  // Routed through /api/img so admin image overrides apply everywhere.
+  return `/api/img?seed=${s}&w=${Math.round(width)}&h=${Math.round(height)}`;
 }
 
 /** A wide editorial/hero crop. */
