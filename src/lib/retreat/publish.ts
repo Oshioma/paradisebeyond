@@ -12,8 +12,13 @@ import { setOverrideUrl } from "@/lib/media/store";
  * through the standard `/api/img` path.
  *
  * Idempotent: keyed on `retreat_draft_id`, so re-approving updates the same
- * experience instead of creating duplicates. Runs as the acting admin — RLS's
- * `is_admin()` permits the writes; no service-role key required.
+ * experience instead of creating duplicates.
+ *
+ * Runs with the service role. The `departures` and `room_types` tables are
+ * read-only under RLS (SELECT policies only, no write policy), so even an admin
+ * session can't insert their rows. Publishing is only ever reached through an
+ * admin-gated server action, so bypassing RLS here is safe and avoids scattering
+ * write policies across every catalogue table.
  */
 
 export type PublishResult =
@@ -112,8 +117,8 @@ function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): E
 }
 
 export async function publishDraft(draft: RetreatDraft, actingUserId: string): Promise<PublishResult> {
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = createClient();
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const supabase = createServiceRoleClient();
 
   // Resolve the destination (required, FK). Fall back to any destination so a
   // stray slug never blocks publishing.
