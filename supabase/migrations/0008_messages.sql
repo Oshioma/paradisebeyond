@@ -18,6 +18,7 @@ create index if not exists messages_booking_idx on messages (booking_id, created
 alter table messages enable row level security;
 
 -- A participant of the booking is: its guest, the host of its departure, or admin.
+drop policy if exists messages_participant_read on messages;
 create policy messages_participant_read on messages
   for select using (
     is_admin() or exists (
@@ -34,6 +35,7 @@ create policy messages_participant_read on messages
     )
   );
 
+drop policy if exists messages_participant_insert on messages;
 create policy messages_participant_insert on messages
   for insert with check (
     sender_id = auth.uid() and exists (

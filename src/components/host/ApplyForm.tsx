@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { hostApplicationSchema } from "@/lib/validation/hostApplication";
+import { submitHostApplication } from "@/app/host/apply/actions";
 import { cn } from "@/lib/utils";
 
 type Errors = Record<string, string>;
@@ -9,6 +10,8 @@ type Errors = Record<string, string>;
 export function ApplyForm() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,16 +24,21 @@ export function ApplyForm() {
         next[issue.path[0] as string] = issue.message;
       }
       setErrors(next);
-      // Scroll to first error
       const firstKey = parsed.error.issues[0]?.path[0] as string;
       document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
     setErrors({});
-    // TODO(server): POST to a server action → insert into host_applications
-    // with status 'submitted'; email the admin desk. For now we confirm receipt.
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setServerError(null);
+    start(async () => {
+      const res = await submitHostApplication(raw);
+      if (res.ok) {
+        setSubmitted(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setServerError(res.error ?? "Something went wrong — please try again.");
+      }
+    });
   }
 
   if (submitted) {
@@ -98,12 +106,16 @@ export function ApplyForm() {
       </Fieldset>
 
       <div className="flex flex-col items-start gap-3 border-t border-ink/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-ink-muted">Every application is reviewed by hand. No auto-publishing.</p>
+        <div>
+          <p className="text-sm text-ink-muted">Every application is reviewed by hand. No auto-publishing.</p>
+          {serverError && <p className="mt-1 text-sm text-clay-600">{serverError}</p>}
+        </div>
         <button
           type="submit"
-          className="rounded-full bg-clay-500 px-8 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift"
+          disabled={pending}
+          className="rounded-full bg-clay-500 px-8 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift disabled:opacity-60"
         >
-          Submit application
+          {pending ? "Submitting…" : "Submit application"}
         </button>
       </div>
     </form>

@@ -30,6 +30,7 @@ FILES=(
   supabase/migrations/0009_app_settings.sql
   supabase/migrations/0010_publish.sql
   supabase/migrations/0011_trip_prep.sql
+  supabase/migrations/0012_fix_experiences_rls.sql
   supabase/seed.sql
 )
 
