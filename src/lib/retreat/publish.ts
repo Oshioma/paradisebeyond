@@ -139,7 +139,11 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
 
   // Reuse the slug from a prior publish of this draft (idempotency), else mint a
   // unique one.
-  const { data: prior } = await supabase.from("experiences").select("id, slug").eq("retreat_draft_id", draft.id).maybeSingle();
+  const { data: prior } = await supabase
+    .from("experiences")
+    .select("id, slug, verified, featured")
+    .eq("retreat_draft_id", draft.id)
+    .maybeSingle();
   let slug = (prior?.slug as string) ?? slugify(draft.name);
   if (!prior) {
     const base = slug;
@@ -151,6 +155,13 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   }
 
   const content = buildContent(draft, slug, hostSlugs);
+  // buildContent starts every experience unverified and unfeatured. On a
+  // re-publish (a host edited a live listing), carry the admin's existing
+  // Verified / Featured flags forward so an edit never silently drops them.
+  const keepVerified = Boolean(prior?.verified);
+  const keepFeatured = Boolean(prior?.featured);
+  content.verified = keepVerified;
+  content.featured = keepFeatured;
 
   // Point the experience's image seeds at the uploaded photos. Write straight
   // through the service-role client already in scope: media_overrides is
@@ -183,6 +194,8 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
         hero_image_url: draft.heroImageUrl || null,
         story: content.story,
         for_you_if: content.forYouIf,
+        verified: keepVerified,
+        featured: keepFeatured,
         created_by: actingUserId,
         content,
         updated_at: new Date().toISOString(),
