@@ -373,7 +373,7 @@ function StepContent({
           <Field label="Hero photo" hint="The one image that sells the whole experience.">
             <PhotoUpload draftId={draft.id} slot="hero" url={draft.heroImageUrl} onUploaded={(u) => set("heroImageUrl", u)} onClear={() => set("heroImageUrl", "")} />
           </Field>
-          <Field label="Gallery" hint="A handful of images that tell the story.">
+          <Field label="Gallery" hint="A handful of images that tell the story — select several at once to add them together.">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {draft.galleryUrls.map((u, i) => (
                 <div key={i} className="relative">
@@ -382,7 +382,15 @@ function StepContent({
                   <button onClick={() => set("galleryUrls", draft.galleryUrls.filter((_, j) => j !== i))} className="absolute right-1 top-1 rounded-full bg-ink/70 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50">Remove</button>
                 </div>
               ))}
-              <PhotoUpload draftId={draft.id} slot={`g${draft.galleryUrls.length}`} url="" compact onUploaded={(u) => set("galleryUrls", [...draft.galleryUrls, u])} />
+              <PhotoUpload
+                draftId={draft.id}
+                slot={`g${draft.galleryUrls.length}`}
+                url=""
+                compact
+                multiple
+                onUploaded={(u) => set("galleryUrls", [...draft.galleryUrls, u])}
+                onUploadedMany={(urls) => set("galleryUrls", [...draft.galleryUrls, ...urls])}
+              />
             </div>
             <GalleryUrlAdd onAdd={(u) => set("galleryUrls", [...draft.galleryUrls, u])} />
           </Field>
@@ -701,26 +709,41 @@ function GalleryUrlAdd({ onAdd }: { onAdd: (u: string) => void }) {
   );
 }
 
-function PhotoUpload({ draftId, slot, url, onUploaded, onClear, compact }: { draftId: string; slot: string; url: string; onUploaded: (u: string) => void; onClear?: () => void; compact?: boolean }) {
+function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, compact, multiple }: { draftId: string; slot: string; url: string; onUploaded: (u: string) => void; onUploadedMany?: (urls: string[]) => void; onClear?: () => void; compact?: boolean; multiple?: boolean }) {
   const [pending, start] = useTransition();
   const [urlInput, setUrlInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
     setErr(null);
-    const fd = new FormData();
-    fd.set("file", file);
     start(async () => {
-      try {
-        const u = await uploadRetreatPhoto(draftId, slot, fd);
-        if (u) onUploaded(u);
-        else setErr("Upload didn’t go through — paste an image URL instead.");
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Upload failed — paste an image URL instead.");
+      const uploaded: string[] = [];
+      let failures = 0;
+      for (let i = 0; i < files.length; i++) {
+        if (files.length > 1) setProgress(`Uploading ${i + 1} of ${files.length}…`);
+        const fd = new FormData();
+        fd.set("file", files[i]);
+        // Unique slot per file so concurrent images don't overwrite each other.
+        const fileSlot = files.length > 1 ? `${slot}-${i}` : slot;
+        try {
+          const u = await uploadRetreatPhoto(draftId, fileSlot, fd);
+          if (u) uploaded.push(u);
+          else failures++;
+        } catch (err) {
+          failures++;
+          if (files.length === 1) setErr(err instanceof Error ? err.message : "Upload failed — paste an image URL instead.");
+        }
       }
+      setProgress(null);
+      if (uploaded.length) {
+        if (onUploadedMany) onUploadedMany(uploaded);
+        else uploaded.forEach(onUploaded);
+      }
+      if (failures) setErr(`${failures} photo${failures > 1 ? "s" : ""} didn’t go through — try again or paste a URL.`);
       if (ref.current) ref.current.value = "";
     });
   }
@@ -744,9 +767,9 @@ function PhotoUpload({ draftId, slot, url, onUploaded, onClear, compact }: { dra
   }
   return (
     <div className={compact ? "" : "space-y-2"}>
-      <label className={cn("flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-ink/25 text-center text-xs text-ink-muted hover:border-ink/50", compact ? "aspect-square" : "h-32")}>
-        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onFile} />
-        {pending ? "Uploading…" : compact ? "+ Add" : "Click to upload a photo"}
+      <label className={cn("flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-ink/25 px-2 text-center text-xs text-ink-muted hover:border-ink/50", compact ? "aspect-square" : "h-32")}>
+        <input ref={ref} type="file" accept="image/*" multiple={multiple} className="hidden" onChange={onFile} />
+        {pending ? (progress ?? "Uploading…") : compact ? (multiple ? "+ Add photos" : "+ Add") : "Click to upload a photo"}
       </label>
       {!compact && (
         <div className="flex gap-2">
