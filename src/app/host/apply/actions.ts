@@ -69,15 +69,25 @@ export async function submitHostApplication(raw: Record<string, unknown>): Promi
     });
   }
 
-  // Best-effort: notify the admin desk.
-  try {
-    const { sendEmail } = await import("@/lib/email");
-    await sendEmail({
-      to: process.env.EMAIL_FROM || "hello@paradisebeyond.com",
-      subject: `New host application — ${a.name}`,
-      html: `<p>${a.name} (${a.email}) applied to host a ${a.duration}-day retreat in ${a.destination}.</p><p>${a.retreatIdea}</p>`,
-    });
-  } catch { /* non-fatal */ }
+  // Best-effort: notify the ops team. Sends only when ADMIN_EMAIL is set —
+  // EMAIL_FROM is the *sender* ("Name <addr>"), never a valid recipient.
+  // reply_to is the applicant so ops can respond to them directly.
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    try {
+      const { sendEmail } = await import("@/lib/email");
+      const { siteUrl } = await import("@/lib/siteUrl");
+      await sendEmail({
+        to: adminEmail,
+        replyTo: a.email,
+        subject: `New host application — ${a.name}`,
+        html: `<p><strong>${a.name}</strong> (${a.email}) applied to host a ${a.duration}-day retreat in ${a.destination}.</p>
+<p>${a.retreatIdea}</p>
+<p style="color:#6b6357;font-size:13px">Approx dates: ${a.approxDates} · Group size: ${a.expectedGroupSize} · Expected price: $${a.expectedPriceUsd}</p>
+<p><a href="${siteUrl()}/desk/applications">Review in the admin desk →</a></p>`,
+      });
+    } catch { /* non-fatal */ }
+  }
 
   revalidatePath("/desk/applications");
   revalidatePath("/desk");
