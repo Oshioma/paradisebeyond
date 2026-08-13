@@ -34,6 +34,7 @@ const usdToMinor = (v: number) => Math.round((Number.isFinite(v) ? v : 0) * 100)
 
 /** Build the editorial Experience JSON stored in experiences.content. */
 function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): Experience {
+  const hotels = (draft.hotels ?? []).filter((h) => h.name?.trim()).map((h) => ({ name: h.name.trim(), description: h.description ?? "" }));
   const heroSeed = `${slug}-hero`;
   const gallerySeeds = (draft.galleryUrls ?? []).map((_, i) => `${slug}-g${i}`);
   const imageSeeds = gallerySeeds.length ? gallerySeeds : [heroSeed];
@@ -96,8 +97,9 @@ function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): E
       .filter((h) => h.title?.trim() || h.description?.trim())
       .map((h, i) => ({ title: h.title, description: h.description, imageSeed: imageSeeds[i % imageSeeds.length] })),
     stay: {
-      property: draft.propertyName,
-      description: draft.propertyDescription,
+      property: hotels[0]?.name ?? draft.propertyName ?? "",
+      description: hotels[0]?.description ?? draft.propertyDescription ?? "",
+      hotels: hotels.length ? hotels : undefined,
       roomTypes,
       imageSeeds,
     },

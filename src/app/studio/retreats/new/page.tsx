@@ -23,13 +23,20 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
 
   const host = user.hostSlug ? await getHost(user.hostSlug) : undefined;
   const existing = await getDraft(id);
-  const initial: RetreatDraft =
-    existing ?? {
-      ...emptyDraft(id),
-      hostName: host?.name ?? user.name,
-      hostHeadline: host?.headline ?? "",
-      hostBio: host?.bio ?? "",
-    };
+  const initial: RetreatDraft = existing
+    ? {
+        ...existing,
+        // Migrate older single-property drafts to the hotels list.
+        hotels: existing.hotels?.length
+          ? existing.hotels
+          : [{ name: existing.propertyName ?? "", description: existing.propertyDescription ?? "" }],
+      }
+    : {
+        ...emptyDraft(id),
+        hostName: host?.name ?? user.name,
+        hostHeadline: host?.headline ?? "",
+        hostBio: host?.bio ?? "",
+      };
 
   return (
     <div className="container-editorial py-10">

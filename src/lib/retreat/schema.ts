@@ -32,8 +32,12 @@ export interface RetreatItineraryDay {
   summary: string;
   items: string[];
 }
+export interface RetreatHotel {
+  name: string;
+  description: string;
+}
 export interface RetreatRoom {
-  /** Hotel / property this option is at (optional — blank uses the retreat's property). */
+  /** Hotel / property this option is at (matches a RetreatHotel name). */
   property?: string;
   name: string;
   description: string;
@@ -63,9 +67,11 @@ export interface RetreatDraft {
   locationLabel: string;
   // 4 Dates
   departures: RetreatDeparture[];
-  // 5 Accommodation
-  propertyName: string;
-  propertyDescription: string;
+  // 5 Accommodation — one or more hotels/properties guests can stay at
+  hotels: RetreatHotel[];
+  /** @deprecated older drafts; the wizard now uses `hotels`. */
+  propertyName?: string;
+  propertyDescription?: string;
   // 6 What's included
   inclusions: string[];
   exclusions: string[];
@@ -119,8 +125,7 @@ export function emptyDraft(id: string): RetreatDraft {
     country: "Tanzania",
     locationLabel: "",
     departures: [{ startDate: "", endDate: "", capacity: 12 }],
-    propertyName: "",
-    propertyDescription: "",
+    hotels: [{ name: "", description: "" }],
     inclusions: [""],
     exclusions: [...DEFAULT_EXCLUSIONS],
     highlights: [{ title: "", description: "" }],
@@ -164,7 +169,9 @@ export const submitRetreatSchema = z.object({
   departures: z
     .array(z.object({ startDate: z.string().min(1), endDate: z.string().min(1), capacity: z.number().int().positive() }))
     .min(1, "Add at least one departure with dates"),
-  propertyName: z.string().min(2, "Name the accommodation"),
+  hotels: z
+    .array(z.object({ name: z.string() }))
+    .refine((a) => a.some((h) => h.name.trim().length >= 2), "Add at least one hotel / property"),
   inclusions: z.array(z.string().min(1)).min(1, "List what's included"),
   priceFromUsd: z.number().positive("Set a starting price"),
   rooms: z.array(z.object({ name: z.string().min(1) })).min(1, "Add at least one room option"),

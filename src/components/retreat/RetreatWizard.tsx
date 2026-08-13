@@ -227,10 +227,21 @@ function StepContent({
       );
     case 4:
       return (
-        <div className="space-y-5">
-          <Field label="Property / accommodation name"><input className={inp} value={draft.propertyName} onChange={(e) => set("propertyName", e.target.value)} placeholder="Kendwa Beach House" /></Field>
-          <Field label="Describe where guests stay"><textarea rows={4} className={inp} value={draft.propertyDescription} onChange={(e) => set("propertyDescription", e.target.value)} placeholder="A small, barefoot-luxury beach house steps from the sand…" /></Field>
-        </div>
+        <Field label="Hotels / properties" hint="Add every hotel guests can choose from. You'll set room options and rates for each on the Rooms step.">
+          <div className="space-y-3">
+            {(draft.hotels ?? []).map((h, i) => (
+              <div key={i} className="space-y-3 rounded-xl border border-ink/10 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-clay-500 text-xs font-semibold text-sand-50">{i + 1}</span>
+                  <input className={inp} placeholder="Hotel / property name (e.g. Sunset Hotel)" value={h.name} onChange={(e) => updateArr(setDraft, "hotels", i, { name: e.target.value })} />
+                  <RemoveBtn onClick={() => set("hotels", (draft.hotels ?? []).filter((_, j) => j !== i))} />
+                </div>
+                <textarea rows={3} className={cn(inp, "ml-8 w-[calc(100%-2rem)]")} placeholder="Describe where guests stay — the feel, the location, why you chose it…" value={h.description} onChange={(e) => updateArr(setDraft, "hotels", i, { description: e.target.value })} />
+              </div>
+            ))}
+            <AddBtn onClick={() => set("hotels", [...(draft.hotels ?? []), { name: "", description: "" }])}>Add a hotel</AddBtn>
+          </div>
+        </Field>
       );
     case 5:
       return (
@@ -286,7 +297,10 @@ function StepContent({
             {draft.rooms.map((r, i) => (
               <div key={i} className="space-y-3 rounded-xl border border-ink/10 p-4">
                 <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                  <input className={inp} placeholder="Hotel / property (e.g. Kendwa Rocks)" value={r.property ?? ""} onChange={(e) => updateArr(setDraft, "rooms", i, { property: e.target.value })} />
+                  <select className={inp} value={r.property ?? ""} onChange={(e) => updateArr(setDraft, "rooms", i, { property: e.target.value })}>
+                    <option value="">Which hotel?</option>
+                    {(draft.hotels ?? []).filter((h) => h.name.trim()).map((h) => <option key={h.name} value={h.name}>{h.name}</option>)}
+                  </select>
                   <input className={inp} placeholder="Room name (e.g. Sea-view Suite)" value={r.name} onChange={(e) => updateArr(setDraft, "rooms", i, { name: e.target.value })} />
                   <RemoveBtn onClick={() => set("rooms", draft.rooms.filter((_, j) => j !== i))} />
                 </div>
@@ -553,7 +567,9 @@ function AiDraftPanel({ draft, setDraft }: { draft: RetreatDraft; setDraft: Reac
         strapline: s.strapline || d.strapline,
         idealGuest: s.idealGuest.length ? s.idealGuest : d.idealGuest,
         story: s.story.length ? s.story : d.story,
-        propertyDescription: s.propertyDescription || d.propertyDescription,
+        hotels: s.propertyDescription
+          ? [{ name: (d.hotels ?? [])[0]?.name || "", description: s.propertyDescription }, ...(d.hotels ?? []).slice(1)]
+          : (d.hotels ?? [{ name: "", description: "" }]),
         inclusions: s.inclusions.length ? s.inclusions : d.inclusions,
         highlights: s.highlights.length ? s.highlights : d.highlights,
         itinerary: s.itinerary.length
