@@ -41,7 +41,7 @@ export async function saveRetreatDraft(draft: RetreatDraft) {
 export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean; errors?: string[]; slug?: string }> {
   const user = await requireRole("host");
   const check = validateForSubmit(draft);
-  if (!check.ok) return { ok: false, errors: check.errors };
+  if (!check.ok) return { ok: false, errors: check.errors.map((e) => e.message) };
 
   // Admin direct-create → publish immediately.
   if (user.role === "admin") {

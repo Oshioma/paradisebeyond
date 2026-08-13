@@ -30,6 +30,13 @@ export async function setApplicationStatus(formData: FormData) {
     await supabase.from("host_applications").update({ status, review_notes: notes, updated_at: new Date().toISOString() }).eq("id", id);
     const { data } = await supabase.from("host_applications").select("name, email").eq("id", id).maybeSingle();
     if (data) applicant = { name: data.name, email: data.email };
+    // On approval, grant the host role so the "create your experience" link in
+    // the email actually works. Promotes any existing account with this email;
+    // brand-new sign-ups are handled by the handle_new_user trigger.
+    if (applicant && status === "approved") {
+      const { createServiceRoleClient } = await import("@/lib/supabase/server");
+      await createServiceRoleClient().rpc("promote_host_by_email", { p_email: applicant.email });
+    }
     await supabase.from("admin_actions").insert({
       actor_id: admin.id,
       action: `application:${status}`,

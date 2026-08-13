@@ -108,7 +108,7 @@ export function RetreatWizard({
         </div>
 
         <div className="min-h-[340px]">
-          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} />
+          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} />
         </div>
 
         {/* Nav */}
@@ -137,11 +137,21 @@ export function RetreatWizard({
   );
 }
 
+// Add `n` nights to a YYYY-MM-DD date, returning YYYY-MM-DD. Uses UTC so the
+// result never drifts a day from timezone offsets.
+function addNights(iso: string, n: number): string {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00Z");
+  if (Number.isNaN(d.getTime())) return "";
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 // ---------------------------------------------------------------------------
 type SetFn = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) => void;
 
 function StepContent({
-  step, draft, set, setDraft, categories, destinations, validation, router,
+  step, draft, set, setDraft, categories, destinations, validation, router, go,
 }: {
   step: number;
   draft: RetreatDraft;
@@ -151,6 +161,7 @@ function StepContent({
   destinations: { slug: string; name: string; country: string }[];
   validation: ReturnType<typeof validateForSubmit>;
   router: ReturnType<typeof useRouter>;
+  go: (i: number) => void;
 }) {
   switch (step) {
     case 0:
@@ -215,8 +226,15 @@ function StepContent({
           <div className="space-y-3">
             {draft.departures.map((dep, i) => (
               <div key={i} className="grid items-end gap-3 rounded-xl border border-ink/10 p-4 sm:grid-cols-[1fr_1fr_100px_auto]">
-                <Sub label="Start"><input type="date" className={inp} value={dep.startDate} onChange={(e) => updateArr(setDraft, "departures", i, { startDate: e.target.value })} /></Sub>
-                <Sub label="End"><input type="date" className={inp} value={dep.endDate} onChange={(e) => updateArr(setDraft, "departures", i, { endDate: e.target.value })} /></Sub>
+                <Sub label="Start"><input type="date" className={inp} value={dep.startDate} onChange={(e) => {
+                  const startDate = e.target.value;
+                  // Default the End to the retreat's length (7 or 14 nights) later,
+                  // but don't overwrite an End the host has already picked.
+                  const patch: Partial<typeof dep> = { startDate };
+                  if (startDate && !dep.endDate) patch.endDate = addNights(startDate, draft.duration);
+                  updateArr(setDraft, "departures", i, patch);
+                }} /></Sub>
+                <Sub label={`End${dep.startDate && dep.endDate ? "" : ` (defaults to +${draft.duration} nights)`}`}><input type="date" className={inp} value={dep.endDate} onChange={(e) => updateArr(setDraft, "departures", i, { endDate: e.target.value })} /></Sub>
                 <Sub label="Capacity"><input type="number" className={inp} value={dep.capacity} onChange={(e) => updateArr(setDraft, "departures", i, { capacity: Number(e.target.value) })} /></Sub>
                 <RemoveBtn onClick={() => set("departures", draft.departures.filter((_, j) => j !== i))} />
               </div>
@@ -382,16 +400,19 @@ function StepContent({
     case 14:
       return <Preview draft={draft} />;
     case 15:
-      return <SubmitStep draft={draft} validation={validation} router={router} />;
+      return <SubmitStep draft={draft} validation={validation} router={router} go={go} />;
     default:
       return null;
   }
 }
 
 // ---- Submit step -----------------------------------------------------------
-function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter> }) {
+function SubmitStep({ draft, validation, router, go }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter>; go: (i: number) => void }) {
   const [pending, start] = useTransition();
-  const [errors, setErrors] = useState<string[]>(validation.ok ? [] : validation.errors);
+  const [serverErrors, setServerErrors] = useState<{ message: string; step: number }[] | null>(null);
+  // Live client validation until the server rejects (which shouldn't happen
+  // while the button is gated, but keep the fallback honest).
+  const errors = serverErrors ?? (validation.ok ? [] : validation.errors);
 
   function doSubmit() {
     start(async () => {
@@ -401,7 +422,7 @@ function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; valida
         // Admin direct-publish returns the live slug; hosts go to the queue.
         router.push(res.slug ? `/experiences/${res.slug}` : "/studio/retreats?submitted=1");
       } else {
-        setErrors(res.errors ?? ["Something went wrong."]);
+        setServerErrors((res.errors ?? ["Something went wrong."]).map((m) => ({ message: m, step: 15 })));
       }
     });
   }
@@ -416,8 +437,21 @@ function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; valida
       {errors.length > 0 ? (
         <div className="mt-6 rounded-xl2 border border-clay-500/40 bg-clay-500/5 p-5">
           <p className="font-medium text-clay-600">A few things to finish first:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft">
-            {errors.map((e) => <li key={e}>{e}</li>)}
+          <p className="mt-1 text-xs text-ink-muted">Click any item to jump straight to the step that fixes it.</p>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {errors.map((e) => (
+              <li key={`${e.step}:${e.message}`}>
+                <button
+                  type="button"
+                  onClick={() => go(e.step)}
+                  className="group flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-ink-soft transition-colors hover:bg-clay-500/10 hover:text-ink"
+                >
+                  <span className="mt-0.5 flex-none text-clay-500">•</span>
+                  <span className="underline decoration-clay-500/40 underline-offset-2 group-hover:decoration-clay-500">{e.message}</span>
+                  <span className="ml-auto flex-none pl-2 text-[0.65rem] uppercase tracking-eyebrow text-clay-600 opacity-0 transition-opacity group-hover:opacity-100">Fix →</span>
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
       ) : (
