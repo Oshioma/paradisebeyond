@@ -22,6 +22,12 @@ export default async function ApplicationsPage() {
       </header>
 
       <div className="mt-10 space-y-5">
+        {apps.length === 0 && (
+          <div className="rounded-xl2 border border-dashed border-ink/15 bg-sand-50 p-12 text-center">
+            <p className="font-display text-lg font-semibold text-ink">No applications yet</p>
+            <p className="mt-1 text-sm text-ink-muted">New host applications will appear here as they come in.</p>
+          </div>
+        )}
         {apps.map((a) => (
           <div key={a.id} className="rounded-xl2 border border-ink/10 bg-sand-50 p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
