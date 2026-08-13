@@ -33,6 +33,8 @@ export interface RetreatItineraryDay {
   items: string[];
 }
 export interface RetreatRoom {
+  /** Hotel / property this option is at (optional — blank uses the retreat's property). */
+  property?: string;
   name: string;
   description: string;
   occupancy: "single" | "shared" | "private";
@@ -52,6 +54,8 @@ export interface RetreatDraft {
   story: string[];
   // 2 Duration
   duration: 7 | 14;
+  /** True once the host has explicitly chosen the length (vs the 7-day default). */
+  durationChosen?: boolean;
   // 3 Location
   destinationSlug: string;
   destinationName: string;

@@ -70,6 +70,8 @@ export interface ItineraryDay {
 
 export interface RoomType {
   id: string;
+  /** Hotel / property this option is at (optional). */
+  property?: string;
   name: string;
   description: string;
   occupancy: "single" | "shared" | "private";

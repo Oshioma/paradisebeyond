@@ -121,7 +121,12 @@ export function RetreatWizard({
               {saving ? "Saving…" : "Save draft"}
             </button>
             {step < STEPS.length - 1 && (
-              <button onClick={() => go(step + 1)} className="rounded-full bg-ink px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
+              <button
+                onClick={() => go(step + 1)}
+                disabled={step === 0 && !draft.durationChosen}
+                title={step === 0 && !draft.durationChosen ? "Choose 7 or 14 days first" : undefined}
+                className="rounded-full bg-ink px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft disabled:opacity-40"
+              >
                 Continue
               </button>
             )}
@@ -155,8 +160,8 @@ function StepContent({
             {[7, 14].map((n) => (
               <button
                 key={n}
-                onClick={() => setDraft((d) => ({ ...d, duration: n as 7 | 14, itinerary: resizeItinerary({ ...d, duration: n as 7 | 14 }) }))}
-                className={cn("rounded-xl2 border p-6 text-left transition-all", draft.duration === n ? "border-ink bg-ink text-sand-50" : "border-ink/15 hover:border-ink/40")}
+                onClick={() => setDraft((d) => ({ ...d, duration: n as 7 | 14, durationChosen: true, itinerary: resizeItinerary({ ...d, duration: n as 7 | 14 }) }))}
+                className={cn("rounded-xl2 border p-6 text-left transition-all", draft.durationChosen && draft.duration === n ? "border-ink bg-ink text-sand-50" : "border-ink/15 hover:border-ink/40")}
               >
                 <p className="font-display text-3xl font-semibold">{n} Days</p>
                 <p className={cn("mt-1 text-sm", draft.duration === n ? "text-sand-100/80" : "text-ink-muted")}>
@@ -276,20 +281,25 @@ function StepContent({
     }
     case 8:
       return (
-        <Field label="Room options" hint="Shared, private, upgrades. Prices are added to the base price.">
+        <Field label="Accommodation options" hint="Add as many as you offer — guests pick one, and its price is added to the base. Shown to guests highest price first.">
           <div className="space-y-3">
             {draft.rooms.map((r, i) => (
-              <div key={i} className="grid gap-3 rounded-xl border border-ink/10 p-4 sm:grid-cols-[1fr_1.5fr_120px_120px_auto]">
-                <input className={inp} placeholder="Shared Twin" value={r.name} onChange={(e) => updateArr(setDraft, "rooms", i, { name: e.target.value })} />
-                <input className={inp} placeholder="Room shared with one guest" value={r.description} onChange={(e) => updateArr(setDraft, "rooms", i, { description: e.target.value })} />
-                <select className={inp} value={r.occupancy} onChange={(e) => updateArr(setDraft, "rooms", i, { occupancy: e.target.value as never })}>
-                  <option value="shared">Shared</option><option value="private">Private</option><option value="single">Single</option>
-                </select>
-                <Sub label="+ USD"><input type="number" className={inp} value={r.priceDeltaUsd} onChange={(e) => updateArr(setDraft, "rooms", i, { priceDeltaUsd: Number(e.target.value) })} /></Sub>
-                <RemoveBtn onClick={() => set("rooms", draft.rooms.filter((_, j) => j !== i))} />
+              <div key={i} className="space-y-3 rounded-xl border border-ink/10 p-4">
+                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                  <input className={inp} placeholder="Hotel / property (e.g. Kendwa Rocks)" value={r.property ?? ""} onChange={(e) => updateArr(setDraft, "rooms", i, { property: e.target.value })} />
+                  <input className={inp} placeholder="Room name (e.g. Sea-view Suite)" value={r.name} onChange={(e) => updateArr(setDraft, "rooms", i, { name: e.target.value })} />
+                  <RemoveBtn onClick={() => set("rooms", draft.rooms.filter((_, j) => j !== i))} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1.6fr_130px_130px]">
+                  <input className={inp} placeholder="Short description" value={r.description} onChange={(e) => updateArr(setDraft, "rooms", i, { description: e.target.value })} />
+                  <select className={inp} value={r.occupancy} onChange={(e) => updateArr(setDraft, "rooms", i, { occupancy: e.target.value as never })}>
+                    <option value="shared">Shared</option><option value="private">Private</option><option value="single">Single</option>
+                  </select>
+                  <Sub label="Rate + USD"><input type="number" className={inp} value={r.priceDeltaUsd} onChange={(e) => updateArr(setDraft, "rooms", i, { priceDeltaUsd: Number(e.target.value) })} /></Sub>
+                </div>
               </div>
             ))}
-            <AddBtn onClick={() => set("rooms", [...draft.rooms, { name: "", description: "", occupancy: "private", priceDeltaUsd: 0 }])}>Add a room option</AddBtn>
+            <AddBtn onClick={() => set("rooms", [...draft.rooms, { property: "", name: "", description: "", occupancy: "private", priceDeltaUsd: 0 }])}>Add an accommodation option</AddBtn>
           </div>
         </Field>
       );
@@ -342,8 +352,9 @@ function StepContent({
               ))}
               <PhotoUpload draftId={draft.id} slot={`g${draft.galleryUrls.length}`} url="" compact onUploaded={(u) => set("galleryUrls", [...draft.galleryUrls, u])} />
             </div>
+            <GalleryUrlAdd onAdd={(u) => set("galleryUrls", [...draft.galleryUrls, u])} />
           </Field>
-          <p className="text-xs text-ink-muted">Photos are optional to save a draft; add them before you submit for the best listing.</p>
+          <p className="text-xs text-ink-muted">Photos are optional to save a draft; add them before you submit for the best listing. You can upload a file or paste an image link from the web.</p>
         </div>
       );
     case 13:
@@ -615,20 +626,63 @@ function Suggest({ kind, draft, apply }: { kind: string; draft: RetreatDraft; ap
   );
 }
 
+function GalleryUrlAdd({ onAdd }: { onAdd: (u: string) => void }) {
+  const [v, setV] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  function add() {
+    const url = v.trim();
+    if (!/^https?:\/\/\S+/i.test(url)) { setErr("Enter a link starting with http:// or https://"); return; }
+    setErr(null); onAdd(url); setV("");
+  }
+  return (
+    <div className="mt-3">
+      <div className="flex gap-2">
+        <input
+          value={v}
+          onChange={(e) => setV(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder="Paste an image URL to add to the gallery (https://…)"
+          className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
+        />
+        <button type="button" onClick={add} className="flex-none rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">Add</button>
+      </div>
+      {err && <p className="mt-1 text-xs text-clay-600">{err}</p>}
+    </div>
+  );
+}
+
 function PhotoUpload({ draftId, slot, url, onUploaded, onClear, compact }: { draftId: string; slot: string; url: string; onUploaded: (u: string) => void; onClear?: () => void; compact?: boolean }) {
   const [pending, start] = useTransition();
+  const [urlInput, setUrlInput] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setErr(null);
     const fd = new FormData();
     fd.set("file", file);
     start(async () => {
-      const u = await uploadRetreatPhoto(draftId, slot, fd);
-      if (u) onUploaded(u);
+      try {
+        const u = await uploadRetreatPhoto(draftId, slot, fd);
+        if (u) onUploaded(u);
+        else setErr("Upload didn’t go through — paste an image URL instead.");
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Upload failed — paste an image URL instead.");
+      }
       if (ref.current) ref.current.value = "";
     });
   }
+
+  function applyUrl() {
+    const v = urlInput.trim();
+    if (!/^https?:\/\/\S+/i.test(v)) { setErr("Enter a link starting with http:// or https://"); return; }
+    setErr(null);
+    onUploaded(v);
+    setUrlInput("");
+  }
+
   if (url && !compact) {
     return (
       <div className="relative inline-block">
@@ -639,10 +693,25 @@ function PhotoUpload({ draftId, slot, url, onUploaded, onClear, compact }: { dra
     );
   }
   return (
-    <label className={cn("flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-ink/25 text-center text-xs text-ink-muted hover:border-ink/50", compact ? "aspect-square" : "h-40")}>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onFile} />
-      {pending ? "Uploading…" : compact ? "+ Add" : "Click to upload a photo"}
-    </label>
+    <div className={compact ? "" : "space-y-2"}>
+      <label className={cn("flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-ink/25 text-center text-xs text-ink-muted hover:border-ink/50", compact ? "aspect-square" : "h-32")}>
+        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onFile} />
+        {pending ? "Uploading…" : compact ? "+ Add" : "Click to upload a photo"}
+      </label>
+      {!compact && (
+        <div className="flex gap-2">
+          <input
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyUrl(); } }}
+            placeholder="…or paste an image URL (https://…)"
+            className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
+          />
+          <button type="button" onClick={applyUrl} className="flex-none rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">Use</button>
+        </div>
+      )}
+      {err && <p className="text-xs text-clay-600">{err}</p>}
+    </div>
   );
 }
 
