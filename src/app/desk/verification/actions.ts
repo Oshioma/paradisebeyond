@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
-import { setVerificationCriteria, setExperienceVerified } from "@/lib/admin/verification";
+import { setVerificationCriteria, setExperienceVerified, setExperienceFeatured } from "@/lib/admin/verification";
 
 /** Admin: save the editable verification criteria checklist. */
 export async function saveCriteria(formData: FormData): Promise<void> {
@@ -26,5 +26,19 @@ export async function toggleVerified(formData: FormData): Promise<void> {
   revalidatePath("/desk/verification");
   revalidatePath("/desk/experiences");
   revalidatePath("/experiences");
+  revalidatePath(`/experiences/${slug}`);
+}
+
+/** Admin: feature or unfeature an experience (surfaces it on the homepage). */
+export async function toggleFeatured(formData: FormData): Promise<void> {
+  await requireRole("admin");
+  const slug = String(formData.get("slug") ?? "");
+  const featured = String(formData.get("featured") ?? "") === "1";
+  if (!slug) return;
+  await setExperienceFeatured(slug, featured);
+  revalidatePath("/desk/verification");
+  revalidatePath("/desk/experiences");
+  revalidatePath("/experiences");
+  revalidatePath("/");
   revalidatePath(`/experiences/${slug}`);
 }

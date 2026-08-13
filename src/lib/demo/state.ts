@@ -35,6 +35,8 @@ export interface DemoState {
   verificationCriteria?: string[];
   /** Experience slugs the admin marked verified (demo). */
   verifiedSlugs?: string[];
+  /** Experience slugs the admin marked featured (demo). */
+  featuredSlugs?: string[];
   /** Admin-selected AI model (demo mode; per-browser). */
   aiModelId?: string;
 }

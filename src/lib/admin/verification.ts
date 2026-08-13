@@ -54,6 +54,12 @@ export async function getDemoVerifiedSlugs(): Promise<string[]> {
   return readDemoState().verifiedSlugs ?? [];
 }
 
+/** Demo-only featured overrides (empty in live mode, where content.featured is truth). */
+export async function getDemoFeaturedSlugs(): Promise<string[]> {
+  if (isSupabaseConfigured()) return [];
+  return readDemoState().featuredSlugs ?? [];
+}
+
 /** Award or revoke Verified on an experience (by slug). */
 export async function setExperienceVerified(slug: string, verified: boolean): Promise<{ ok: boolean; error?: string }> {
   if (isSupabaseConfigured()) {
@@ -71,6 +77,31 @@ export async function setExperienceVerified(slug: string, verified: boolean): Pr
     const set = new Set(s.verifiedSlugs ?? []);
     if (verified) set.add(slug); else set.delete(slug);
     s.verifiedSlugs = Array.from(set);
+  });
+  return { ok: true };
+}
+
+/**
+ * Feature or unfeature an experience (by slug). Featured experiences surface on
+ * the homepage. Like verified, the flag lives on both the `featured` column and
+ * `content.featured` (the read model renders content).
+ */
+export async function setExperienceFeatured(slug: string, featured: boolean): Promise<{ ok: boolean; error?: string }> {
+  if (isSupabaseConfigured()) {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = createClient();
+    const { data, error: readErr } = await supabase.from("experiences").select("content").eq("slug", slug).maybeSingle();
+    if (readErr || !data) return { ok: false, error: readErr?.message ?? "Experience not found." };
+    const content = { ...(data.content as Record<string, unknown>), featured };
+    const { error } = await supabase.from("experiences").update({ featured, content }).eq("slug", slug);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+  // Demo: seed catalogue is read-only, but track the override so the toggle works.
+  updateDemoState((s) => {
+    const set = new Set(s.featuredSlugs ?? []);
+    if (featured) set.add(slug); else set.delete(slug);
+    s.featuredSlugs = Array.from(set);
   });
   return { ok: true };
 }
