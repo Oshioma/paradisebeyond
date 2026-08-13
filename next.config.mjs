@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Photo uploads go through a Server Action; the default body limit is 1 MB,
+    // which silently stalls real photos. Allow up to the app's 8 MB image cap
+    // (plus FormData overhead).
+    serverActions: { bodySizeLimit: "10mb" },
+  },
   images: {
     // Demo imagery is generated locally by /api/placeholder (SVG), so image
     // optimisation is disabled to serve it directly. When you point
