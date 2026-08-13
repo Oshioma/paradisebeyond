@@ -121,7 +121,12 @@ export function RetreatWizard({
               {saving ? "Saving…" : "Save draft"}
             </button>
             {step < STEPS.length - 1 && (
-              <button onClick={() => go(step + 1)} className="rounded-full bg-ink px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
+              <button
+                onClick={() => go(step + 1)}
+                disabled={step === 0 && !draft.durationChosen}
+                title={step === 0 && !draft.durationChosen ? "Choose 7 or 14 days first" : undefined}
+                className="rounded-full bg-ink px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft disabled:opacity-40"
+              >
                 Continue
               </button>
             )}
@@ -155,8 +160,8 @@ function StepContent({
             {[7, 14].map((n) => (
               <button
                 key={n}
-                onClick={() => setDraft((d) => ({ ...d, duration: n as 7 | 14, itinerary: resizeItinerary({ ...d, duration: n as 7 | 14 }) }))}
-                className={cn("rounded-xl2 border p-6 text-left transition-all", draft.duration === n ? "border-ink bg-ink text-sand-50" : "border-ink/15 hover:border-ink/40")}
+                onClick={() => setDraft((d) => ({ ...d, duration: n as 7 | 14, durationChosen: true, itinerary: resizeItinerary({ ...d, duration: n as 7 | 14 }) }))}
+                className={cn("rounded-xl2 border p-6 text-left transition-all", draft.durationChosen && draft.duration === n ? "border-ink bg-ink text-sand-50" : "border-ink/15 hover:border-ink/40")}
               >
                 <p className="font-display text-3xl font-semibold">{n} Days</p>
                 <p className={cn("mt-1 text-sm", draft.duration === n ? "text-sand-100/80" : "text-ink-muted")}>
@@ -276,7 +281,7 @@ function StepContent({
     }
     case 8:
       return (
-        <Field label="Room options" hint="Shared, private, upgrades. Prices are added to the base price.">
+        <Field label="Accommodation options" hint="Add as many as you offer — guests pick one, and its price is added to the base. Shown to guests highest price first.">
           <div className="space-y-3">
             {draft.rooms.map((r, i) => (
               <div key={i} className="grid gap-3 rounded-xl border border-ink/10 p-4 sm:grid-cols-[1fr_1.5fr_120px_120px_auto]">
@@ -289,7 +294,7 @@ function StepContent({
                 <RemoveBtn onClick={() => set("rooms", draft.rooms.filter((_, j) => j !== i))} />
               </div>
             ))}
-            <AddBtn onClick={() => set("rooms", [...draft.rooms, { name: "", description: "", occupancy: "private", priceDeltaUsd: 0 }])}>Add a room option</AddBtn>
+            <AddBtn onClick={() => set("rooms", [...draft.rooms, { name: "", description: "", occupancy: "private", priceDeltaUsd: 0 }])}>Add an accommodation option</AddBtn>
           </div>
         </Field>
       );

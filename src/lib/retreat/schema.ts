@@ -52,6 +52,8 @@ export interface RetreatDraft {
   story: string[];
   // 2 Duration
   duration: 7 | 14;
+  /** True once the host has explicitly chosen the length (vs the 7-day default). */
+  durationChosen?: boolean;
   // 3 Location
   destinationSlug: string;
   destinationName: string;

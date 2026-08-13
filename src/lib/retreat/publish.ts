@@ -41,6 +41,9 @@ function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): E
 
   const roomTypes: RoomType[] = (draft.rooms ?? [])
     .filter((r) => r.name?.trim())
+    // List accommodation options highest price first.
+    .slice()
+    .sort((a, b) => (b.priceDeltaUsd ?? 0) - (a.priceDeltaUsd ?? 0))
     .map((r, i) => ({
       id: `${slug}-r${i}`, // matches room_types.code; swapped to a real UUID on read
       name: r.name,

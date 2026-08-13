@@ -68,9 +68,9 @@ export function BookingFlow({
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
       <div className="space-y-8">
-        <Step n={1} title="Your room">
+        <Step n={1} title="Your accommodation">
           <div className="space-y-2">
-            {experience.stay.roomTypes.map((r) => (
+            {[...experience.stay.roomTypes].sort((a, b) => b.priceDeltaMinor - a.priceDeltaMinor).map((r) => (
               <button
                 key={r.id}
                 onClick={() => setRoomId(r.id)}
