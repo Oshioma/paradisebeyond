@@ -178,10 +178,44 @@ export const submitRetreatSchema = z.object({
   hostName: z.string().min(2, "Add your host name"),
 });
 
-export type SubmitValidation = { ok: true } | { ok: false; errors: string[] };
+export type SubmitError = { message: string; step: number };
+export type SubmitValidation = { ok: true } | { ok: false; errors: SubmitError[] };
+
+// Map each submit field to the wizard step (0-based) that fixes it, plus a
+// human message to replace Zod's raw "String must contain…" defaults, which
+// tell the host nothing about which field or step is at fault.
+const FIELD_STEP: Record<string, { step: number; fallback: string }> = {
+  duration: { step: 0, fallback: "Choose a 7- or 14-day length." },
+  name: { step: 1, fallback: "Give your retreat a name." },
+  strapline: { step: 1, fallback: "Add a short strapline." },
+  categorySlugs: { step: 1, fallback: "Choose at least one category." },
+  locationLabel: { step: 2, fallback: "Add where it takes place." },
+  departures: { step: 3, fallback: "Every departure needs a start and end date." },
+  hotels: { step: 4, fallback: "Give each hotel a name." },
+  inclusions: { step: 5, fallback: "Remove any empty “What’s included” lines, or fill them in." },
+  rooms: { step: 8, fallback: "Give every room option a name." },
+  priceFromUsd: { step: 9, fallback: "Set a starting price." },
+  hostName: { step: 13, fallback: "Add your host name." },
+};
+
+const SUBMIT_STEP = 15;
+const RAW_DEFAULT = /^(String must contain|Required|Expected|Invalid|Number must)/;
 
 export function validateForSubmit(draft: RetreatDraft): SubmitValidation {
   const res = submitRetreatSchema.safeParse(draft);
   if (res.success) return { ok: true };
-  return { ok: false, errors: res.error.issues.map((i) => i.message) };
+
+  const seen = new Set<string>();
+  const errors: SubmitError[] = [];
+  for (const issue of res.error.issues) {
+    const info = FIELD_STEP[String(issue.path[0] ?? "")];
+    const step = info?.step ?? SUBMIT_STEP;
+    const message = RAW_DEFAULT.test(issue.message) ? info?.fallback ?? issue.message : issue.message;
+    const key = `${step}:${message}`;
+    if (seen.has(key)) continue; // collapse duplicates (e.g. two empty inclusions)
+    seen.add(key);
+    errors.push({ message, step });
+  }
+  errors.sort((a, b) => a.step - b.step); // read top-to-bottom through the wizard
+  return { ok: false, errors };
 }

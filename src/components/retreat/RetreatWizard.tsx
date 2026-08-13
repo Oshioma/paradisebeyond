@@ -108,7 +108,7 @@ export function RetreatWizard({
         </div>
 
         <div className="min-h-[340px]">
-          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} />
+          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} />
         </div>
 
         {/* Nav */}
@@ -151,7 +151,7 @@ function addNights(iso: string, n: number): string {
 type SetFn = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) => void;
 
 function StepContent({
-  step, draft, set, setDraft, categories, destinations, validation, router,
+  step, draft, set, setDraft, categories, destinations, validation, router, go,
 }: {
   step: number;
   draft: RetreatDraft;
@@ -161,6 +161,7 @@ function StepContent({
   destinations: { slug: string; name: string; country: string }[];
   validation: ReturnType<typeof validateForSubmit>;
   router: ReturnType<typeof useRouter>;
+  go: (i: number) => void;
 }) {
   switch (step) {
     case 0:
@@ -399,16 +400,19 @@ function StepContent({
     case 14:
       return <Preview draft={draft} />;
     case 15:
-      return <SubmitStep draft={draft} validation={validation} router={router} />;
+      return <SubmitStep draft={draft} validation={validation} router={router} go={go} />;
     default:
       return null;
   }
 }
 
 // ---- Submit step -----------------------------------------------------------
-function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter> }) {
+function SubmitStep({ draft, validation, router, go }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter>; go: (i: number) => void }) {
   const [pending, start] = useTransition();
-  const [errors, setErrors] = useState<string[]>(validation.ok ? [] : validation.errors);
+  const [serverErrors, setServerErrors] = useState<{ message: string; step: number }[] | null>(null);
+  // Live client validation until the server rejects (which shouldn't happen
+  // while the button is gated, but keep the fallback honest).
+  const errors = serverErrors ?? (validation.ok ? [] : validation.errors);
 
   function doSubmit() {
     start(async () => {
@@ -418,7 +422,7 @@ function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; valida
         // Admin direct-publish returns the live slug; hosts go to the queue.
         router.push(res.slug ? `/experiences/${res.slug}` : "/studio/retreats?submitted=1");
       } else {
-        setErrors(res.errors ?? ["Something went wrong."]);
+        setServerErrors((res.errors ?? ["Something went wrong."]).map((m) => ({ message: m, step: 15 })));
       }
     });
   }
@@ -433,8 +437,21 @@ function SubmitStep({ draft, validation, router }: { draft: RetreatDraft; valida
       {errors.length > 0 ? (
         <div className="mt-6 rounded-xl2 border border-clay-500/40 bg-clay-500/5 p-5">
           <p className="font-medium text-clay-600">A few things to finish first:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft">
-            {errors.map((e) => <li key={e}>{e}</li>)}
+          <p className="mt-1 text-xs text-ink-muted">Click any item to jump straight to the step that fixes it.</p>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {errors.map((e) => (
+              <li key={`${e.step}:${e.message}`}>
+                <button
+                  type="button"
+                  onClick={() => go(e.step)}
+                  className="group flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-ink-soft transition-colors hover:bg-clay-500/10 hover:text-ink"
+                >
+                  <span className="mt-0.5 flex-none text-clay-500">•</span>
+                  <span className="underline decoration-clay-500/40 underline-offset-2 group-hover:decoration-clay-500">{e.message}</span>
+                  <span className="ml-auto flex-none pl-2 text-[0.65rem] uppercase tracking-eyebrow text-clay-600 opacity-0 transition-opacity group-hover:opacity-100">Fix →</span>
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
       ) : (
