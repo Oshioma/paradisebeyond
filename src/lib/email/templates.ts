@@ -64,7 +64,7 @@ export function applicationStatusEmail(name: string, status: string, notes?: str
     approved: {
       subject: "Your Paradise Beyond application is approved 🎉",
       heading: "You're in.",
-      body: `<p>Dear ${name},</p><p>We'd love to have you host with Paradise Beyond. You can now open the Retreat Builder and create your listing — we'll do a final review before it goes live.</p><p><a href="${siteUrl()}/studio/retreats/new" style="background:#c9744a;color:#faf7f2;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Build your retreat</a></p>`,
+      body: `<p>Dear ${name},</p><p>We'd love to have you host with Paradise Beyond. Your account is now set up to create experiences — click below to open the builder and start your first one. We'll do a final review before it goes live.</p><p style="margin:24px 0"><a href="${siteUrl()}/studio/retreats/new" style="background:#c9744a;color:#faf7f2;text-decoration:none;padding:14px 28px;border-radius:999px;font-size:13px;letter-spacing:.12em;text-transform:uppercase">Create your experience</a></p><p style="color:#6b6357;font-size:13px">If the button doesn't open, sign in at ${siteUrl()}/login and head to Studio.</p>`,
     },
     changes_requested: {
       subject: "A note on your Paradise Beyond application",
