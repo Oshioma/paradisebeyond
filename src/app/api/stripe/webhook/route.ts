@@ -45,20 +45,31 @@ export async function POST(req: NextRequest) {
           if (kind === "balance" || kind === "full") update.balance_minor = 0;
           await supabase.from("bookings").update(update).eq("id", bookingId);
 
-          // Record the payment (idempotent on the session+kind key).
-          await supabase.from("payments").upsert(
-            {
-              booking_id: bookingId,
-              kind,
-              amount_minor: session.amount_total ?? 0,
-              currency: (session.currency ?? "usd").toUpperCase(),
-              provider: "stripe",
-              provider_ref: String(session.payment_intent ?? ""),
-              status: "succeeded",
-              idempotency_key: `${session.id}:${kind}`,
-            },
-            { onConflict: "idempotency_key", ignoreDuplicates: true },
-          );
+          // Record the payment (idempotent on the session+kind key). The
+          // returned rows tell us whether THIS event inserted the payment — used
+          // below to send the guest email exactly once, even if Stripe retries.
+          const { data: recorded } = await supabase
+            .from("payments")
+            .upsert(
+              {
+                booking_id: bookingId,
+                kind,
+                amount_minor: session.amount_total ?? 0,
+                currency: (session.currency ?? "usd").toUpperCase(),
+                provider: "stripe",
+                provider_ref: String(session.payment_intent ?? ""),
+                status: "succeeded",
+                idempotency_key: `${session.id}:${kind}`,
+              },
+              { onConflict: "idempotency_key", ignoreDuplicates: true },
+            )
+            .select("id");
+
+          // Email the guest on first record only (confirmation for a booking,
+          // receipt for a balance). Best-effort — never fail the webhook on it.
+          if (recorded && recorded.length > 0) {
+            await sendGuestEmail(supabase, session, bookingId, kind);
+          }
         }
         break;
       }
@@ -108,4 +119,68 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+/**
+ * Send the guest their email after a paid Checkout — the confirmation for a
+ * deposit/full booking, or the balance receipt. Runs from the webhook because
+ * the Stripe booking flow redirects to hosted Checkout and never touches the
+ * inline email path the mock provider uses. Best-effort: any failure is logged,
+ * not thrown, so the webhook still acknowledges the event.
+ */
+async function sendGuestEmail(
+  supabase: ReturnType<typeof import("@/lib/supabase/server").createServiceRoleClient>,
+  session: Stripe.Checkout.Session,
+  bookingId: string,
+  kind: string,
+) {
+  try {
+    const guestEmail = session.customer_details?.email ?? session.customer_email ?? "";
+    if (!guestEmail) return;
+
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("reference, currency, balance_minor, departure_id, guest_id")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (!booking) return;
+
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", booking.guest_id).maybeSingle();
+    const guestName = session.customer_details?.name ?? profile?.full_name ?? guestEmail.split("@")[0];
+
+    const { getAllExperiences } = await import("@/lib/data/repository");
+    const all = await getAllExperiences();
+    let experience: (typeof all)[number] | undefined;
+    let departure: { startDate: string; endDate: string } | undefined;
+    for (const e of all) {
+      const d = e.departures.find((x) => x.id === booking.departure_id);
+      if (d) { experience = e; departure = d; break; }
+    }
+    if (!experience || !departure) return;
+
+    const { sendEmail } = await import("@/lib/email");
+    if (kind === "balance") {
+      const { balancePaidEmail } = await import("@/lib/email/templates");
+      await sendEmail({ to: guestEmail, ...balancePaidEmail(guestName, experience.name) });
+    } else {
+      const { bookingConfirmationEmail } = await import("@/lib/email/templates");
+      await sendEmail({
+        to: guestEmail,
+        ...bookingConfirmationEmail({
+          guestName,
+          experienceName: experience.name,
+          location: experience.location,
+          startDate: departure.startDate,
+          endDate: departure.endDate,
+          reference: booking.reference,
+          paidMinor: session.amount_total ?? 0,
+          balanceMinor: kind === "deposit" ? (booking.balance_minor ?? 0) : 0,
+          currency: booking.currency,
+          bookingId,
+        }),
+      });
+    }
+  } catch (e) {
+    console.error("[stripe webhook] guest email", e);
+  }
 }

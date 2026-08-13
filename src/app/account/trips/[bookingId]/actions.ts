@@ -73,8 +73,13 @@ export async function payBalance(formData: FormData) {
       .eq("id", bookingId)
       .maybeSingle();
     if (b && (b.balance_minor ?? 0) > 0) {
-      await supabase.from("bookings").update({ balance_minor: 0, status: "confirmed" }).eq("id", bookingId);
-      await supabase.from("payments").upsert(
+      // Settling the balance and recording the payment are financial writes —
+      // service-role-only under RLS. Use it so the balance actually clears
+      // instead of failing silently on the guest's session.
+      const { createServiceRoleClient } = await import("@/lib/supabase/server");
+      const admin = createServiceRoleClient();
+      await admin.from("bookings").update({ balance_minor: 0, status: "confirmed" }).eq("id", bookingId);
+      await admin.from("payments").upsert(
         { booking_id: bookingId, kind: "balance", amount_minor: b.balance_minor, currency: b.currency, provider: "mock", status: "succeeded", idempotency_key: `${bookingId}:balance` },
         { onConflict: "idempotency_key", ignoreDuplicates: true },
       );

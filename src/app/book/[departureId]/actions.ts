@@ -130,16 +130,23 @@ export async function createBooking(formData: FormData) {
       .single();
 
     const newId = inserted?.id ?? bookingId;
-    await supabase.from("payments").insert({
-      booking_id: newId,
-      kind,
-      amount_minor: dueNowMinor,
-      currency,
-      application_fee_minor: feeDueNowMinor,
-      provider: provider.name,
-      status: "succeeded",
-      idempotency_key: `${reference}:${kind}`,
-    });
+    // Payments are a service-role-only write under RLS (financial rows). Insert
+    // through the service role so the payment is actually recorded, not silently
+    // dropped, in this non-Stripe path (the webhook already uses the service role).
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    await createServiceRoleClient().from("payments").upsert(
+      {
+        booking_id: newId,
+        kind,
+        amount_minor: dueNowMinor,
+        currency,
+        application_fee_minor: feeDueNowMinor,
+        provider: provider.name,
+        status: "succeeded",
+        idempotency_key: `${reference}:${kind}`,
+      },
+      { onConflict: "idempotency_key", ignoreDuplicates: true },
+    );
     if (promo) await supabase.rpc("redeem_promo", { p_code: promo.code });
 
     await sendConfirmation({
