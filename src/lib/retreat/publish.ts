@@ -99,7 +99,11 @@ function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): E
     story: (draft.story ?? []).filter(Boolean),
     highlights: (draft.highlights ?? [])
       .filter((h) => h.title?.trim() || h.description?.trim())
-      .map((h, i) => ({ title: h.title, description: h.description, imageSeed: imageSeeds[i % imageSeeds.length] })),
+      // Each highlight gets its OWN stable image slot so a host can give every
+      // "moment" a distinct photo. Reusing the gallery/hero seeds collapsed
+      // multiple highlights onto a single slot when the gallery was small, so
+      // every card showed the same image and uploads overwrote each other.
+      .map((h, i) => ({ title: h.title, description: h.description, imageSeed: `${slug}-h${i}` })),
     stay: {
       property: hotels[0]?.name ?? draft.propertyName ?? "",
       description: hotels[0]?.description ?? draft.propertyDescription ?? "",
@@ -171,6 +175,23 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   const stamp = new Date().toISOString();
   if (draft.heroImageUrl) overrides.push({ seed: slotKey(`${slug}-hero`), url: draft.heroImageUrl, updated_at: stamp });
   (draft.galleryUrls ?? []).forEach((url, i) => { if (url) overrides.push({ seed: slotKey(`${slug}-g${i}`), url, updated_at: stamp }); });
+
+  // Seed each highlight's own slot once from the uploaded photo pool (gallery,
+  // else hero), cycled so the "moments" cards start populated and differ. Never
+  // overwrite a photo already set for a highlight (e.g. one the host chose in
+  // the Media manager) on a later re-publish.
+  const highlightPool = (draft.galleryUrls ?? []).filter(Boolean);
+  const pool = highlightPool.length ? highlightPool : draft.heroImageUrl ? [draft.heroImageUrl] : [];
+  if (pool.length && content.highlights.length) {
+    const seeds = content.highlights.map((h) => slotKey(h.imageSeed));
+    const { data: existing } = await supabase.from("media_overrides").select("seed").in("seed", seeds);
+    const already = new Set(((existing ?? []) as { seed: string }[]).map((r) => r.seed));
+    content.highlights.forEach((h, i) => {
+      const seed = slotKey(h.imageSeed);
+      if (!already.has(seed)) overrides.push({ seed, url: pool[i % pool.length], updated_at: stamp });
+    });
+  }
+
   if (overrides.length) {
     const { error: ovErr } = await supabase.from("media_overrides").upsert(overrides, { onConflict: "seed" });
     if (ovErr) return { ok: false, error: `Saving photos failed: ${ovErr.message}` };
