@@ -195,40 +195,119 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   if (expErr || !exp) return { ok: false, error: expErr?.message ?? "Could not write the experience." };
   const experienceId = exp.id as string;
 
-  // Replace transactional rows so re-publishing stays consistent.
-  await supabase.from("departures").delete().eq("experience_id", experienceId);
-  await supabase.from("room_types").delete().eq("experience_id", experienceId);
+  // --- Booking-safe sync of departures & rooms --------------------------------
+  // On a first publish there's nothing here yet. On a *re-publish* (a host edited
+  // a live listing and it was re-approved) we must not orphan guests: bookings
+  // reference departures and room_types with ON DELETE RESTRICT, and blindly
+  // resetting spaces_remaining would oversell. So instead of delete-all +
+  // insert, we reconcile in place:
+  //  - departures are matched by start_date (a stable, human key), updated with
+  //    already-sold spaces preserved; new dates are inserted; dropped dates are
+  //    deleted only when unbooked (booked ones are closed, never removed);
+  //  - room_types are matched by code, updated or inserted; dropped ones are
+  //    deleted only when unbooked.
+  type DepRow = { id: string; code: string; start_date: string; capacity: number; spaces_remaining: number };
+  type RoomRow = { id: string; code: string };
+  const [depsRes, roomsRes] = await Promise.all([
+    supabase.from("departures").select("id, code, start_date, capacity, spaces_remaining").eq("experience_id", experienceId),
+    supabase.from("room_types").select("id, code").eq("experience_id", experienceId),
+  ]);
+  const existingDeps = (depsRes.data ?? []) as DepRow[];
+  const existingRooms = (roomsRes.data ?? []) as RoomRow[];
 
-  const depRows = content.departures.map((d, i) => ({
-    experience_id: experienceId,
-    code: `${slug}-d${i}`,
-    start_date: d.startDate,
-    end_date: d.endDate,
-    currency: d.currency,
-    price_from_minor: d.priceFromMinor,
-    deposit_minor: d.depositMinor,
-    balance_due_days: d.balanceDueDays,
-    capacity: d.capacity,
-    spaces_remaining: d.spacesRemaining,
-    status: "open",
-  }));
-  if (depRows.length) {
-    const { error } = await supabase.from("departures").insert(depRows);
-    if (error) return { ok: false, error: `Departures: ${error.message}` };
+  const existingDepIds = existingDeps.map((d) => d.id);
+  const existingRoomIds = existingRooms.map((r) => r.id);
+  const bookedDepIds = new Set<string>();
+  const bookedRoomIds = new Set<string>();
+  if (existingDepIds.length) {
+    const { data } = await supabase.from("bookings").select("departure_id").in("departure_id", existingDepIds);
+    for (const b of data ?? []) bookedDepIds.add(b.departure_id as string);
+  }
+  if (existingRoomIds.length) {
+    const { data } = await supabase.from("bookings").select("room_type_id").in("room_type_id", existingRoomIds);
+    for (const b of data ?? []) bookedRoomIds.add(b.room_type_id as string);
   }
 
-  const roomRows = content.stay.roomTypes.map((r, i) => ({
-    experience_id: experienceId,
-    code: `${slug}-r${i}`,
-    name: r.name,
-    description: r.description,
-    occupancy: r.occupancy,
-    price_delta_minor: r.priceDeltaMinor,
-    sort_order: i,
-  }));
-  if (roomRows.length) {
-    const { error } = await supabase.from("room_types").insert(roomRows);
-    if (error) return { ok: false, error: `Rooms: ${error.message}` };
+  // Departures — match by date so re-ordering or inserting a date never shuffles
+  // an existing booking onto the wrong departure.
+  const depByDate = new Map(existingDeps.map((d) => [d.start_date, d] as const));
+  const desiredDates = new Set(content.departures.map((d) => d.startDate));
+  for (let i = 0; i < content.departures.length; i++) {
+    const d = content.departures[i];
+    const prior = depByDate.get(d.startDate);
+    if (prior) {
+      // Carry forward however many spaces are already sold on this date.
+      const sold = Math.max(0, Number(prior.capacity) - Number(prior.spaces_remaining));
+      const spaces = Math.max(0, Math.min(d.capacity, d.capacity - sold));
+      const { error } = await supabase
+        .from("departures")
+        .update({
+          end_date: d.endDate,
+          currency: d.currency,
+          price_from_minor: d.priceFromMinor,
+          deposit_minor: d.depositMinor,
+          balance_due_days: d.balanceDueDays,
+          capacity: d.capacity,
+          spaces_remaining: spaces,
+          status: "open", // a previously-closed date that's back in the plan reopens
+        })
+        .eq("id", prior.id);
+      if (error) return { ok: false, error: `Departures: ${error.message}` };
+    } else {
+      const { error } = await supabase.from("departures").insert({
+        experience_id: experienceId,
+        code: `${slug}-d${i}-${d.startDate}`,
+        start_date: d.startDate,
+        end_date: d.endDate,
+        currency: d.currency,
+        price_from_minor: d.priceFromMinor,
+        deposit_minor: d.depositMinor,
+        balance_due_days: d.balanceDueDays,
+        capacity: d.capacity,
+        spaces_remaining: d.spacesRemaining,
+        status: "open",
+      });
+      if (error) return { ok: false, error: `Departures: ${error.message}` };
+    }
+  }
+  for (const dep of existingDeps) {
+    if (desiredDates.has(dep.start_date)) continue;
+    if (bookedDepIds.has(dep.id)) {
+      // Guests hold this date — take it off sale rather than delete (FK RESTRICT).
+      await supabase.from("departures").update({ status: "closed" }).eq("id", dep.id);
+    } else {
+      await supabase.from("departures").delete().eq("id", dep.id);
+    }
+  }
+
+  // Rooms — match by code.
+  const roomByCode = new Map(existingRooms.map((r) => [r.code, r] as const));
+  const desiredRoomCodes = new Set(content.stay.roomTypes.map((_, i) => `${slug}-r${i}`));
+  for (let i = 0; i < content.stay.roomTypes.length; i++) {
+    const r = content.stay.roomTypes[i];
+    const code = `${slug}-r${i}`;
+    const prior = roomByCode.get(code);
+    const fields = {
+      name: r.name,
+      description: r.description,
+      occupancy: r.occupancy,
+      price_delta_minor: r.priceDeltaMinor,
+      sort_order: i,
+    };
+    if (prior) {
+      const { error } = await supabase.from("room_types").update(fields).eq("id", prior.id);
+      if (error) return { ok: false, error: `Rooms: ${error.message}` };
+    } else {
+      const { error } = await supabase.from("room_types").insert({ experience_id: experienceId, code, ...fields });
+      if (error) return { ok: false, error: `Rooms: ${error.message}` };
+    }
+  }
+  for (const room of existingRooms) {
+    if (desiredRoomCodes.has(room.code)) continue;
+    // Keep a room a guest has booked (FK RESTRICT); drop the rest.
+    if (!bookedRoomIds.has(room.id)) {
+      await supabase.from("room_types").delete().eq("id", room.id);
+    }
   }
 
   if (hostId) {

@@ -50,7 +50,11 @@ export async function saveRetreatDraft(draft: RetreatDraft) {
     const hostId = await ensureOwnedHostId(user.id, user.name);
     if (hostId) draft.hostId = hostId; // hostId is a hosts.id in live mode
   }
-  if (draft.status === "approved" || draft.status === "submitted") return; // don't overwrite a submitted draft
+  // Don't let a stale autosave clobber a draft that's mid-review. An `approved`
+  // draft, by contrast, is a live listing the host has reopened to edit — those
+  // edits must persist (they stay in the draft until re-submitted and
+  // re-approved; the published listing is untouched meanwhile).
+  if (draft.status === "submitted" || draft.status === "under_review") return;
   await saveDraft(draft);
   revalidatePath("/studio/retreats");
 }

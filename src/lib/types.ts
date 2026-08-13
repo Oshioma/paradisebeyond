@@ -125,4 +125,9 @@ export interface Experience {
   itinerary: ItineraryDay[];
   departures: Departure[];
   featured: boolean;
+  /**
+   * The retreat draft this listing was materialised from (live/Supabase only).
+   * Lets a host reopen their published experience in the builder to edit it.
+   */
+  retreatDraftId?: string;
 }
