@@ -11,9 +11,13 @@ import { createBooking, checkPromo } from "@/app/book/[departureId]/actions";
 export function BookingFlow({
   experience,
   departure,
+  isAuthed = true,
+  loginHref = "/login",
 }: {
   experience: Experience;
   departure: Departure;
+  isAuthed?: boolean;
+  loginHref?: string;
 }) {
   const maxGuests = Math.max(1, Math.min(departure.spacesRemaining, 6));
   const [roomId, setRoomId] = useState(experience.stay.roomTypes[0].id);
@@ -163,13 +167,22 @@ export function BookingFlow({
             )}
           </div>
 
-          <button
-            onClick={reserve}
-            disabled={pending}
-            className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift disabled:opacity-60"
-          >
-            {pending ? "Securing…" : "Reserve my place"}
-          </button>
+          {isAuthed ? (
+            <button
+              onClick={reserve}
+              disabled={pending}
+              className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift disabled:opacity-60"
+            >
+              {pending ? "Securing…" : "Reserve my place"}
+            </button>
+          ) : (
+            <a
+              href={loginHref}
+              className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift"
+            >
+              Sign in to book
+            </a>
+          )}
           <p className="mt-3 text-center text-xs text-ink-muted">
             Flights not included · secure your dates with {formatMoney(dueNow, c)} now
           </p>
