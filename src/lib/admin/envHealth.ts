@@ -124,6 +124,14 @@ export function getEnvHealth(): EnvHealth {
     checks: [
       secretCheck("RESEND_API_KEY", "Resend API key", false),
       publicCheck("EMAIL_FROM", "From address", false),
+      {
+        key: "ADMIN_EMAIL",
+        label: "Ops notifications recipient",
+        level: (present("ADMIN_EMAIL") ? "ok" : "warn") as Level,
+        detail: present("ADMIN_EMAIL") ? "Set" : "Optional — new host-application alerts won't be emailed",
+        secret: false,
+        required: false,
+      },
     ],
   };
 
