@@ -28,6 +28,9 @@ export interface DemoState {
   reviews: Review[];
   /** Per-booking pre-trip questionnaire answers (demo). */
   tripPrep: Record<string, TripPrep>;
+  /** Admin-edited commission (demo): global rate + per-destination overrides, in bps. */
+  commissionGlobalBps?: number;
+  commissionByDest?: Record<string, number>;
   /** Admin-edited verification criteria (demo). */
   verificationCriteria?: string[];
   /** Experience slugs the admin marked verified (demo). */

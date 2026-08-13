@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 interface Opt { value: string; label: string }
 
 const STEPS = [
-  "The basics", "7 or 14 days", "Location", "Dates", "Accommodation",
+  "7 or 14 days", "The basics", "Location", "Dates", "Accommodation",
   "What's included", "Activities", "Itinerary", "Rooms", "Pricing",
   "Deposit & payment", "Cancellation", "Photos", "Host profile", "Preview", "Submit",
 ] as const;
@@ -150,28 +150,7 @@ function StepContent({
   switch (step) {
     case 0:
       return (
-        <div className="space-y-5">
-          <AiDraftPanel draft={draft} setDraft={setDraft} />
-          <Field label="Retreat name" hint="Evocative, not generic. e.g. “Zanzibar Reconnection”">
-            <input className={inp} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Zanzibar Reconnection" />
-          </Field>
-          <Field label="Strapline" suggest={<Suggest kind="strapline" draft={draft} apply={(v) => set("strapline", v[0] ?? "")} />}>
-            <input className={inp} value={draft.strapline} onChange={(e) => set("strapline", e.target.value)} placeholder="Seven days to come back to yourself." />
-          </Field>
-          <Field label="Categories" hint="Pick all that fit.">
-            <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => set("categorySlugs", toggle(draft.categorySlugs, v))} />
-          </Field>
-          <Field label="This experience is for you if…" suggest={<Suggest kind="idealGuest" draft={draft} apply={(v) => set("idealGuest", v)} />}>
-            <ListEditor items={draft.idealGuest} onChange={(v) => set("idealGuest", v)} placeholder="You've been running on empty…" />
-          </Field>
-          <Field label="The story" hint="Tell it, don't list features." suggest={<Suggest kind="story" draft={draft} apply={(v) => set("story", v)} />}>
-            <ListEditor items={draft.story} onChange={(v) => set("story", v)} textarea placeholder="A week built around one idea…" />
-          </Field>
-        </div>
-      );
-    case 1:
-      return (
-        <Field label="How long is your retreat?">
+        <Field label="How long is your retreat?" hint="Choose first — your name, strapline and itinerary are tailored to it.">
           <div className="grid gap-4 sm:grid-cols-2">
             {[7, 14].map((n) => (
               <button
@@ -187,6 +166,27 @@ function StepContent({
             ))}
           </div>
         </Field>
+      );
+    case 1:
+      return (
+        <div className="space-y-5">
+          <AiDraftPanel draft={draft} setDraft={setDraft} />
+          <Field label="Retreat name" hint="Evocative, not generic. e.g. “Zanzibar Reconnection”">
+            <input className={inp} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Zanzibar Reconnection" />
+          </Field>
+          <Field label="Strapline" suggest={<Suggest kind="strapline" draft={draft} apply={(v) => set("strapline", v[0] ?? "")} />}>
+            <input className={inp} value={draft.strapline} onChange={(e) => set("strapline", e.target.value)} placeholder={`${draft.duration} days to come back to yourself.`} />
+          </Field>
+          <Field label="Categories" hint="Pick all that fit.">
+            <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => set("categorySlugs", toggle(draft.categorySlugs, v))} />
+          </Field>
+          <Field label="This experience is for you if…" suggest={<Suggest kind="idealGuest" draft={draft} apply={(v) => set("idealGuest", v)} />}>
+            <ListEditor items={draft.idealGuest} onChange={(v) => set("idealGuest", v)} placeholder="You've been running on empty…" />
+          </Field>
+          <Field label="The story" hint="Tell it, don't list features." suggest={<Suggest kind="story" draft={draft} apply={(v) => set("story", v)} />}>
+            <ListEditor items={draft.story} onChange={(v) => set("story", v)} textarea placeholder={`A ${draft.duration === 14 ? "fortnight" : "week"} built around one idea…`} />
+          </Field>
+        </div>
       );
     case 2:
       return (

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MessagesInboxPage() {
   const user = await requireRole("host", "/studio/messages");
-  const convos = await getHostConversations(user.hostSlug ?? "amina-yusuf");
+  const convos = await getHostConversations(user.hostSlug ?? "");
 
   return (
     <div className="container-editorial py-12">

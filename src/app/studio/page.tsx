@@ -1,17 +1,18 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getExperiencesByHost } from "@/lib/data/repository";
+import { getExperiencesByHost, getHost } from "@/lib/data/repository";
 import { getHostBookings } from "@/lib/data/bookings";
-import { getHost } from "@/lib/data/hosts";
 import { formatMoney } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Host Studio", robots: { index: false } };
 
 export default async function StudioPage() {
   const user = await requireRole("host", "/studio");
-  const hostSlug = user.hostSlug ?? "amina-yusuf";
-  const host = getHost(hostSlug);
+  // Real hosts only see their own data — no demo fallback that would leak
+  // another host's experiences/bookings.
+  const hostSlug = user.hostSlug ?? "";
+  const host = await getHost(hostSlug);
   const experiences = await getExperiencesByHost(hostSlug);
   const bookings = await getHostBookings(hostSlug);
 
@@ -33,7 +34,7 @@ export default async function StudioPage() {
         </Link>
       </header>
 
-      {host && (
+      {host ? (
         <div className="mt-6 flex items-center gap-3 rounded-xl2 border border-ink/10 bg-sand-50 p-4">
           <span className="inline-flex items-center gap-1 rounded-full bg-palm-500/15 px-3 py-1 text-[0.66rem] font-medium uppercase tracking-eyebrow text-palm-600">
             {host.verified ? "Verified host" : "Application approved"}
@@ -44,6 +45,10 @@ export default async function StudioPage() {
               /hosts/{host.slug}
             </Link>
           </p>
+        </div>
+      ) : (
+        <div className="mt-6 rounded-xl2 border border-clay-500/30 bg-clay-500/5 p-4 text-sm text-ink-muted">
+          Your host profile isn&apos;t linked yet. Once the team finishes setting up your host account, your retreats and bookings appear here.
         </div>
       )}
 

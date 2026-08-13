@@ -12,7 +12,7 @@ import {
 } from "@/lib/data/repository";
 import { getCategory, categoryLabel } from "@/lib/data/categories";
 import { getDestination } from "@/lib/data/destinations";
-import { getHost } from "@/lib/data/hosts";
+import { getHost } from "@/lib/data/repository";
 import { DurationBadge, VerifiedBadge, Badge } from "@/components/ui/Badge";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { ShareButton } from "@/components/experience/ShareButton";
@@ -66,7 +66,7 @@ export default async function ExperiencePage({
 
   const destination = getDestination(e.destinationSlug);
   const next = upcomingDeparture(e);
-  const hosts = e.hostSlugs.map(getHost).filter(Boolean);
+  const hosts = (await Promise.all(e.hostSlugs.map((s) => getHost(s)))).filter(Boolean);
   const categories = e.categorySlugs.map(getCategory).filter(Boolean);
   const reviews = await getExperienceReviews(params.slug);
   const rsum = summarize(reviews);

@@ -96,8 +96,43 @@ export async function getAllDestinations(): Promise<Destination[]> {
   return DESTINATIONS;
 }
 
+// --- Hosts: DB-backed in live mode, seed in demo -----------------------------
+let hostsCache: { at: number; data: Host[] } | null = null;
+
+function mapHostRow(row: Record<string, unknown>): Host {
+  const seed = HOSTS.find((h) => h.slug === row.slug);
+  return {
+    slug: row.slug as string,
+    name: (row.name as string) ?? seed?.name ?? "",
+    headline: (row.headline as string) ?? seed?.headline ?? "",
+    bio: (row.bio as string) ?? seed?.bio ?? "",
+    qualifications: (row.qualifications as string[]) ?? seed?.qualifications ?? [],
+    specialisms: (row.specialisms as string[]) ?? seed?.specialisms ?? [],
+    socials: Array.isArray(row.socials) ? (row.socials as { label: string; href: string }[]) : (seed?.socials ?? []),
+    verified: Boolean(row.verified),
+    // The Host type routes images through img(seed); reuse the seed host's
+    // curated seed when known, else a deterministic per-slug placeholder.
+    imageSeed: seed?.imageSeed ?? `host-${row.slug as string}`,
+    since: seed?.since ?? (row.created_at ? new Date(row.created_at as string).getFullYear() : new Date().getFullYear()),
+  };
+}
+
 export async function getAllHosts(): Promise<Host[]> {
-  return HOSTS;
+  if (!isSupabaseConfigured()) return HOSTS;
+  if (hostsCache && Date.now() - hostsCache.at < 15_000) return hostsCache.data;
+  const { createAnonClient } = await import("@/lib/supabase/server");
+  const { data, error } = await createAnonClient().from("hosts").select("*").order("name");
+  if (error || !data) return HOSTS; // fail safe to seed
+  const hosts = data.map(mapHostRow);
+  hostsCache = { at: Date.now(), data: hosts };
+  return hosts;
+}
+
+/** A single host by slug (live: hosts table; demo: seed). Falls back to seed. */
+export async function getHost(slug: string): Promise<Host | undefined> {
+  if (!slug) return undefined;
+  const all = await getAllHosts();
+  return all.find((h) => h.slug === slug) ?? HOSTS.find((h) => h.slug === slug);
 }
 
 export { nextOpenDeparture, upcomingDeparture };

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { getAllExperiences } from "@/lib/data/repository";
 import { findByDeparture, priceBooking } from "@/lib/booking/pricing";
+import { getActiveCommissionBps } from "@/lib/booking/commission";
 import { getPaymentProvider } from "@/lib/payments";
 import { money, splitCommission } from "@/lib/money";
 import { promoDiscount } from "@/lib/promo/validate";
@@ -44,7 +45,8 @@ export async function createBooking(formData: FormData) {
   const { experience, departure } = found;
   const room = experience.stay.roomTypes.find((r) => r.id === roomId) ?? experience.stay.roomTypes[0];
 
-  const raw = priceBooking(experience, departure, room, guests);
+  const activeBps = await getActiveCommissionBps(experience.destinationSlug);
+  const raw = priceBooking(experience, departure, room, guests, activeBps);
 
   // Apply a promo code (if valid) to the subtotal, then recompute the split.
   const promoInput = String(formData.get("promo") ?? "").trim();
