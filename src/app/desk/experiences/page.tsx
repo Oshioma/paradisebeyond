@@ -41,7 +41,14 @@ export default async function DeskExperiencesPage() {
                   <Td>{formatFrom(e.priceFromMinor, e.currency)}</Td>
                   <Td>{e.verified ? <Dot tone="palm">Verified</Dot> : <Dot tone="muted">Not yet</Dot>}</Td>
                   <Td>{e.featured ? <Dot tone="ocean">Featured</Dot> : <span className="text-ink-muted">—</span>}</Td>
-                  <Td><Link href={`/experiences/${e.slug}`} className="text-xs uppercase tracking-eyebrow text-ink hover:underline">View</Link></Td>
+                  <Td>
+                    <div className="flex justify-end gap-3">
+                      <Link href={`/experiences/${e.slug}`} className="text-xs uppercase tracking-eyebrow text-ink hover:underline">View</Link>
+                      {e.retreatDraftId && (
+                        <Link href={`/studio/retreats/new?id=${e.retreatDraftId}`} className="text-xs uppercase tracking-eyebrow text-ocean-700 hover:underline">Edit</Link>
+                      )}
+                    </div>
+                  </Td>
                 </tr>
               );
             })}
