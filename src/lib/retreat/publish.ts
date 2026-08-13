@@ -40,7 +40,11 @@ const usdToMinor = (v: number) => Math.round((Number.isFinite(v) ? v : 0) * 100)
 function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): Experience {
   const hotels = (draft.hotels ?? []).filter((h) => h.name?.trim()).map((h) => ({ name: h.name.trim(), description: h.description ?? "" }));
   const heroSeed = `${slug}-hero`;
-  const gallerySeeds = (draft.galleryUrls ?? []).map((_, i) => `${slug}-g${i}`);
+  // Only real photos become image slots. A blank gallery entry must not mint a
+  // seed — that would render as an empty placeholder tile in the gallery, the
+  // "Where you'll stay" grid, and (via the pool below) the highlights.
+  const galleryUrls = (draft.galleryUrls ?? []).map((u) => (u ?? "").trim()).filter(Boolean);
+  const gallerySeeds = galleryUrls.map((_, i) => `${slug}-g${i}`);
   const imageSeeds = gallerySeeds.length ? gallerySeeds : [heroSeed];
   const currency = draft.currency || "USD";
 
@@ -173,15 +177,18 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   // which left the hero/gallery blank on the live page.
   const overrides: { seed: string; url: string; updated_at: string }[] = [];
   const stamp = new Date().toISOString();
-  if (draft.heroImageUrl) overrides.push({ seed: slotKey(`${slug}-hero`), url: draft.heroImageUrl, updated_at: stamp });
-  (draft.galleryUrls ?? []).forEach((url, i) => { if (url) overrides.push({ seed: slotKey(`${slug}-g${i}`), url, updated_at: stamp }); });
+  // Mirror buildContent's filtering so a blank entry never writes an override
+  // for a seed that isn't rendered (and seed indices stay aligned with it).
+  const heroUrl = (draft.heroImageUrl ?? "").trim();
+  const galleryUrls = (draft.galleryUrls ?? []).map((u) => (u ?? "").trim()).filter(Boolean);
+  if (heroUrl) overrides.push({ seed: slotKey(`${slug}-hero`), url: heroUrl, updated_at: stamp });
+  galleryUrls.forEach((url, i) => overrides.push({ seed: slotKey(`${slug}-g${i}`), url, updated_at: stamp }));
 
   // Seed each highlight's own slot once from the uploaded photo pool (gallery,
   // else hero), cycled so the "moments" cards start populated and differ. Never
   // overwrite a photo already set for a highlight (e.g. one the host chose in
   // the Media manager) on a later re-publish.
-  const highlightPool = (draft.galleryUrls ?? []).filter(Boolean);
-  const pool = highlightPool.length ? highlightPool : draft.heroImageUrl ? [draft.heroImageUrl] : [];
+  const pool = galleryUrls.length ? galleryUrls : heroUrl ? [heroUrl] : [];
   if (pool.length && content.highlights.length) {
     const seeds = content.highlights.map((h) => slotKey(h.imageSeed));
     const { data: existing } = await supabase.from("media_overrides").select("seed").in("seed", seeds);
