@@ -183,8 +183,19 @@ export default async function ExperiencePage({
             </Section>
 
             {/* Your stay */}
-            <Section eyebrow="Your stay" title={e.stay.property}>
-              <p className="text-lg leading-relaxed text-ink-soft">{e.stay.description}</p>
+            <Section eyebrow="Your stay" title={e.stay.hotels && e.stay.hotels.length > 1 ? "Where you'll stay" : e.stay.property}>
+              {e.stay.hotels && e.stay.hotels.length > 1 ? (
+                <div className="space-y-4">
+                  {e.stay.hotels.map((h) => (
+                    <div key={h.name} className="rounded-xl2 border border-ink/10 bg-sand-100 p-5">
+                      <h4 className="font-display text-xl font-semibold text-ink">{h.name}</h4>
+                      {h.description && <p className="mt-1 leading-relaxed text-ink-soft">{h.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-lg leading-relaxed text-ink-soft">{e.stay.description}</p>
+              )}
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {e.stay.imageSeeds.map((s) => (
                   <div key={s} className="relative aspect-square overflow-hidden rounded-xl">
