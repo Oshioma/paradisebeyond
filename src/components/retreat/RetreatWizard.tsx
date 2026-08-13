@@ -137,6 +137,16 @@ export function RetreatWizard({
   );
 }
 
+// Add `n` nights to a YYYY-MM-DD date, returning YYYY-MM-DD. Uses UTC so the
+// result never drifts a day from timezone offsets.
+function addNights(iso: string, n: number): string {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00Z");
+  if (Number.isNaN(d.getTime())) return "";
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 // ---------------------------------------------------------------------------
 type SetFn = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) => void;
 
@@ -215,8 +225,15 @@ function StepContent({
           <div className="space-y-3">
             {draft.departures.map((dep, i) => (
               <div key={i} className="grid items-end gap-3 rounded-xl border border-ink/10 p-4 sm:grid-cols-[1fr_1fr_100px_auto]">
-                <Sub label="Start"><input type="date" className={inp} value={dep.startDate} onChange={(e) => updateArr(setDraft, "departures", i, { startDate: e.target.value })} /></Sub>
-                <Sub label="End"><input type="date" className={inp} value={dep.endDate} onChange={(e) => updateArr(setDraft, "departures", i, { endDate: e.target.value })} /></Sub>
+                <Sub label="Start"><input type="date" className={inp} value={dep.startDate} onChange={(e) => {
+                  const startDate = e.target.value;
+                  // Default the End to the retreat's length (7 or 14 nights) later,
+                  // but don't overwrite an End the host has already picked.
+                  const patch: Partial<typeof dep> = { startDate };
+                  if (startDate && !dep.endDate) patch.endDate = addNights(startDate, draft.duration);
+                  updateArr(setDraft, "departures", i, patch);
+                }} /></Sub>
+                <Sub label={`End${dep.startDate && dep.endDate ? "" : ` (defaults to +${draft.duration} nights)`}`}><input type="date" className={inp} value={dep.endDate} onChange={(e) => updateArr(setDraft, "departures", i, { endDate: e.target.value })} /></Sub>
                 <Sub label="Capacity"><input type="number" className={inp} value={dep.capacity} onChange={(e) => updateArr(setDraft, "departures", i, { capacity: Number(e.target.value) })} /></Sub>
                 <RemoveBtn onClick={() => set("departures", draft.departures.filter((_, j) => j !== i))} />
               </div>
