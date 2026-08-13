@@ -1,7 +1,6 @@
 import type { RetreatDraft } from "@/lib/retreat/schema";
 import type { CategorySlug, Departure, Experience, ItineraryDay, RoomType } from "@/lib/types";
 import { slotKey } from "@/lib/images";
-import { setOverrideUrl } from "@/lib/media/store";
 
 /**
  * Materialise an approved retreat draft into the live catalogue.
@@ -153,9 +152,18 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
 
   const content = buildContent(draft, slug, hostSlugs);
 
-  // Point uploaded photos at the experience's image seeds.
-  if (draft.heroImageUrl) await setOverrideUrl(slotKey(`${slug}-hero`), draft.heroImageUrl);
-  await Promise.all((draft.galleryUrls ?? []).map((url, i) => (url ? setOverrideUrl(slotKey(`${slug}-g${i}`), url) : Promise.resolve())));
+  // Point the experience's image seeds at the uploaded photos. Write straight
+  // through the service-role client already in scope: media_overrides is
+  // admin-only under RLS and the user-client write silently swallowed failures,
+  // which left the hero/gallery blank on the live page.
+  const overrides: { seed: string; url: string; updated_at: string }[] = [];
+  const stamp = new Date().toISOString();
+  if (draft.heroImageUrl) overrides.push({ seed: slotKey(`${slug}-hero`), url: draft.heroImageUrl, updated_at: stamp });
+  (draft.galleryUrls ?? []).forEach((url, i) => { if (url) overrides.push({ seed: slotKey(`${slug}-g${i}`), url, updated_at: stamp }); });
+  if (overrides.length) {
+    const { error: ovErr } = await supabase.from("media_overrides").upsert(overrides, { onConflict: "seed" });
+    if (ovErr) return { ok: false, error: `Saving photos failed: ${ovErr.message}` };
+  }
 
   const { data: exp, error: expErr } = await supabase
     .from("experiences")

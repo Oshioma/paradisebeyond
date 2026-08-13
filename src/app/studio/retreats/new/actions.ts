@@ -11,22 +11,43 @@ import { callClaude, isAiEnabled, parseJsonObject } from "@/lib/ai/anthropic";
 import { draftRetreat, type RetreatDraftSuggestion } from "@/lib/ai/retreat";
 
 /**
- * Resolve the hosts.id owned by the current host user, so drafts carry the
- * right host_id (RLS on retreat_drafts checks host ownership). Returns undefined
- * for admins or when the user owns no host row.
+ * Resolve — creating if necessary — the hosts.id owned by the current host, so
+ * drafts carry a valid host_id (RLS on retreat_drafts / experiences keys off
+ * hosts.owner_id). Approval grants the `host` role but no `hosts` row, so a host
+ * would otherwise be unable to save a draft at all. The Host-profile step later
+ * fills in the persona's details. Uses the service role for the slug-uniqueness
+ * check + insert so it doesn't depend on how broadly hosts are readable.
  */
-async function ownedHostId(userId: string): Promise<string | undefined> {
+async function ensureOwnedHostId(userId: string, displayName: string): Promise<string | undefined> {
   if (!isSupabaseConfigured()) return undefined;
-  const { createClient } = await import("@/lib/supabase/server");
-  const { data } = await createClient().from("hosts").select("id").eq("owner_id", userId).maybeSingle();
-  return (data?.id as string) ?? undefined;
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const db = createServiceRoleClient();
+  const { data: existing } = await db.from("hosts").select("id").eq("owner_id", userId).maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const base =
+    (displayName || "host")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "host";
+  let slug = base;
+  for (let n = 2; n < 60; n++) {
+    const { data: clash } = await db.from("hosts").select("id").eq("slug", slug).maybeSingle();
+    if (!clash) break;
+    slug = `${base}-${n}`;
+  }
+  const { data: created } = await db.from("hosts").insert({ owner_id: userId, slug, name: displayName || "Host" }).select("id").maybeSingle();
+  return (created?.id as string) ?? undefined;
 }
 
 /** Persist the current draft (autosave / "Save draft"). */
 export async function saveRetreatDraft(draft: RetreatDraft) {
   const user = await requireRole("host");
   if (user.role === "host") {
-    const hostId = await ownedHostId(user.id);
+    const hostId = await ensureOwnedHostId(user.id, user.name);
     if (hostId) draft.hostId = hostId; // hostId is a hosts.id in live mode
   }
   if (draft.status === "approved" || draft.status === "submitted") return; // don't overwrite a submitted draft
@@ -59,7 +80,7 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
 
   // Host → queue for review.
   if (!draft.hostId) {
-    const hostId = await ownedHostId(user.id);
+    const hostId = await ensureOwnedHostId(user.id, user.name);
     if (hostId) draft.hostId = hostId;
   }
   draft.status = "submitted";
