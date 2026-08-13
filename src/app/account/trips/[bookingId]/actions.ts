@@ -27,7 +27,7 @@ export async function saveFlightDetails(bookingId: string, formData: FormData) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = createClient();
     // RLS ensures the guest can only write flight_details for their own booking.
-    await supabase.from("flight_details").upsert(
+    const { error } = await supabase.from("flight_details").upsert(
       {
         booking_id: bookingId,
         arrival_flight: flight.arrivalFlight,
@@ -39,6 +39,7 @@ export async function saveFlightDetails(bookingId: string, formData: FormData) {
       },
       { onConflict: "booking_id" },
     );
+    if (error) return { ok: false, error: "Couldn't save your flight details. Please try again." };
   } else {
     void user;
     updateDemoState((s) => {
@@ -47,6 +48,7 @@ export async function saveFlightDetails(bookingId: string, formData: FormData) {
   }
 
   revalidatePath(`/account/trips/${bookingId}`);
+  return { ok: true };
 }
 
 /** Pay the remaining balance on a booking. */

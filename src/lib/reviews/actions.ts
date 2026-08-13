@@ -40,6 +40,7 @@ export async function submitReview(formData: FormData): Promise<{ ok: boolean; e
       booking_id: bookingId,
       experience_id: exp.id,
       guest_id: user.id,
+      guest_name: user.name,
       rating_overall: overall,
       rating_host: subs.ratingHost ?? null,
       rating_accommodation: subs.ratingAccommodation ?? null,
@@ -50,8 +51,13 @@ export async function submitReview(formData: FormData): Promise<{ ok: boolean; e
       published: false,
     });
     if (error) {
-      // Unique(booking_id) or RLS (not completed / not owner) failures land here.
-      return { ok: false, error: error.message.includes("duplicate") ? "You've already reviewed this trip." : error.message };
+      // Unique(booking_id) or RLS (trip not ended / not owner) failures land here.
+      const dup = error.message.includes("duplicate");
+      const rls = error.message.toLowerCase().includes("row-level security");
+      return {
+        ok: false,
+        error: dup ? "You've already reviewed this trip." : rls ? "Reviews open once your trip has ended." : error.message,
+      };
     }
   } else {
     updateDemoState((s) => {

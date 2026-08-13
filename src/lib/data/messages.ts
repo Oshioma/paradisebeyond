@@ -31,7 +31,7 @@ export async function getMessages(bookingId: string): Promise<Message[]> {
       bookingId: r.booking_id,
       senderId: r.sender_id,
       senderRole: r.sender_role,
-      senderName: r.sender_role,
+      senderName: r.sender_name || r.sender_role,
       body: r.body,
       createdAt: r.created_at,
     }));

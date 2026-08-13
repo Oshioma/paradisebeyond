@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { Message } from "@/lib/messaging/types";
 import { sendMessage } from "@/lib/messaging/actions";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,8 @@ export function MessageThread({
   names: { host: string; guest: string; admin: string };
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col rounded-xl2 border border-ink/10 bg-sand-50">
@@ -54,26 +56,36 @@ export function MessageThread({
         )}
       </div>
 
-      <form
-        ref={formRef}
-        action={async (fd) => {
-          await sendMessage(fd);
-          formRef.current?.reset();
-        }}
-        className="flex items-end gap-2 border-t border-ink/10 p-3"
-      >
-        <input type="hidden" name="bookingId" value={bookingId} />
-        <textarea
-          name="body"
-          required
-          rows={1}
-          placeholder="Write a message…"
-          className="min-h-[42px] w-full resize-none rounded-xl border border-ink/15 bg-sand-50 px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
-        />
-        <button className="rounded-full bg-clay-500 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-          Send
-        </button>
-      </form>
+      <div className="border-t border-ink/10">
+        {error && <p className="px-4 pt-3 text-xs text-clay-600">{error}</p>}
+        <form
+          ref={formRef}
+          action={(fd) => {
+            setError(null);
+            startTransition(async () => {
+              const res = await sendMessage(fd);
+              if (res?.ok) formRef.current?.reset();
+              else setError(res?.error ?? "Message couldn't be sent. Please try again.");
+            });
+          }}
+          className="flex items-end gap-2 p-3"
+        >
+          <input type="hidden" name="bookingId" value={bookingId} />
+          <textarea
+            name="body"
+            required
+            rows={1}
+            placeholder="Write a message…"
+            className="min-h-[42px] w-full resize-none rounded-xl border border-ink/15 bg-sand-50 px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
+          />
+          <button
+            disabled={pending}
+            className="rounded-full bg-clay-500 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600 disabled:opacity-50"
+          >
+            {pending ? "Sending…" : "Send"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
