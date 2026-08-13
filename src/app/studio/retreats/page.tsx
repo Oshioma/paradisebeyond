@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getExperiencesByHost } from "@/lib/data/repository";
 import { getHostBookings } from "@/lib/data/bookings";
-import { listDraftsForHost } from "@/lib/retreat/store";
+import { getDraft, listDraftsForHost } from "@/lib/retreat/store";
+import type { RetreatDraft } from "@/lib/retreat/schema";
 import { img } from "@/lib/images";
 import { formatDateRange } from "@/lib/utils";
 import { formatFrom } from "@/lib/money";
@@ -27,6 +28,22 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
     bookedByDeparture.set(b.departureId, (bookedByDeparture.get(b.departureId) ?? 0) + b.guestCount);
   }
 
+  // Each published listing keeps a link to the draft it was built from. Load
+  // those drafts so a host can reopen a listing to edit it, and so any pending
+  // edit that's back in review is shown right on the listing.
+  const editDrafts = await Promise.all(
+    experiences.map((e) => (e.retreatDraftId ? getDraft(e.retreatDraftId) : Promise.resolve(null))),
+  );
+  const editByExpSlug = new Map<string, RetreatDraft | null>();
+  experiences.forEach((e, i) => editByExpSlug.set(e.slug, editDrafts[i]));
+
+  // Don't also list a published retreat's draft under "Your builder" — its live
+  // card below is the single place to view and edit it.
+  const publishedDraftIds = new Set(
+    experiences.map((e) => e.retreatDraftId).filter((id): id is string => Boolean(id)),
+  );
+  const builderDrafts = drafts.filter((d) => !publishedDraftIds.has(d.id));
+
   return (
     <div className="container-editorial py-12">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -46,11 +63,11 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
       )}
 
       {/* Drafts & submissions from the Retreat Builder */}
-      {drafts.length > 0 && (
+      {builderDrafts.length > 0 && (
         <section className="mt-8">
           <p className="eyebrow text-ocean-700">Your builder</p>
           <div className="mt-3 space-y-3">
-            {drafts.map((d) => (
+            {builderDrafts.map((d) => (
               <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl2 border border-ink/10 bg-sand-50 p-4">
                 <div>
                   <div className="flex items-center gap-2">
@@ -73,7 +90,13 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
       {/* Published experiences */}
       <section className="mt-10 space-y-6">
         {experiences.length > 0 && <p className="eyebrow text-ocean-700">Published</p>}
-        {experiences.map((e) => (
+        {experiences.map((e) => {
+          const edit = editByExpSlug.get(e.slug) ?? null;
+          // A re-submitted edit that's with the team for review — can't be edited
+          // again until they respond.
+          const editInReview = edit?.status === "submitted" || edit?.status === "under_review";
+          const editId = e.retreatDraftId;
+          return (
           <div key={e.slug} className="overflow-hidden rounded-xl2 border border-ink/10 bg-sand-50">
             <div className="flex flex-col sm:flex-row">
               <div className="relative h-40 w-full flex-none sm:h-auto sm:w-56">
@@ -99,13 +122,37 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
                     );
                   })}
                 </div>
-                <div className="mt-4 flex gap-3">
+
+                {/* State of any edit the host has sent back for review. */}
+                {editInReview && (
+                  <div className="mt-4 flex items-center gap-2 rounded-xl2 border border-ocean-500/25 bg-ocean-500/5 p-3 text-sm text-ocean-700">
+                    <StatusPill status={edit!.status} />
+                    <span>Your edits are with our team — the live listing stays as it is until they&apos;re approved.</span>
+                  </div>
+                )}
+                {edit?.status === "changes_requested" && (
+                  <div className="mt-4 rounded-xl2 border border-clay-500/30 bg-clay-500/5 p-3 text-sm text-clay-600">
+                    <div className="flex items-center gap-2">
+                      <StatusPill status="changes_requested" />
+                      <span>Our team asked for a few changes before your edits go live.</span>
+                    </div>
+                    {edit.reviewNotes && <p className="mt-2 whitespace-pre-line text-ink-soft">{edit.reviewNotes}</p>}
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-wrap gap-3">
                   <Link href={`/experiences/${e.slug}`} className="rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">View listing</Link>
+                  {editId && !editInReview && (
+                    <Link href={`/studio/retreats/new?id=${editId}`} className="rounded-full bg-ink px-4 py-2 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
+                      {edit?.status === "changes_requested" ? "Address changes" : "Edit"}
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </section>
     </div>
   );
