@@ -10,11 +10,18 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function BookingPage({ params }: { params: { departureId: string } }) {
+export default async function BookingPage({
+  params,
+  searchParams,
+}: {
+  params: { departureId: string };
+  searchParams: { canceled?: string };
+}) {
   const all = await getAllExperiences();
   const found = findByDeparture(all, params.departureId);
   if (!found) notFound();
   const { experience, departure } = found;
+  const soldOut = departure.spacesRemaining <= 0;
 
   return (
     <div className="container-editorial py-14 sm:py-20">
@@ -29,9 +36,33 @@ export default async function BookingPage({ params }: { params: { departureId: s
           international flights aren&apos;t included.
         </p>
       </header>
-      <div className="mt-10">
-        <BookingFlow experience={experience} departure={departure} />
-      </div>
+
+      {searchParams.canceled && !soldOut && (
+        <div className="mt-8 rounded-xl2 border border-clay-500/40 bg-clay-500/5 p-5 text-sm text-clay-600">
+          <p className="font-medium">Payment canceled — your place wasn&apos;t reserved.</p>
+          <p className="mt-1 text-ink-muted">No charge was made. You can pick up where you left off below whenever you&apos;re ready.</p>
+        </div>
+      )}
+
+      {soldOut ? (
+        <div className="mt-10 rounded-xl2 border border-ink/10 bg-sand-100 p-8 text-center">
+          <p className="eyebrow text-clay-600">Fully booked</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-ink">This departure is sold out</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">
+            Every place on these dates has been taken. Other departures may still have space.
+          </p>
+          <Link
+            href={`/experiences/${experience.slug}`}
+            className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink/90"
+          >
+            See other dates
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-10">
+          <BookingFlow experience={experience} departure={departure} />
+        </div>
+      )}
     </div>
   );
 }

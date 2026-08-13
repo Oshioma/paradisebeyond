@@ -73,7 +73,7 @@ export function BookingFlow({
             {[...experience.stay.roomTypes].sort((a, b) => b.priceDeltaMinor - a.priceDeltaMinor).map((r) => (
               <button
                 key={r.id}
-                onClick={() => setRoomId(r.id)}
+                onClick={() => { setRoomId(r.id); if (applied) { setApplied(null); setPromoMsg(null); } }}
                 className={cn(
                   "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-all",
                   r.id === roomId ? "border-ink bg-ink text-sand-50" : "border-ink/15 hover:border-ink/40",
@@ -94,7 +94,7 @@ export function BookingFlow({
 
         <Step n={2} title="Guests">
           <div className="flex items-center gap-4">
-            <Stepper value={guests} setValue={setGuests} min={1} max={maxGuests} />
+            <Stepper value={guests} setValue={(v) => { setGuests(v); if (applied) { setApplied(null); setPromoMsg("Guests changed — re-apply your code."); } }} min={1} max={maxGuests} />
             <p className="text-sm text-ink-muted">{departure.spacesRemaining} spaces remaining on this departure</p>
           </div>
         </Step>
