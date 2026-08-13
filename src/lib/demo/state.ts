@@ -15,6 +15,8 @@ const STATE_COOKIE = "pb_demo_state";
 export interface DemoState {
   flights: Record<string, FlightDetails>;
   apps: Record<string, ApplicationStatus>;
+  /** Host applications submitted in demo mode (seed apps live in code). */
+  demoApps?: import("@/lib/demo/applications").HostApplication[];
   bookings: Booking[];
   /** Booking ids whose balance was paid in demo. */
   balancePaid: string[];
