@@ -116,13 +116,22 @@ export async function saveUpload(seed: string, file: { name: string; bytes: Uint
   const filename = `${safe}-${Date.now()}.${ext}`;
 
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
+    // Use the service role so Storage RLS/policies can't silently block the
+    // upload, and CHECK the error — otherwise getPublicUrl returns a URL that
+    // 404s (a broken image). On any failure, throw so the UI can fall back to
+    // pasting an image URL.
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const supabase = createServiceRoleClient();
     const objectPath = `overrides/${filename}`;
-    await supabase.storage.from(BUCKET).upload(objectPath, file.bytes, {
+    const { error } = await supabase.storage.from(BUCKET).upload(objectPath, file.bytes, {
       contentType: file.contentType,
       upsert: true,
     });
+    if (error) {
+      throw new Error(
+        `Photo upload failed (${error.message}). Create a public Storage bucket named "${BUCKET}" in Supabase, or paste an image URL instead.`,
+      );
+    }
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);
     await setOverrideUrl(seed, data.publicUrl);
     return data.publicUrl;
