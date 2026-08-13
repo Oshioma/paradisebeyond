@@ -121,7 +121,12 @@ export async function getAllHosts(): Promise<Host[]> {
   if (!isSupabaseConfigured()) return HOSTS;
   if (hostsCache && Date.now() - hostsCache.at < 15_000) return hostsCache.data;
   const { createAnonClient } = await import("@/lib/supabase/server");
-  const { data, error } = await createAnonClient().from("hosts").select("*").order("name");
+  // Explicit display columns only — stripe_account_id/owner_id are revoked from
+  // the anon role (migration 0016), and `select *` would fail on them.
+  const { data, error } = await createAnonClient()
+    .from("hosts")
+    .select("slug, name, headline, bio, qualifications, specialisms, socials, verified, created_at")
+    .order("name");
   if (error || !data) return HOSTS; // fail safe to seed
   const hosts = data.map(mapHostRow);
   hostsCache = { at: Date.now(), data: hosts };
