@@ -284,17 +284,22 @@ function StepContent({
         <Field label="Accommodation options" hint="Add as many as you offer — guests pick one, and its price is added to the base. Shown to guests highest price first.">
           <div className="space-y-3">
             {draft.rooms.map((r, i) => (
-              <div key={i} className="grid gap-3 rounded-xl border border-ink/10 p-4 sm:grid-cols-[1fr_1.5fr_120px_120px_auto]">
-                <input className={inp} placeholder="Shared Twin" value={r.name} onChange={(e) => updateArr(setDraft, "rooms", i, { name: e.target.value })} />
-                <input className={inp} placeholder="Room shared with one guest" value={r.description} onChange={(e) => updateArr(setDraft, "rooms", i, { description: e.target.value })} />
-                <select className={inp} value={r.occupancy} onChange={(e) => updateArr(setDraft, "rooms", i, { occupancy: e.target.value as never })}>
-                  <option value="shared">Shared</option><option value="private">Private</option><option value="single">Single</option>
-                </select>
-                <Sub label="+ USD"><input type="number" className={inp} value={r.priceDeltaUsd} onChange={(e) => updateArr(setDraft, "rooms", i, { priceDeltaUsd: Number(e.target.value) })} /></Sub>
-                <RemoveBtn onClick={() => set("rooms", draft.rooms.filter((_, j) => j !== i))} />
+              <div key={i} className="space-y-3 rounded-xl border border-ink/10 p-4">
+                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                  <input className={inp} placeholder="Hotel / property (e.g. Kendwa Rocks)" value={r.property ?? ""} onChange={(e) => updateArr(setDraft, "rooms", i, { property: e.target.value })} />
+                  <input className={inp} placeholder="Room name (e.g. Sea-view Suite)" value={r.name} onChange={(e) => updateArr(setDraft, "rooms", i, { name: e.target.value })} />
+                  <RemoveBtn onClick={() => set("rooms", draft.rooms.filter((_, j) => j !== i))} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1.6fr_130px_130px]">
+                  <input className={inp} placeholder="Short description" value={r.description} onChange={(e) => updateArr(setDraft, "rooms", i, { description: e.target.value })} />
+                  <select className={inp} value={r.occupancy} onChange={(e) => updateArr(setDraft, "rooms", i, { occupancy: e.target.value as never })}>
+                    <option value="shared">Shared</option><option value="private">Private</option><option value="single">Single</option>
+                  </select>
+                  <Sub label="Rate + USD"><input type="number" className={inp} value={r.priceDeltaUsd} onChange={(e) => updateArr(setDraft, "rooms", i, { priceDeltaUsd: Number(e.target.value) })} /></Sub>
+                </div>
               </div>
             ))}
-            <AddBtn onClick={() => set("rooms", [...draft.rooms, { name: "", description: "", occupancy: "private", priceDeltaUsd: 0 }])}>Add an accommodation option</AddBtn>
+            <AddBtn onClick={() => set("rooms", [...draft.rooms, { property: "", name: "", description: "", occupancy: "private", priceDeltaUsd: 0 }])}>Add an accommodation option</AddBtn>
           </div>
         </Field>
       );

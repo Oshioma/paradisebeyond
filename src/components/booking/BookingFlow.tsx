@@ -80,6 +80,7 @@ export function BookingFlow({
                 )}
               >
                 <div>
+                  {r.property && <p className={cn("text-[0.62rem] uppercase tracking-eyebrow", r.id === roomId ? "text-sand-100/70" : "text-ocean-700")}>{r.property}</p>}
                   <p className="font-medium">{r.name}</p>
                   <p className={cn("text-sm", r.id === roomId ? "text-sand-100/80" : "text-ink-muted")}>{r.description}</p>
                 </div>

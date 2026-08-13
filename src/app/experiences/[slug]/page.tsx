@@ -197,6 +197,7 @@ export default async function ExperiencePage({
                 {[...e.stay.roomTypes].sort((a, b) => b.priceDeltaMinor - a.priceDeltaMinor).map((r) => (
                   <div key={r.id} className="flex items-center justify-between rounded-xl border border-ink/10 px-4 py-3">
                     <div>
+                      {r.property && <p className="text-[0.62rem] uppercase tracking-eyebrow text-ocean-700">{r.property}</p>}
                       <p className="font-medium text-ink">{r.name}</p>
                       <p className="text-sm text-ink-muted">{r.description}</p>
                     </div>

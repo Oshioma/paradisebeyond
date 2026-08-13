@@ -33,6 +33,8 @@ export interface RetreatItineraryDay {
   items: string[];
 }
 export interface RetreatRoom {
+  /** Hotel / property this option is at (optional — blank uses the retreat's property). */
+  property?: string;
   name: string;
   description: string;
   occupancy: "single" | "shared" | "private";
