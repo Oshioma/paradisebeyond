@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { listSubmissions } from "@/lib/retreat/store";
@@ -59,6 +60,9 @@ export default async function SubmissionsPage({ searchParams }: { searchParams: 
                 <div className="text-right text-sm">
                   <p className="font-medium text-ink">{s.currency} {s.priceFromUsd} pp</p>
                   <p className="text-ink-muted">{s.departures.filter((d) => d.startDate).length} departures · max {s.maxGroupSize}</p>
+                  <Link href={`/studio/retreats/new?id=${s.id}`} className="mt-1 inline-block text-xs uppercase tracking-eyebrow text-ocean-700 hover:underline">
+                    Edit in builder →
+                  </Link>
                 </div>
               </div>
 
