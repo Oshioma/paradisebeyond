@@ -89,7 +89,7 @@ export async function createBooking(formData: FormData) {
         commissionRateBps, platformFeeMinor, hostNetMinor, reference,
         promoCode: promo?.code, discountMinor,
       });
-      dest = res.soldOut || !res.url ? soldOut : res.url;
+      dest = res.error ? errorDest : res.soldOut || !res.url ? soldOut : res.url;
     } catch (e) {
       console.error("[createBooking:stripe]", e);
       dest = errorDest;

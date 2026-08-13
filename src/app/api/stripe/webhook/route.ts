@@ -65,10 +65,18 @@ export async function POST(req: NextRequest) {
             )
             .select("id");
 
-          // Email the guest on first record only (confirmation for a booking,
-          // receipt for a balance). Best-effort — never fail the webhook on it.
+          // On first record only (idempotent against Stripe retries): email the
+          // guest, and redeem the promo — here, on successful payment, never at
+          // checkout creation, so abandoned checkouts don't burn a limited code.
           if (recorded && recorded.length > 0) {
             await sendGuestEmail(supabase, session, bookingId, kind);
+            if (kind !== "balance") {
+              const { data: bk } = await supabase.from("bookings").select("promo_code").eq("id", bookingId).maybeSingle();
+              if (bk?.promo_code) {
+                const { data: redeemed } = await supabase.rpc("redeem_promo", { p_code: bk.promo_code });
+                if (redeemed === false) console.warn(`[stripe webhook] promo ${bk.promo_code} at redemption limit`);
+              }
+            }
           }
         }
         break;
@@ -94,8 +102,11 @@ export async function POST(req: NextRequest) {
 
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
+        // charge.refunded also fires for PARTIAL refunds — only a full refund
+        // should cancel the trip and release the seats.
+        const fullyRefunded = (charge.amount_refunded ?? 0) >= (charge.amount ?? 0);
         const pi = String(charge.payment_intent ?? "");
-        if (pi) {
+        if (pi && fullyRefunded) {
           const { data: b } = await supabase
             .from("bookings")
             .select("id, departure_id, guest_count")
