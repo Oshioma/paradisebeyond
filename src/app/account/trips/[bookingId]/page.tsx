@@ -29,14 +29,22 @@ import { payBalance } from "./actions";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
 
-export default async function TripPage({ params }: { params: { bookingId: string } }) {
+export default async function TripPage({
+  params,
+  searchParams,
+}: {
+  params: { bookingId: string };
+  searchParams: { new?: string; paid?: string };
+}) {
   const user = await requireUser();
   const trip = await getTrip(user, params.bookingId);
   if (!trip) notFound();
 
   const destination = getDestination(trip.experience.destinationSlug);
   const host = await getHost(trip.experience.hostSlugs[0]);
-  const paidPct = Math.round((trip.paidMinor / trip.subtotalMinor) * 100);
+  const paidPct = trip.subtotalMinor > 0 ? Math.round((trip.paidMinor / trip.subtotalMinor) * 100) : 100;
+  const justBooked = Boolean(searchParams.new);
+  const justPaid = Boolean(searchParams.paid);
   const messages = await getMessages(trip.id);
   const existingReview = await getBookingReview(trip.id, user.id);
   // Live: reviews open once the trip is completed. Demo: always, so it's clickable.
@@ -63,6 +71,25 @@ export default async function TripPage({ params }: { params: { bookingId: string
           </p>
         </div>
       </section>
+
+      {(justBooked || justPaid) && (
+        <div className="container-editorial pt-8">
+          <div className="rounded-xl2 border border-palm-500/40 bg-palm-500/5 p-5">
+            <p className="font-medium text-palm-600">
+              {justPaid
+                ? trip.balanceMinor > 0
+                  ? "Payment received — your place is secured."
+                  : "Payment received — you're all set. 🎉"
+                : "You're booked! 🎉"}
+            </p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {trip.balanceMinor > 0
+                ? `We've emailed your confirmation to ${user.email}. Your balance is due by ${formatFullDate(trip.balanceDueDate)}.`
+                : `We've emailed your confirmation to ${user.email}. Everything you need for the trip is below.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="container-editorial grid gap-10 py-12 lg:grid-cols-[1fr_340px]">
         <div className="space-y-12">

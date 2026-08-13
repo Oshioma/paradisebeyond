@@ -32,12 +32,15 @@ async function sendConfirmation(args: {
  * signed-in guest — redirects to login otherwise.
  */
 export async function createBooking(formData: FormData) {
-  const user = await requireUser("/experiences");
-
   const departureId = String(formData.get("departureId") ?? "");
+  // Bring the guest back to this booking page after signing in, not a generic list.
+  const user = await requireUser(departureId ? `/book/${departureId}` : "/experiences");
+
   const roomId = String(formData.get("roomId") ?? "");
   const guests = Math.max(1, Number(formData.get("guests") ?? 1));
   const payFull = String(formData.get("payFull") ?? "") === "true";
+  // Recoverable failures (Stripe/DB hiccups) send the guest back here with a notice.
+  const errorDest = `/book/${departureId}?error=1`;
 
   const experiences = await getAllExperiences();
   const found = findByDeparture(experiences, departureId);
@@ -74,87 +77,117 @@ export async function createBooking(formData: FormData) {
   // --- Stripe path: redirect to hosted Checkout; the webhook confirms. -------
   const { isStripeEnabled } = await import("@/lib/payments/stripe");
   if (isStripeEnabled() && isSupabaseConfigured()) {
-    const { startStripeCheckout } = await import("@/lib/payments/stripeCheckout");
-    const res = await startStripeCheckout({
-      guestId: user.id, guestEmail: user.email, experience, departure, room, guests, kind,
-      currency, subtotalMinor, depositMinor, balanceMinor, dueNowMinor, feeDueNowMinor,
-      commissionRateBps, platformFeeMinor, hostNetMinor, reference,
-      promoCode: promo?.code, discountMinor,
-    });
-    if (res.soldOut || !res.url) redirect(soldOut);
-    redirect(res.url); // → Stripe hosted checkout
+    // Compute the destination inside the try, redirect outside it — so a real
+    // failure lands on the error page while redirect()'s control-flow throw
+    // (NEXT_REDIRECT) is never swallowed by the catch.
+    let dest: string;
+    try {
+      const { startStripeCheckout } = await import("@/lib/payments/stripeCheckout");
+      const res = await startStripeCheckout({
+        guestId: user.id, guestEmail: user.email, experience, departure, room, guests, kind,
+        currency, subtotalMinor, depositMinor, balanceMinor, dueNowMinor, feeDueNowMinor,
+        commissionRateBps, platformFeeMinor, hostNetMinor, reference,
+        promoCode: promo?.code, discountMinor,
+      });
+      dest = res.soldOut || !res.url ? soldOut : res.url;
+    } catch (e) {
+      console.error("[createBooking:stripe]", e);
+      dest = errorDest;
+    }
+    redirect(dest); // → Stripe hosted checkout, sold-out, or error
   }
 
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
+    let dest: string;
+    let reservedOk = false; // only release the seat on failure if we actually took it
+    try {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = createClient();
 
-    // 1. Reserve the spot ATOMICALLY before charging — prevents overbooking.
-    const { data: reserved, error: reserveError } = await supabase.rpc("reserve_departure", {
-      p_departure: departure.id,
-      p_qty: guests,
-    });
-    if (reserveError || !reserved) redirect(soldOut);
+      // 1. Reserve the spot ATOMICALLY before charging — prevents overbooking.
+      const { data: reserved, error: reserveError } = await supabase.rpc("reserve_departure", {
+        p_departure: departure.id,
+        p_qty: guests,
+      });
+      if (reserveError || !reserved) {
+        dest = soldOut;
+      } else {
+        reservedOk = true;
+        // 2. Take payment for the amount due now (idempotent).
+        await provider.createPaymentIntent({
+          bookingId: reference,
+          kind,
+          amount: money(dueNowMinor, currency),
+          applicationFeeMinor: feeDueNowMinor,
+          idempotencyKey: `${reference}:${kind}`,
+        });
 
-    // 2. Take payment for the amount due now (idempotent).
-    await provider.createPaymentIntent({
-      bookingId: reference,
-      kind,
-      amount: money(dueNowMinor, currency),
-      applicationFeeMinor: feeDueNowMinor,
-      idempotencyKey: `${reference}:${kind}`,
-    });
+        // 3. Persist the booking (DB generates the id) with the commission snapshot.
+        const { data: inserted, error: bookingError } = await supabase
+          .from("bookings")
+          .insert({
+            reference,
+            guest_id: user.id,
+            departure_id: departure.id,
+            room_type_id: room.id,
+            guest_count: guests,
+            currency,
+            subtotal_minor: subtotalMinor,
+            deposit_minor: depositMinor,
+            balance_minor: balanceMinor,
+            balance_due_date: departure.startDate,
+            commission_rate_bps: commissionRateBps,
+            platform_fee_minor: platformFeeMinor,
+            host_net_minor: hostNetMinor,
+            promo_code: promo?.code ?? null,
+            discount_minor: discountMinor,
+            status: payFull ? "confirmed" : "reserved",
+          })
+          .select("id")
+          .single();
+        // If the booking row didn't persist, release the held seat rather than
+        // stranding it, and send the guest to the error page.
+        if (bookingError || !inserted) throw bookingError ?? new Error("Booking row not created");
 
-    // 3. Persist the booking (DB generates the id) with the commission snapshot.
-    const { data: inserted } = await supabase
-      .from("bookings")
-      .insert({
-        reference,
-        guest_id: user.id,
-        departure_id: departure.id,
-        room_type_id: room.id,
-        guest_count: guests,
-        currency,
-        subtotal_minor: subtotalMinor,
-        deposit_minor: depositMinor,
-        balance_minor: balanceMinor,
-        balance_due_date: departure.startDate,
-        commission_rate_bps: commissionRateBps,
-        platform_fee_minor: platformFeeMinor,
-        host_net_minor: hostNetMinor,
-        promo_code: promo?.code ?? null,
-        discount_minor: discountMinor,
-        status: payFull ? "confirmed" : "reserved",
-      })
-      .select("id")
-      .single();
+        const newId = inserted.id as string;
+        // Payments are a service-role-only write under RLS (financial rows).
+        // Insert through the service role so the payment is actually recorded,
+        // not silently dropped (the webhook already uses the service role).
+        const { createServiceRoleClient } = await import("@/lib/supabase/server");
+        await createServiceRoleClient().from("payments").upsert(
+          {
+            booking_id: newId,
+            kind,
+            amount_minor: dueNowMinor,
+            currency,
+            application_fee_minor: feeDueNowMinor,
+            provider: provider.name,
+            status: "succeeded",
+            idempotency_key: `${reference}:${kind}`,
+          },
+          { onConflict: "idempotency_key", ignoreDuplicates: true },
+        );
+        if (promo) await supabase.rpc("redeem_promo", { p_code: promo.code });
 
-    const newId = inserted?.id ?? bookingId;
-    // Payments are a service-role-only write under RLS (financial rows). Insert
-    // through the service role so the payment is actually recorded, not silently
-    // dropped, in this non-Stripe path (the webhook already uses the service role).
-    const { createServiceRoleClient } = await import("@/lib/supabase/server");
-    await createServiceRoleClient().from("payments").upsert(
-      {
-        booking_id: newId,
-        kind,
-        amount_minor: dueNowMinor,
-        currency,
-        application_fee_minor: feeDueNowMinor,
-        provider: provider.name,
-        status: "succeeded",
-        idempotency_key: `${reference}:${kind}`,
-      },
-      { onConflict: "idempotency_key", ignoreDuplicates: true },
-    );
-    if (promo) await supabase.rpc("redeem_promo", { p_code: promo.code });
-
-    await sendConfirmation({
-      to: user.email, guestName: user.name, experienceName: experience.name, location: experience.location,
-      startDate: departure.startDate, endDate: departure.endDate, reference,
-      paidMinor, balanceMinor, currency, bookingId: newId,
-    });
-    redirect(`/account/trips/${newId}?new=1`);
+        await sendConfirmation({
+          to: user.email, guestName: user.name, experienceName: experience.name, location: experience.location,
+          startDate: departure.startDate, endDate: departure.endDate, reference,
+          paidMinor, balanceMinor, currency, bookingId: newId,
+        });
+        dest = `/account/trips/${newId}?new=1`;
+      }
+    } catch (e) {
+      console.error("[createBooking:db]", e);
+      // Best-effort: hand the reserved seat back so a failed booking doesn't shrink inventory.
+      if (reservedOk) {
+        try {
+          const { createServiceRoleClient } = await import("@/lib/supabase/server");
+          await createServiceRoleClient().rpc("release_departure", { p_departure: departure.id, p_qty: guests });
+        } catch { /* ignore */ }
+      }
+      dest = errorDest;
+    }
+    redirect(dest);
   }
 
   // --- Demo path -----------------------------------------------------------

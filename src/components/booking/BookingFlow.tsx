@@ -11,9 +11,13 @@ import { createBooking, checkPromo } from "@/app/book/[departureId]/actions";
 export function BookingFlow({
   experience,
   departure,
+  isAuthed = true,
+  loginHref = "/login",
 }: {
   experience: Experience;
   departure: Departure;
+  isAuthed?: boolean;
+  loginHref?: string;
 }) {
   const maxGuests = Math.max(1, Math.min(departure.spacesRemaining, 6));
   const [roomId, setRoomId] = useState(experience.stay.roomTypes[0].id);
@@ -73,7 +77,7 @@ export function BookingFlow({
             {[...experience.stay.roomTypes].sort((a, b) => b.priceDeltaMinor - a.priceDeltaMinor).map((r) => (
               <button
                 key={r.id}
-                onClick={() => setRoomId(r.id)}
+                onClick={() => { setRoomId(r.id); if (applied) { setApplied(null); setPromoMsg(null); } }}
                 className={cn(
                   "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-all",
                   r.id === roomId ? "border-ink bg-ink text-sand-50" : "border-ink/15 hover:border-ink/40",
@@ -94,7 +98,7 @@ export function BookingFlow({
 
         <Step n={2} title="Guests">
           <div className="flex items-center gap-4">
-            <Stepper value={guests} setValue={setGuests} min={1} max={maxGuests} />
+            <Stepper value={guests} setValue={(v) => { setGuests(v); if (applied) { setApplied(null); setPromoMsg("Guests changed — re-apply your code."); } }} min={1} max={maxGuests} />
             <p className="text-sm text-ink-muted">{departure.spacesRemaining} spaces remaining on this departure</p>
           </div>
         </Step>
@@ -163,13 +167,22 @@ export function BookingFlow({
             )}
           </div>
 
-          <button
-            onClick={reserve}
-            disabled={pending}
-            className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift disabled:opacity-60"
-          >
-            {pending ? "Securing…" : "Reserve my place"}
-          </button>
+          {isAuthed ? (
+            <button
+              onClick={reserve}
+              disabled={pending}
+              className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift disabled:opacity-60"
+            >
+              {pending ? "Securing…" : "Reserve my place"}
+            </button>
+          ) : (
+            <a
+              href={loginHref}
+              className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift"
+            >
+              Sign in to book
+            </a>
+          )}
           <p className="mt-3 text-center text-xs text-ink-muted">
             Flights not included · secure your dates with {formatMoney(dueNow, c)} now
           </p>
