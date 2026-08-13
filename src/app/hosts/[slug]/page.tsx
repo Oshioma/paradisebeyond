@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { hero, portrait } from "@/lib/images";
-import { HOSTS, getHost } from "@/lib/data/hosts";
-import { getExperiencesByHost } from "@/lib/data/repository";
+import { HOSTS } from "@/lib/data/hosts";
+import { getExperiencesByHost, getHost } from "@/lib/data/repository";
 import { getHostReviewSummary } from "@/lib/data/reviews";
 import { RatingSummary } from "@/components/reviews/Stars";
 import { ExperienceGrid } from "@/components/experience/ExperienceGrid";
@@ -14,7 +14,7 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const h = getHost(params.slug);
+  const h = await getHost(params.slug);
   if (!h) return { title: "Host not found" };
   return {
     title: h.name,
@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function HostPage({ params }: { params: { slug: string } }) {
-  const h = getHost(params.slug);
+  const h = await getHost(params.slug);
   if (!h) notFound();
   const experiences = await getExperiencesByHost(h.slug);
   const reviewSummary = await getHostReviewSummary(experiences.map((e) => e.slug));

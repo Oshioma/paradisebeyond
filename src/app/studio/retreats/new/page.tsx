@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/session";
 import { CATEGORIES, categoryLabel } from "@/lib/data/categories";
 import { DESTINATIONS } from "@/lib/data/destinations";
-import { getHost } from "@/lib/data/hosts";
+import { getHost } from "@/lib/data/repository";
 import { getDraft } from "@/lib/retreat/store";
 import { emptyDraft, type RetreatDraft } from "@/lib/retreat/schema";
 import { RetreatWizard } from "@/components/retreat/RetreatWizard";
@@ -21,7 +21,7 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
   }
   const id = searchParams.id;
 
-  const host = getHost(user.hostSlug ?? "amina-yusuf");
+  const host = user.hostSlug ? await getHost(user.hostSlug) : undefined;
   const existing = await getDraft(id);
   const initial: RetreatDraft =
     existing ?? {

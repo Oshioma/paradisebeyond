@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Bookings", robots: { index: false } 
 
 export default async function StudioBookingsPage() {
   const user = await requireRole("host", "/studio/bookings");
-  const bookings = await getHostBookings(user.hostSlug ?? "amina-yusuf");
+  const bookings = await getHostBookings(user.hostSlug ?? "");
 
   return (
     <div className="container-editorial py-12">

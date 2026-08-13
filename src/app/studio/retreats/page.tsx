@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function RetreatsPage({ searchParams }: { searchParams: { submitted?: string } }) {
   const user = await requireRole("host", "/studio/retreats");
-  const hostSlug = user.hostSlug ?? "amina-yusuf";
+  const hostSlug = user.hostSlug ?? "";
   const [experiences, bookings, drafts] = await Promise.all([
     getExperiencesByHost(hostSlug),
     getHostBookings(hostSlug),

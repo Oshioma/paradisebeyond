@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getAllExperiences } from "@/lib/data/repository";
-import { getHost } from "@/lib/data/hosts";
+import { getAllExperiences, getAllHosts } from "@/lib/data/repository";
 import { getVerificationCriteria, getDemoVerifiedSlugs } from "@/lib/admin/verification";
 import { CriteriaEditor } from "@/components/admin/CriteriaEditor";
 import { toggleVerified } from "./actions";
@@ -12,12 +11,14 @@ export const dynamic = "force-dynamic";
 
 export default async function VerificationPage() {
   await requireRole("admin", "/desk/verification");
-  const [criteria, experiences, demoVerified] = await Promise.all([
+  const [criteria, experiences, demoVerified, hosts] = await Promise.all([
     getVerificationCriteria(),
     getAllExperiences(),
     getDemoVerifiedSlugs(),
+    getAllHosts(),
   ]);
   const overrides = new Set(demoVerified);
+  const hostBySlug = new Map(hosts.map((h) => [h.slug, h]));
 
   return (
     <div className="container-editorial py-12">
@@ -54,7 +55,7 @@ export default async function VerificationPage() {
             </thead>
             <tbody className="divide-y divide-ink/10">
               {experiences.map((e) => {
-                const host = getHost(e.hostSlugs[0]);
+                const host = hostBySlug.get(e.hostSlugs[0]);
                 const verified = e.verified || overrides.has(e.slug);
                 return (
                   <tr key={e.slug} className="bg-sand-50">

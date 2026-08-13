@@ -1,15 +1,15 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getAllExperiences } from "@/lib/data/repository";
-import { getHost } from "@/lib/data/hosts";
+import { getAllExperiences, getAllHosts } from "@/lib/data/repository";
 import { formatFrom } from "@/lib/money";
 
 export const metadata: Metadata = { title: "Experiences", robots: { index: false } };
 
 export default async function DeskExperiencesPage() {
   await requireRole("admin", "/desk/experiences");
-  const experiences = await getAllExperiences();
+  const [experiences, hosts] = await Promise.all([getAllExperiences(), getAllHosts()]);
+  const hostBySlug = new Map(hosts.map((h) => [h.slug, h]));
 
   return (
     <div className="container-editorial py-12">
@@ -32,7 +32,7 @@ export default async function DeskExperiencesPage() {
           </thead>
           <tbody className="divide-y divide-ink/10">
             {experiences.map((e) => {
-              const host = getHost(e.hostSlugs[0]);
+              const host = hostBySlug.get(e.hostSlugs[0]);
               return (
                 <tr key={e.slug} className="bg-sand-50">
                   <Td className="font-medium text-ink">{e.name}<span className="block text-xs font-normal text-ink-muted">{e.location}</span></Td>

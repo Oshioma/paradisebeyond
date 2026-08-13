@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { getTrip } from "@/lib/data/bookings";
 import { getDestination } from "@/lib/data/destinations";
-import { getHost } from "@/lib/data/hosts";
+import { getHost } from "@/lib/data/repository";
 import { hero, img, portrait } from "@/lib/images";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange, formatFullDate } from "@/lib/utils";
@@ -35,7 +35,7 @@ export default async function TripPage({ params }: { params: { bookingId: string
   if (!trip) notFound();
 
   const destination = getDestination(trip.experience.destinationSlug);
-  const host = getHost(trip.experience.hostSlugs[0]);
+  const host = await getHost(trip.experience.hostSlugs[0]);
   const paidPct = Math.round((trip.paidMinor / trip.subtotalMinor) * 100);
   const messages = await getMessages(trip.id);
   const existingReview = await getBookingReview(trip.id, user.id);
