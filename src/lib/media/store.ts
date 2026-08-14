@@ -16,8 +16,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 const DATA_DIR = path.join(process.cwd(), ".data");
 const OVERRIDES_FILE = path.join(DATA_DIR, "image-overrides.json");
 const ORIGINALS_FILE = path.join(DATA_DIR, "image-originals.json");
+const DEFAULTS_FILE = path.join(DATA_DIR, "image-defaults.json");
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const BUCKET = "media";
+// The saved "default set" lives in app_settings (jsonb) under this key.
+const DEFAULTS_KEY = "media_defaults";
 
 type Maps = { map: Record<string, string>; originals: Record<string, string> };
 
@@ -251,4 +254,78 @@ export async function saveUpload(
   }
   await setOverrideUrl(seed, url, originalUrl);
   return url;
+}
+
+// ---- saved "default set" ----------------------------------------------------
+// A snapshot of the current images (display URL + original) that an admin can
+// re-apply anytime. This is what "Load demo photography" restores once saved,
+// instead of random stock — a safe, self-chosen restore point.
+type DefaultsSnapshot = { map: Record<string, string>; originals: Record<string, string> };
+
+export async function getDefaults(): Promise<DefaultsSnapshot> {
+  if (isSupabaseConfigured()) {
+    noStore();
+    try {
+      const { createAnonClient } = await import("@/lib/supabase/server");
+      const { data } = await createAnonClient()
+        .from("app_settings")
+        .select("value")
+        .eq("key", DEFAULTS_KEY)
+        .maybeSingle();
+      const v = (data?.value ?? null) as Partial<DefaultsSnapshot> | null;
+      return { map: v?.map ?? {}, originals: v?.originals ?? {} };
+    } catch {
+      return { map: {}, originals: {} };
+    }
+  }
+  try {
+    const raw = JSON.parse(await fs.readFile(DEFAULTS_FILE, "utf8")) as Partial<DefaultsSnapshot>;
+    return { map: raw.map ?? {}, originals: raw.originals ?? {} };
+  } catch {
+    return { map: {}, originals: {} };
+  }
+}
+
+/** Snapshot the images currently set as the default set. Returns how many. */
+export async function saveCurrentAsDefaults(): Promise<number> {
+  const { map, originals } = await getAll();
+  const snapshot: DefaultsSnapshot = { map: { ...map }, originals: { ...originals } };
+  if (isSupabaseConfigured()) {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { error } = await createServiceRoleClient()
+      .from("app_settings")
+      .upsert({ key: DEFAULTS_KEY, value: snapshot, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) throw new Error(`Saving the default set failed: ${error.message}`);
+  } else {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(DEFAULTS_FILE, JSON.stringify(snapshot, null, 2));
+  }
+  return Object.keys(map).length;
+}
+
+/** Re-apply the saved default set. Returns how many slots were restored (0 if
+ *  nothing is saved). Also restores each slot's original so re-framing still
+ *  works and no stale original lingers. */
+export async function restoreDefaults(): Promise<number> {
+  const { map, originals } = await getDefaults();
+  const seeds = Object.keys(map);
+  if (!seeds.length) return 0;
+  if (isSupabaseConfigured()) {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const now = new Date().toISOString();
+    const rows = seeds.map((seed) => ({ seed, url: map[seed], original_url: originals[seed] ?? null, updated_at: now }));
+    const { error } = await createServiceRoleClient().from("media_overrides").upsert(rows, { onConflict: "seed" });
+    if (error) throw new Error(`Restoring the default set failed: ${error.message}`);
+  } else {
+    const cur = await loadOverrides();
+    for (const seed of seeds) {
+      cur.map[seed] = map[seed];
+      if (originals[seed]) cur.originals[seed] = originals[seed];
+      else delete cur.originals[seed];
+    }
+    await writeJsonFile(OVERRIDES_FILE, cur.map);
+    await writeJsonFile(ORIGINALS_FILE, cur.originals);
+  }
+  invalidate();
+  return seeds.length;
 }
