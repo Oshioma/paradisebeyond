@@ -206,7 +206,7 @@ export default async function ExperiencePage({
                 ))}
               </div>
               <div className="mt-6 space-y-2">
-                <p className="eyebrow text-ocean-700">Accommodation options</p>
+                <p className="eyebrow text-ocean-700">Accommodation options · {e.duration} nights</p>
                 {[...e.stay.roomTypes].sort((a, b) => a.priceDeltaMinor - b.priceDeltaMinor).map((r) => (
                   <div key={r.id} className="flex items-center justify-between rounded-xl border border-ink/10 px-4 py-3">
                     <div>
