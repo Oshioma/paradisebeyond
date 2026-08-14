@@ -27,7 +27,7 @@ export default async function HomePage() {
             fill
             priority
             sizes="100vw"
-            className="animate-kenburns object-cover"
+            className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/25 to-ink/30" />
         </div>
