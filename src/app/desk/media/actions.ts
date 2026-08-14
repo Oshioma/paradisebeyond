@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
-import { saveUpload, setOverrideUrl, setOverridesBulk, clearOverride, clearAllOverrides } from "@/lib/media/store";
+import { saveUpload, setOverrideUrl, setOverridesBulk, clearOverride, clearAllOverrides, saveCurrentAsDefaults, restoreDefaults } from "@/lib/media/store";
 import { allDemoPhotos } from "@/lib/media/demoPhotos";
 
 // Generous cap: the browser downscales large photos before upload, but leave
@@ -76,13 +76,30 @@ export async function resetImage(formData: FormData): Promise<MediaResult> {
   return { ok: true };
 }
 
-/** Point every slot at demo stock photography, in a SINGLE write. */
-export async function loadDemoPhotos(): Promise<{ ok: boolean; count: number }> {
+/** Save the images currently set as the default (restore) set. */
+export async function saveDefaultImages(): Promise<{ ok: boolean; count: number }> {
   await requireRole("admin");
+  const count = await saveCurrentAsDefaults();
+  revalidatePath("/desk/media");
+  return { ok: true, count };
+}
+
+/**
+ * Restore images: if a default set has been saved, re-apply that (the admin's
+ * own chosen images). Otherwise fall back to demo stock photography. A SINGLE
+ * write either way.
+ */
+export async function loadDemoPhotos(): Promise<{ ok: boolean; count: number; source: "saved" | "demo" }> {
+  await requireRole("admin");
+  const restored = await restoreDefaults();
+  if (restored > 0) {
+    revalidatePath("/desk/media");
+    return { ok: true, count: restored, source: "saved" };
+  }
   const entries = allDemoPhotos().map(({ key, url }) => ({ seed: key, url }));
   await setOverridesBulk(entries);
   revalidatePath("/desk/media");
-  return { ok: true, count: entries.length };
+  return { ok: true, count: entries.length, source: "demo" };
 }
 
 /** Clear every override, restoring the generated placeholders — SINGLE write. */

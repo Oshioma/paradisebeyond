@@ -2,26 +2,35 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { loadDemoPhotos, clearAllPhotos } from "@/app/desk/media/actions";
+import { loadDemoPhotos, clearAllPhotos, saveDefaultImages } from "@/app/desk/media/actions";
 
 /**
- * Bulk media controls with clear working/done feedback — so "Load demo
- * photography" visibly shows progress and a result rather than looking frozen.
+ * Bulk media controls with clear working/done feedback. "Save current as
+ * default" snapshots whatever images are set now; "Restore" (the load button)
+ * then re-applies that saved set instead of demo stock — a self-chosen restore
+ * point.
  */
-export function MediaBulkActions() {
+export function MediaBulkActions({ hasDefaults = false }: { hasDefaults?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [busy, setBusy] = useState<"load" | "clear" | null>(null);
+  const [busy, setBusy] = useState<"save" | "load" | "clear" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  function run(which: "load" | "clear") {
+  function run(which: "save" | "load" | "clear") {
     setMessage(null);
     setBusy(which);
     startTransition(async () => {
       try {
-        if (which === "load") {
+        if (which === "save") {
+          const res = await saveDefaultImages();
+          setMessage(`✓ Saved your current ${res.count} image${res.count === 1 ? "" : "s"} as the default set. "Restore default images" will bring these back anytime.`);
+        } else if (which === "load") {
           const res = await loadDemoPhotos();
-          setMessage(`✓ Demo photography applied to ${res.count} slots. Refresh the site to see it.`);
+          setMessage(
+            res.source === "saved"
+              ? `✓ Restored your saved default set to ${res.count} slots. Refresh the site to see it.`
+              : `✓ Demo photography applied to ${res.count} slots. Refresh the site to see it.`,
+          );
         } else {
           await clearAllPhotos();
           setMessage("✓ Cleared — all slots back to placeholders.");
@@ -39,12 +48,20 @@ export function MediaBulkActions() {
     <div className="mt-5">
       <div className="flex flex-wrap items-center gap-3">
         <button
+          onClick={() => run("save")}
+          disabled={pending}
+          className="inline-flex items-center gap-2 rounded-full bg-clay-500 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-clay-600 disabled:opacity-60"
+        >
+          {busy === "save" && <Spinner />}
+          {busy === "save" ? "Saving…" : "Save current as default"}
+        </button>
+        <button
           onClick={() => run("load")}
           disabled={pending}
           className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-ink-soft disabled:opacity-60"
         >
           {busy === "load" && <Spinner />}
-          {busy === "load" ? "Applying…" : "Load demo photography"}
+          {busy === "load" ? "Applying…" : hasDefaults ? "Restore default images" : "Load demo photography"}
         </button>
         <button
           onClick={() => run("clear")}

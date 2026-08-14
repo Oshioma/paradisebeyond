@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getMediaGroups } from "@/lib/media/registry";
-import { getAllOverrides, getAllOriginals } from "@/lib/media/store";
+import { getAllOverrides, getAllOriginals, getDefaults } from "@/lib/media/store";
 import { getAllHosts } from "@/lib/data/repository";
 import { MediaBulkActions } from "@/components/dashboard/MediaBulkActions";
 import { MediaSlotCard } from "@/components/dashboard/MediaSlotCard";
@@ -15,6 +15,7 @@ export default async function MediaPage() {
   const groups = getMediaGroups(hosts);
   const overrides = await getAllOverrides();
   const originals = await getAllOriginals();
+  const hasDefaults = Object.keys((await getDefaults()).map).length > 0;
   const version = Date.now(); // cache-bust previews after a change
   const totalSlots = groups.reduce((n, g) => n + g.slots.length, 0);
   const set = Object.keys(overrides).length;
@@ -30,11 +31,11 @@ export default async function MediaPage() {
           {" "}
           <span className="text-ink">{set}</span> of {totalSlots} slots customised.
         </p>
-        <MediaBulkActions />
+        <MediaBulkActions hasDefaults={hasDefaults} />
         <p className="mt-2 text-xs text-ink-muted">
-          Demo photography uses generic stock and resolves on a live deployment
-          (external image hosts are blocked in this sandbox). Replace any slot
-          with real photography above.
+          {hasDefaults
+            ? "“Save current as default” overwrites your saved set with whatever’s showing now. “Restore default images” brings that saved set back."
+            : "Tip: once your images look right, “Save current as default” snapshots them — then “Restore default images” brings them back anytime. Until you save a set, that button loads generic demo stock instead."}
         </p>
       </header>
 
