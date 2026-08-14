@@ -13,13 +13,21 @@ export async function createPromo(formData: FormData) {
   const value = Number(formData.get("value") ?? 0);
   const max = String(formData.get("maxRedemptions") ?? "").trim();
   const expires = String(formData.get("expiresAt") ?? "").trim();
-  if (!code || value <= 0) return;
+  if (!code || !Number.isFinite(value) || value <= 0) return;
+  // A percentage can't exceed 100%.
+  if (type === "percent" && value > 100) return;
 
   const row: Record<string, unknown> = { code, active: true, redeemed: 0 };
   if (type === "percent") row.discount_bps = Math.round(value * 100);
   else { row.amount_minor = Math.round(value * 100); row.currency = "USD"; }
-  if (max) row.max_redemptions = Number(max);
-  if (expires) row.expires_at = new Date(expires).toISOString();
+  if (max) {
+    const n = Number(max);
+    if (Number.isFinite(n) && n > 0) row.max_redemptions = Math.floor(n);
+  }
+  if (expires) {
+    const d = new Date(expires);
+    if (!Number.isNaN(d.getTime())) row.expires_at = d.toISOString();
+  }
 
   const { createClient } = await import("@/lib/supabase/server");
   await createClient().from("promo_codes").insert(row);

@@ -37,7 +37,8 @@ export async function createBooking(formData: FormData) {
   const user = await requireUser(departureId ? `/book/${departureId}` : "/experiences");
 
   const roomId = String(formData.get("roomId") ?? "");
-  const guests = Math.max(1, Number(formData.get("guests") ?? 1));
+  // Clamp to a sane range; the atomic reserve_departure enforces real capacity.
+  const guests = Math.min(20, Math.max(1, Math.floor(Number(formData.get("guests")) || 1)));
   const payFull = String(formData.get("payFull") ?? "") === "true";
   // Recoverable failures (Stripe/DB hiccups) send the guest back here with a notice.
   const errorDest = `/book/${departureId}?error=1`;
@@ -89,7 +90,7 @@ export async function createBooking(formData: FormData) {
         commissionRateBps, platformFeeMinor, hostNetMinor, reference,
         promoCode: promo?.code, discountMinor,
       });
-      dest = res.soldOut || !res.url ? soldOut : res.url;
+      dest = res.error ? errorDest : res.soldOut || !res.url ? soldOut : res.url;
     } catch (e) {
       console.error("[createBooking:stripe]", e);
       dest = errorDest;

@@ -24,24 +24,32 @@ export async function startOnboarding() {
   const { supabase, host } = await hostRow(user.id);
   if (!host) redirect("/studio/payouts?error=No%20host%20profile%20linked%20to%20your%20account");
 
-  const stripe = getStripe();
-  let accountId = host.stripe_account_id as string | null;
-  if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: "express",
-      metadata: { host_id: host.id, host_name: host.name },
+  // Compute the redirect inside the try (Stripe can throw) and redirect outside
+  // it, so a Stripe error shows a message instead of crashing the payout page.
+  let dest: string;
+  try {
+    const stripe = getStripe();
+    let accountId = host.stripe_account_id as string | null;
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        metadata: { host_id: host.id, host_name: host.name },
+      });
+      accountId = account.id;
+      await supabase.from("hosts").update({ stripe_account_id: accountId }).eq("id", host.id);
+    }
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${siteUrl()}/studio/payouts?refresh=1`,
+      return_url: `${siteUrl()}/studio/payouts?done=1`,
+      type: "account_onboarding",
     });
-    accountId = account.id;
-    await supabase.from("hosts").update({ stripe_account_id: accountId }).eq("id", host.id);
+    dest = link.url;
+  } catch (e) {
+    console.error("[startOnboarding]", e);
+    dest = "/studio/payouts?error=" + encodeURIComponent("Couldn't start Stripe onboarding. Please try again.");
   }
-
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${siteUrl()}/studio/payouts?refresh=1`,
-    return_url: `${siteUrl()}/studio/payouts?done=1`,
-    type: "account_onboarding",
-  });
-  redirect(link.url);
+  redirect(dest);
 }
 
 /** Re-check onboarding/charges status from Stripe. */
@@ -51,9 +59,15 @@ export async function refreshPayoutStatus() {
   const { supabase, host } = await hostRow(user.id);
   if (!host?.stripe_account_id) redirect("/studio/payouts");
 
-  const account = await getStripe().accounts.retrieve(host.stripe_account_id as string);
-  const onboarded = Boolean(account.details_submitted && account.charges_enabled);
-  await supabase.from("hosts").update({ stripe_onboarded: onboarded }).eq("id", host.id);
-  revalidatePath("/studio/payouts");
-  redirect("/studio/payouts");
+  let dest = "/studio/payouts";
+  try {
+    const account = await getStripe().accounts.retrieve(host.stripe_account_id as string);
+    const onboarded = Boolean(account.details_submitted && account.charges_enabled);
+    await supabase.from("hosts").update({ stripe_onboarded: onboarded }).eq("id", host.id);
+    revalidatePath("/studio/payouts");
+  } catch (e) {
+    console.error("[refreshPayoutStatus]", e);
+    dest = "/studio/payouts?error=" + encodeURIComponent("Couldn't refresh status from Stripe.");
+  }
+  redirect(dest);
 }

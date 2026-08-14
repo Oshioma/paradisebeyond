@@ -47,7 +47,9 @@ function mapRow(r: Record<string, unknown>, idToSlug?: Map<string, string>): Rev
     bookingId: r.booking_id as string,
     experienceSlug: exp?.slug ?? idToSlug?.get(r.experience_id as string) ?? "",
     guestId: r.guest_id as string,
-    guestName: guest?.full_name || "Guest",
+    // Prefer the denormalized name (readable to everyone); the profile join only
+    // resolves for the guest's own reviews under RLS.
+    guestName: (r.guest_name as string) || guest?.full_name || "Guest",
     ratingOverall: Number(r.rating_overall),
     ratingHost: r.rating_host == null ? undefined : Number(r.rating_host),
     ratingAccommodation: r.rating_accommodation == null ? undefined : Number(r.rating_accommodation),

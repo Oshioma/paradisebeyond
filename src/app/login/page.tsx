@@ -19,7 +19,9 @@ export default async function LoginPage({
 }) {
   const existing = await getSessionUser();
   const next = searchParams.next ?? "";
-  if (existing) redirect(next && next.startsWith("/") ? next : "/account");
+  // Reject protocol-relative (`//host`) targets — only same-site paths are safe.
+  const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+  if (existing) redirect(safe);
 
   const configured = isSupabaseConfigured();
 

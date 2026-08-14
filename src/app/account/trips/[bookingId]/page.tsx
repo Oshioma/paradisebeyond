@@ -25,6 +25,7 @@ import { supportContacts } from "@/lib/trip/support";
 import { TripQuestionnaire } from "@/components/trip/TripQuestionnaire";
 import { PackingList } from "@/components/trip/PackingList";
 import { EmergencyContacts } from "@/components/trip/EmergencyContacts";
+import { PayBalanceButton } from "@/components/dashboard/PayBalanceButton";
 import { payBalance } from "./actions";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
@@ -47,8 +48,9 @@ export default async function TripPage({
   const justPaid = Boolean(searchParams.paid);
   const messages = await getMessages(trip.id);
   const existingReview = await getBookingReview(trip.id, user.id);
-  // Live: reviews open once the trip is completed. Demo: always, so it's clickable.
-  const canReview = trip.status === "completed" || !isSupabaseConfigured();
+  // Reviews open once the trip has ended (or is marked completed). Demo: always.
+  const tripEnded = new Date(trip.departure.endDate) < new Date();
+  const canReview = trip.status === "completed" || tripEnded || !isSupabaseConfigured();
   const prep = await getTripPrep(trip.id);
   const packing = packingList(trip.experience);
   const contacts = supportContacts(trip.experience.destinationSlug);
@@ -198,9 +200,7 @@ export default async function TripPage({
                 </p>
                 <form action={payBalance} className="mt-4">
                   <input type="hidden" name="bookingId" value={trip.id} />
-                  <button className="w-full rounded-full bg-clay-500 px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-                    Pay balance
-                  </button>
+                  <PayBalanceButton />
                 </form>
               </>
             ) : (

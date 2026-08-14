@@ -42,7 +42,9 @@ export async function refundBooking(formData: FormData) {
     }
 
     await supabase.from("bookings").update({ status: "refunded" }).eq("id", bookingId);
-    await supabase.rpc("release_departure", { p_departure: b.departure_id, p_qty: b.guest_count });
+    // release_departure is service-role-only (migration 0016).
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    await createServiceRoleClient().rpc("release_departure", { p_departure: b.departure_id, p_qty: b.guest_count });
     await supabase.from("admin_actions").insert({
       actor_id: admin.id, action: "booking:refunded", subject_type: "booking", subject_id: bookingId,
     });

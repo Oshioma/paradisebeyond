@@ -13,14 +13,17 @@ export function FlightForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <form
       action={(fd) => {
         setSaved(false);
+        setError(null);
         startTransition(async () => {
-          await saveFlightDetails(bookingId, fd);
-          setSaved(true);
+          const res = await saveFlightDetails(bookingId, fd);
+          if (res?.ok) setSaved(true);
+          else setError(res?.error ?? "Couldn't save your flight details. Please try again.");
         });
       }}
       className="space-y-4"
@@ -50,6 +53,7 @@ export function FlightForm({
           {pending ? "Saving…" : "Save flight details"}
         </button>
         {saved && <span className="text-sm text-palm-600">Saved — the team will coordinate your transfer.</span>}
+        {error && <span className="text-sm text-clay-600">{error}</span>}
       </div>
     </form>
   );
