@@ -43,9 +43,12 @@ export function MediaSlotCard({
     setUploadingName(file.name);
     startTransition(async () => {
       try {
-        // Downscale/compress big phone photos in the browser first so they
-        // don't hit the server size cap and upload fast on mobile data.
-        const ready = await prepareImageForUpload(file);
+        // Downscale/compress in the browser first — sized to THIS slot's actual
+        // on-page dimensions (≈2× for retina, capped at 2048), so a small
+        // thumbnail isn't stored as a full-resolution photo. Keeps uploads fast
+        // on mobile data and makes the pages that use the image load quickly.
+        const maxDimension = Math.min(2048, Math.max(768, Math.round(Math.max(slot.w, slot.h) * 2)));
+        const ready = await prepareImageForUpload(file, { maxDimension });
         const fd = new FormData();
         fd.set("seed", slot.key);
         fd.set("file", ready);

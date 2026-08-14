@@ -22,13 +22,13 @@ export interface PrepareOptions {
 }
 
 const DEFAULTS: Required<PrepareOptions> = {
-  // Kept intentionally conservative so a prepared photo lands well under common
-  // host request-body caps (e.g. Vercel's ~4.5 MB), which otherwise reject the
-  // upload before it reaches the Server Action. 2048px is plenty for the
-  // largest on-site render (the 2000px hero).
+  // Callers pass a per-slot maxDimension (≈ 2× the display size) so a 56px
+  // thumbnail isn't stored as a 2048px photo. The fallback cap suits the hero.
   maxDimension: 2048,
-  maxBytes: 3 * 1024 * 1024, // re-encode anything over 3 MB
-  quality: 0.82,
+  // Re-encode aggressively so uploads stay small and pages load fast — most
+  // photos compress well below this and land far under Vercel's ~4.5 MB cap.
+  maxBytes: 700 * 1024,
+  quality: 0.78,
 };
 
 /**

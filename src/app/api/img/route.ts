@@ -18,7 +18,20 @@ export async function GET(req: NextRequest) {
 
   const override = await getOverride(seed);
   if (override) {
-    const target = override.startsWith("http") ? override : new URL(override, req.url).toString();
+    let target = override.startsWith("http") ? override : new URL(override, req.url).toString();
+    // Optionally resize Supabase-hosted images to the requested display width
+    // (e.g. a 56px thumbnail instead of the 2048px original). Uses Supabase's
+    // image transformation CDN — a Pro-plan feature — so it's opt-in via
+    // SUPABASE_IMAGE_RESIZE=on. Off by default, which keeps the raw object URL.
+    if (
+      process.env.SUPABASE_IMAGE_RESIZE === "on" &&
+      target.includes("/storage/v1/object/public/")
+    ) {
+      const sep = target.includes("?") ? "&" : "?";
+      target =
+        target.replace("/storage/v1/object/public/", "/storage/v1/render/image/public/") +
+        `${sep}width=${Math.min(Math.max(w, 16), 2000)}&quality=75&resize=contain`;
+    }
     const res = NextResponse.redirect(target, 307);
     // Cache the redirect generously and revalidate in the BACKGROUND (stale-
     // while-revalidate) so the hero never blocks or flickers on a reload. This
