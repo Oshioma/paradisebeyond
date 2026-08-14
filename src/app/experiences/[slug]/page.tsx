@@ -16,6 +16,7 @@ import { getHost } from "@/lib/data/repository";
 import { DurationBadge, VerifiedBadge, Badge } from "@/components/ui/Badge";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { ShareButton } from "@/components/experience/ShareButton";
+import { OwnerEditButton } from "@/components/experience/OwnerEditButton";
 import { ReservePanel } from "@/components/experience/ReservePanel";
 import { Itinerary } from "@/components/experience/Itinerary";
 import { getExperienceReviews } from "@/lib/data/reviews";
@@ -104,6 +105,7 @@ export default async function ExperiencePage({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/20 to-ink/25" />
         <div className="container-editorial relative w-full pb-12 pt-32">
+          <OwnerEditButton hostSlugs={e.hostSlugs} retreatDraftId={e.retreatDraftId} />
           <div className="flex flex-wrap items-center gap-2">
             <DurationBadge duration={e.duration} />
             {e.verified && <VerifiedBadge />}
