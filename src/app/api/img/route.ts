@@ -20,15 +20,20 @@ export async function GET(req: NextRequest) {
   if (override) {
     const target = override.startsWith("http") ? override : new URL(override, req.url).toString();
     const res = NextResponse.redirect(target, 307);
-    // Let the browser/CDN cache the redirect so repeat views don't re-hit the DB.
-    res.headers.set("Cache-Control", "public, max-age=600, stale-while-revalidate=86400");
+    // Short cache only. The redirect must stay fresh so a newly-uploaded image
+    // shows within seconds — the OLD headers (max-age=600 + 24h stale-while-
+    // revalidate) meant the browser kept following the redirect to the previous
+    // image for up to 10 minutes. The image FILE it points at is uniquely named
+    // per upload, so it's still cached long by Supabase's CDN + the browser.
+    res.headers.set("Cache-Control", "public, max-age=15, must-revalidate");
     return res;
   }
 
   return new Response(placeholderSvg(seed, w, h), {
     headers: {
       "Content-Type": "image/svg+xml",
-      "Cache-Control": "public, max-age=60",
+      // Short too, so a slot updates promptly once an override is added.
+      "Cache-Control": "public, max-age=15, must-revalidate",
     },
   });
 }
