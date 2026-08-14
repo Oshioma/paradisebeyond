@@ -15,26 +15,39 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const OVERRIDES_FILE = path.join(DATA_DIR, "image-overrides.json");
+const ORIGINALS_FILE = path.join(DATA_DIR, "image-originals.json");
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const BUCKET = "media";
 
+type Maps = { map: Record<string, string>; originals: Record<string, string> };
+
 // Short-lived cache of the full overrides map, shared across the many image
 // requests a single page render fires. Invalidated on any write.
-let cache: { at: number; map: Record<string, string> } | null = null;
+let cache: { at: number; map: Record<string, string>; originals: Record<string, string> } | null = null;
 const TTL_MS = 5_000;
 function invalidate() {
   cache = null;
 }
 
 // ---- read ------------------------------------------------------------------
-export async function getAllOverrides(): Promise<Record<string, string>> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.map;
-  const map = await loadOverrides();
-  cache = { at: Date.now(), map };
-  return map;
+async function getAll(): Promise<Maps> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache;
+  const { map, originals } = await loadOverrides();
+  cache = { at: Date.now(), map, originals };
+  return cache;
 }
 
-async function loadOverrides(): Promise<Record<string, string>> {
+/** Seed → display (cropped) image URL. */
+export async function getAllOverrides(): Promise<Record<string, string>> {
+  return (await getAll()).map;
+}
+
+/** Seed → original (uncropped) image URL, for re-framing. */
+export async function getAllOriginals(): Promise<Record<string, string>> {
+  return (await getAll()).originals;
+}
+
+async function loadOverrides(): Promise<Maps> {
   if (isSupabaseConfigured()) {
     // Never serve a cached override map: Next's Data Cache would otherwise pin
     // the Supabase read (a cacheable GET) to a stale result, so an uploaded
@@ -45,34 +58,69 @@ async function loadOverrides(): Promise<Record<string, string>> {
     try {
       const { createAnonClient } = await import("@/lib/supabase/server");
       const supabase = createAnonClient();
-      const { data } = await supabase.from("media_overrides").select("seed, url");
+      const { data } = await supabase.from("media_overrides").select("seed, url, original_url");
       const map: Record<string, string> = {};
-      for (const row of data ?? []) map[row.seed as string] = row.url as string;
-      return map;
+      const originals: Record<string, string> = {};
+      for (const row of data ?? []) {
+        map[row.seed as string] = row.url as string;
+        if (row.original_url) originals[row.seed as string] = row.original_url as string;
+      }
+      return { map, originals };
     } catch {
-      return {};
+      return { map: {}, originals: {} };
     }
   }
+  const map = await readJsonFile(OVERRIDES_FILE);
+  const originals = await readJsonFile(ORIGINALS_FILE);
+  return { map, originals };
+}
+
+async function readJsonFile(file: string): Promise<Record<string, string>> {
   try {
-    return JSON.parse(await fs.readFile(OVERRIDES_FILE, "utf8"));
+    return JSON.parse(await fs.readFile(file, "utf8"));
   } catch {
     return {};
   }
 }
 
 export async function getOverride(seed: string): Promise<string | null> {
-  const all = await getAllOverrides();
-  return all[seed] ?? null;
+  return (await getAllOverrides())[seed] ?? null;
+}
+
+export async function getOriginal(seed: string): Promise<string | null> {
+  return (await getAllOriginals())[seed] ?? null;
 }
 
 // ---- write -----------------------------------------------------------------
-async function writeFileOverrides(map: Record<string, string>) {
+async function writeJsonFile(file: string, map: Record<string, string>) {
   await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(OVERRIDES_FILE, JSON.stringify(map, null, 2));
+  await fs.writeFile(file, JSON.stringify(map, null, 2));
 }
 
-export async function setOverrideUrl(seed: string, url: string) {
-  await setOverridesBulk([{ seed, url }]);
+/**
+ * Point a slot at an image. When `originalUrl` is given, the full uncropped
+ * source is recorded too (so the photo can be re-framed later); when it's
+ * omitted the stored original is left untouched — a re-frame updates only the
+ * displayed crop and keeps its existing original.
+ */
+export async function setOverrideUrl(seed: string, url: string, originalUrl?: string) {
+  if (isSupabaseConfigured()) {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const supabase = createServiceRoleClient();
+    const row: Record<string, unknown> = { seed, url, updated_at: new Date().toISOString() };
+    if (originalUrl) row.original_url = originalUrl;
+    const { error } = await supabase.from("media_overrides").upsert(row, { onConflict: "seed" });
+    if (error) throw new Error(`Saving the image failed: ${error.message}`);
+  } else {
+    const { map, originals } = await loadOverrides();
+    map[seed] = url;
+    await writeJsonFile(OVERRIDES_FILE, map);
+    if (originalUrl) {
+      originals[seed] = originalUrl;
+      await writeJsonFile(ORIGINALS_FILE, originals);
+    }
+  }
+  invalidate();
 }
 
 // media_overrides is admin-only under RLS (`for all using (is_admin())`). Going
@@ -94,9 +142,9 @@ export async function setOverridesBulk(entries: { seed: string; url: string }[])
       .upsert(entries.map((e) => ({ seed: e.seed, url: e.url, updated_at: now })), { onConflict: "seed" });
     if (error) throw new Error(`Saving the image failed: ${error.message}`);
   } else {
-    const map = await loadOverrides();
+    const { map } = await loadOverrides();
     for (const e of entries) map[e.seed] = e.url;
-    await writeFileOverrides(map);
+    await writeJsonFile(OVERRIDES_FILE, map);
   }
   invalidate();
 }
@@ -107,9 +155,11 @@ export async function clearOverride(seed: string) {
     const { error } = await createServiceRoleClient().from("media_overrides").delete().eq("seed", seed);
     if (error) throw new Error(`Resetting the image failed: ${error.message}`);
   } else {
-    const map = await loadOverrides();
+    const { map, originals } = await loadOverrides();
     delete map[seed];
-    await writeFileOverrides(map);
+    delete originals[seed];
+    await writeJsonFile(OVERRIDES_FILE, map);
+    await writeJsonFile(ORIGINALS_FILE, originals);
   }
   invalidate();
 }
@@ -121,16 +171,28 @@ export async function clearAllOverrides() {
     const { error } = await createServiceRoleClient().from("media_overrides").delete().neq("seed", "");
     if (error) throw new Error(`Clearing images failed: ${error.message}`);
   } else {
-    await writeFileOverrides({});
+    await writeJsonFile(OVERRIDES_FILE, {});
+    await writeJsonFile(ORIGINALS_FILE, {});
   }
   invalidate();
 }
 
-/** Store uploaded bytes and point the slot at them. Returns the public URL. */
-export async function saveUpload(seed: string, file: { name: string; bytes: Uint8Array; contentType: string }): Promise<string> {
+type UploadFile = { name: string; bytes: Uint8Array; contentType: string };
+
+/**
+ * Store uploaded bytes and point the slot at them. Returns the public URL of the
+ * displayed (cropped) image. When `opts.original` is given, the uncropped source
+ * is stored alongside so the photo can be re-framed later without quality loss.
+ */
+export async function saveUpload(
+  seed: string,
+  file: UploadFile,
+  opts?: { original?: UploadFile },
+): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const safe = seed.replace(/[^a-z0-9-_]/gi, "-");
-  const filename = `${safe}-${Date.now()}.${ext}`;
+  const stamp = Date.now();
+  const filename = `${safe}-${stamp}.${ext}`;
 
   if (isSupabaseConfigured()) {
     // Uploads REQUIRE the service-role key (Storage writes bypass RLS with it).
@@ -159,13 +221,34 @@ export async function saveUpload(seed: string, file: { name: string; bytes: Uint
       );
     }
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);
-    await setOverrideUrl(seed, data.publicUrl);
+
+    // Store the uncropped source too (best-effort — a failure here must not fail
+    // the upload; the slot still gets its cropped image, just without re-framing).
+    let originalUrl: string | undefined;
+    if (opts?.original) {
+      const oext = (opts.original.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const oPath = `overrides/${safe}-orig-${stamp}.${oext}`;
+      const { error: oErr } = await supabase.storage.from(BUCKET).upload(oPath, opts.original.bytes, {
+        contentType: opts.original.contentType,
+        upsert: true,
+      });
+      if (!oErr) originalUrl = supabase.storage.from(BUCKET).getPublicUrl(oPath).data.publicUrl;
+    }
+
+    await setOverrideUrl(seed, data.publicUrl, originalUrl);
     return data.publicUrl;
   }
 
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   await fs.writeFile(path.join(UPLOAD_DIR, filename), file.bytes);
   const url = `/uploads/${filename}`;
-  await setOverrideUrl(seed, url);
+  let originalUrl: string | undefined;
+  if (opts?.original) {
+    const oext = (opts.original.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const oName = `${safe}-orig-${stamp}.${oext}`;
+    await fs.writeFile(path.join(UPLOAD_DIR, oName), opts.original.bytes);
+    originalUrl = `/uploads/${oName}`;
+  }
+  await setOverrideUrl(seed, url, originalUrl);
   return url;
 }

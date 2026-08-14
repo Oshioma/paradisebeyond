@@ -22,6 +22,7 @@ export async function uploadImage(formData: FormData): Promise<MediaResult> {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
   const file = formData.get("file");
+  const original = formData.get("original");
   if (!seed) return { ok: false, error: "Missing image slot." };
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "No file selected." };
   if (file.size > MAX_BYTES) return { ok: false, error: `That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — too large (max 20MB). Try a smaller photo.` };
@@ -29,7 +30,14 @@ export async function uploadImage(formData: FormData): Promise<MediaResult> {
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    await saveUpload(seed, { name: file.name, bytes, contentType: file.type || "image/jpeg" });
+    // Optionally keep the uncropped source for later re-framing. It's already
+    // downscaled client-side; skip it silently if it's missing or oversized so a
+    // stray original never blocks the actual upload.
+    let opts: { original?: { name: string; bytes: Uint8Array; contentType: string } } | undefined;
+    if (original instanceof File && original.size > 0 && original.size <= MAX_BYTES) {
+      opts = { original: { name: original.name, bytes: new Uint8Array(await original.arrayBuffer()), contentType: original.type || "image/jpeg" } };
+    }
+    await saveUpload(seed, { name: file.name, bytes, contentType: file.type || "image/jpeg" }, opts);
   } catch (e) {
     return { ok: false, error: e instanceof Error && e.message ? e.message : "Upload failed on the server. Try again or paste an image URL." };
   }

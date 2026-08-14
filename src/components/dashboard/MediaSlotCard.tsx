@@ -15,10 +15,12 @@ import type { Slot } from "@/lib/media/registry";
 export function MediaSlotCard({
   slot,
   override,
+  original,
   version,
 }: {
   slot: Slot;
   override?: string;
+  original?: string;
   version: number;
 }) {
   const router = useRouter();
@@ -31,14 +33,19 @@ export function MediaSlotCard({
   const fileRef = useRef<HTMLInputElement>(null);
   const [urlValue, setUrlValue] = useState("");
   const [imgError, setImgError] = useState(false);
-  // Reposition step: after picking a file, the admin frames it before upload.
+  // Reposition step: after picking a file (or re-framing), the admin frames it.
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropUrl, setCropUrl] = useState<string | null>(null);
   const [focalX, setFocalX] = useState(0.5);
   const [focalY, setFocalY] = useState(0.5);
+  // A re-frame re-crops the STORED original — no new original is uploaded, and
+  // the existing one is preserved server-side.
+  const [isReframe, setIsReframe] = useState(false);
+  const [reframeLoading, setReframeLoading] = useState(false);
 
   const previewSrc = `/api/img?seed=${encodeURIComponent(slot.key)}&w=${slot.w}&h=${slot.h}&v=${ver}`;
   const hasCustom = Boolean(override);
+  const canReframe = Boolean(override && original);
   const aspect = slot.w / slot.h;
 
   // Revoke the object URL when it changes or the card unmounts.
@@ -51,12 +58,36 @@ export function MediaSlotCard({
     setStatus(null);
     setFocalX(0.5);
     setFocalY(0.5);
+    setIsReframe(false);
     setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
     setCropFile(file);
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  // Re-frame: pull the stored ORIGINAL back through our proxy and reopen the
+  // sliders on it, so framing can be changed anytime without re-uploading.
+  async function onReframe() {
+    setStatus(null);
+    setReframeLoading(true);
+    try {
+      const res = await fetch(`/api/img/original?seed=${encodeURIComponent(slot.key)}&v=${ver}`);
+      if (!res.ok) throw new Error("Couldn't load the original photo to re-frame.");
+      const blob = await res.blob();
+      const file = new File([blob], "original.jpg", { type: blob.type || "image/jpeg" });
+      setFocalX(0.5);
+      setFocalY(0.5);
+      setIsReframe(true);
+      setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+      setCropFile(file);
+    } catch (e) {
+      setStatus({ ok: false, text: e instanceof Error ? e.message : "Couldn't load the original photo." });
+    } finally {
+      setReframeLoading(false);
+    }
+  }
+
   function cancelCrop() {
+    setIsReframe(false);
     setCropFile(null);
     setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   }
@@ -65,9 +96,10 @@ export function MediaSlotCard({
   function confirmCrop() {
     if (!cropFile) return;
     const file = cropFile;
+    const reframe = isReframe;
     setStatus(null);
     setBusy("upload");
-    setUploadingName(file.name);
+    setUploadingName(reframe ? slot.label : file.name);
     startTransition(async () => {
       try {
         const maxDimension = Math.min(2048, Math.max(768, Math.round(Math.max(slot.w, slot.h) * 2)));
@@ -75,10 +107,17 @@ export function MediaSlotCard({
         const fd = new FormData();
         fd.set("seed", slot.key);
         fd.set("file", ready);
+        // On a fresh upload, also keep the uncropped source so it can be
+        // re-framed later. On a re-frame the source is already stored — don't
+        // re-send it (the server preserves the existing original).
+        if (!reframe) {
+          const source = await prepareImageForUpload(file, { maxDimension: 2560 });
+          fd.set("original", source);
+        }
         const res = await uploadImage(fd);
         if (res.ok) {
           setVer(Date.now());
-          setStatus({ ok: true, text: `Uploaded ${file.name}` });
+          setStatus({ ok: true, text: reframe ? "Re-framed." : `Uploaded ${file.name}` });
           cancelCrop();
           router.refresh();
         } else {
@@ -183,7 +222,9 @@ export function MediaSlotCard({
         {cropFile && cropUrl ? (
           /* Reposition step — frame the photo before it uploads. */
           <div className="space-y-2">
-            <p className="text-[0.62rem] uppercase tracking-eyebrow text-ink-muted">Position the photo — slide to frame it</p>
+            <p className="text-[0.62rem] uppercase tracking-eyebrow text-ink-muted">
+              {isReframe ? "Re-frame — slide to reposition, no quality lost" : "Position the photo — slide to frame it"}
+            </p>
             <div className="relative w-full overflow-hidden rounded-xl bg-ink/10" style={{ aspectRatio: `${slot.w} / ${slot.h}` }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -277,15 +318,29 @@ export function MediaSlotCard({
           </p>
         )}
 
-        {hasCustom && (
-          <button
-            onClick={onReset}
-            disabled={pending}
-            className="inline-flex items-center gap-1.5 text-[0.66rem] uppercase tracking-eyebrow text-ink-muted underline-offset-4 hover:text-clay-600 hover:underline disabled:opacity-50"
-          >
-            {busy === "reset" && <Spinner />}
-            {busy === "reset" ? "Resetting…" : "Reset to placeholder"}
-          </button>
+        {!cropFile && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {canReframe && (
+              <button
+                onClick={onReframe}
+                disabled={pending || reframeLoading}
+                className="inline-flex items-center gap-1.5 text-[0.66rem] uppercase tracking-eyebrow text-ocean-700 underline-offset-4 hover:underline disabled:opacity-50"
+              >
+                {reframeLoading ? <Spinner /> : <ReframeIcon />}
+                {reframeLoading ? "Loading…" : "Reframe"}
+              </button>
+            )}
+            {hasCustom && (
+              <button
+                onClick={onReset}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 text-[0.66rem] uppercase tracking-eyebrow text-ink-muted underline-offset-4 hover:text-clay-600 hover:underline disabled:opacity-50"
+              >
+                {busy === "reset" && <Spinner />}
+                {busy === "reset" ? "Resetting…" : "Reset to placeholder"}
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -302,6 +357,14 @@ function Spinner({ big = false }: { big?: boolean }) {
       <span className={`${d} rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.18s]`} />
       <span className={`${d} rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.36s]`} />
     </span>
+  );
+}
+
+function ReframeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
