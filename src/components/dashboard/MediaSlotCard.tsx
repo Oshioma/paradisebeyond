@@ -48,12 +48,19 @@ export function MediaSlotCard({
         const fd = new FormData();
         fd.set("seed", slot.key);
         fd.set("file", ready);
-        await uploadImage(fd);
-        setVer(Date.now());
-        setStatus({ ok: true, text: `Uploaded ${file.name}` });
-        router.refresh();
-      } catch (err) {
-        setStatus({ ok: false, text: err instanceof Error ? err.message : "Upload failed — try again or paste an image URL." });
+        const res = await uploadImage(fd);
+        if (res.ok) {
+          setVer(Date.now());
+          setStatus({ ok: true, text: `Uploaded ${file.name}` });
+          router.refresh();
+        } else {
+          setStatus({ ok: false, text: res.error });
+        }
+      } catch {
+        // A rejection here (not a returned error) is almost always the request
+        // being blocked before it reached the action — typically too large for
+        // the server/host. Point at that rather than showing nothing.
+        setStatus({ ok: false, text: "Upload didn't reach the server — the image may be too large. Try a smaller photo or paste an image URL." });
       } finally {
         setBusy(null);
         setUploadingName(null);
@@ -72,13 +79,17 @@ export function MediaSlotCard({
     fd.set("url", url);
     startTransition(async () => {
       try {
-        await setImageUrl(fd);
-        setVer(Date.now());
-        setStatus({ ok: true, text: "Image set from URL." });
-        setUrlValue("");
-        router.refresh();
-      } catch (err) {
-        setStatus({ ok: false, text: err instanceof Error ? err.message : "Couldn't set that URL." });
+        const res = await setImageUrl(fd);
+        if (res.ok) {
+          setVer(Date.now());
+          setStatus({ ok: true, text: "Image set from URL." });
+          setUrlValue("");
+          router.refresh();
+        } else {
+          setStatus({ ok: false, text: res.error });
+        }
+      } catch {
+        setStatus({ ok: false, text: "Couldn't set that URL — please try again." });
       } finally {
         setBusy(null);
       }
@@ -92,12 +103,16 @@ export function MediaSlotCard({
     fd.set("seed", slot.key);
     startTransition(async () => {
       try {
-        await resetImage(fd);
-        setVer(Date.now());
-        setStatus({ ok: true, text: "Reset to placeholder." });
-        router.refresh();
-      } catch (err) {
-        setStatus({ ok: false, text: err instanceof Error ? err.message : "Couldn't reset." });
+        const res = await resetImage(fd);
+        if (res.ok) {
+          setVer(Date.now());
+          setStatus({ ok: true, text: "Reset to placeholder." });
+          router.refresh();
+        } else {
+          setStatus({ ok: false, text: res.error });
+        }
+      } catch {
+        setStatus({ ok: false, text: "Couldn't reset — please try again." });
       } finally {
         setBusy(null);
       }
@@ -119,7 +134,7 @@ export function MediaSlotCard({
         )}
         {uploading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/60 text-sand-50">
-            <Spinner />
+            <Spinner size="h-7 w-7" />
             <span className="max-w-[85%] truncate px-2 text-[0.66rem] uppercase tracking-eyebrow">
               Uploading{uploadingName ? ` ${uploadingName}` : ""}…
             </span>
@@ -193,9 +208,11 @@ export function MediaSlotCard({
   );
 }
 
-function Spinner() {
+function Spinner({ size = "h-3.5 w-3.5" }: { size?: string }) {
+  // Slower, calmer rotation than Tailwind's default 1s — the fast spin read as
+  // frantic, especially on the small inline spinners.
   return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 animate-spin" aria-hidden>
+    <svg viewBox="0 0 24 24" className={`${size} animate-spin [animation-duration:1.6s]`} aria-hidden>
       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
       <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
