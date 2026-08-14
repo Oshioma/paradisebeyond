@@ -72,12 +72,17 @@ export async function setOverrideUrl(seed: string, url: string) {
 export async function setOverridesBulk(entries: { seed: string; url: string }[]) {
   if (!entries.length) return;
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
+    // media_overrides is a service-role/admin write under RLS. Callers are all
+    // admin-gated actions, so use the service role — it can't be silently
+    // rejected by a session/RLS edge — and CHECK the error so a failed write
+    // surfaces instead of leaving the uploaded file unmapped (a broken image).
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const supabase = createServiceRoleClient();
     const now = new Date().toISOString();
-    await supabase
+    const { error } = await supabase
       .from("media_overrides")
       .upsert(entries.map((e) => ({ seed: e.seed, url: e.url, updated_at: now })), { onConflict: "seed" });
+    if (error) throw new Error(`Saving the image mapping failed (${error.message}).`);
   } else {
     const map = await loadOverrides();
     for (const e of entries) map[e.seed] = e.url;
@@ -88,8 +93,8 @@ export async function setOverridesBulk(entries: { seed: string; url: string }[])
 
 export async function clearOverride(seed: string) {
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    await createClient().from("media_overrides").delete().eq("seed", seed);
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    await createServiceRoleClient().from("media_overrides").delete().eq("seed", seed);
   } else {
     const map = await loadOverrides();
     delete map[seed];
@@ -101,8 +106,8 @@ export async function clearOverride(seed: string) {
 /** Remove every override in ONE operation. */
 export async function clearAllOverrides() {
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    await createClient().from("media_overrides").delete().neq("seed", "");
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    await createServiceRoleClient().from("media_overrides").delete().neq("seed", "");
   } else {
     await writeFileOverrides({});
   }
@@ -116,6 +121,15 @@ export async function saveUpload(seed: string, file: { name: string; bytes: Uint
   const filename = `${safe}-${Date.now()}.${ext}`;
 
   if (isSupabaseConfigured()) {
+    // Uploads REQUIRE the service-role key (Storage writes bypass RLS with it).
+    // isSupabaseConfigured() only checks the public URL/anon key, so guard the
+    // service key explicitly — otherwise the client is built with an undefined
+    // key and fails with a confusing 401.
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        "Image upload needs SUPABASE_SERVICE_ROLE_KEY, which isn't set. Add it to your environment (Supabase → Project Settings → API → service_role key), or paste an image URL instead.",
+      );
+    }
     // Use the service role so Storage RLS/policies can't silently block the
     // upload, and CHECK the error — otherwise getPublicUrl returns a URL that
     // 404s (a broken image). On any failure, throw so the UI can fall back to

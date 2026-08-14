@@ -8,29 +8,41 @@ import { allDemoPhotos } from "@/lib/media/demoPhotos";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
 
-export async function uploadImage(formData: FormData) {
+export type MediaResult = { ok: boolean; error?: string };
+
+export async function uploadImage(formData: FormData): Promise<MediaResult> {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
   const file = formData.get("file");
-  if (!seed || !(file instanceof File) || file.size === 0) return;
-  if (file.size > MAX_BYTES) throw new Error("Image too large (max 8MB).");
-  if (file.type && !OK_TYPES.includes(file.type)) throw new Error("Unsupported image type.");
+  if (!seed || !(file instanceof File) || file.size === 0) return { ok: false, error: "Choose an image file first." };
+  if (file.size > MAX_BYTES) return { ok: false, error: "Image too large (max 8MB)." };
+  if (file.type && !OK_TYPES.includes(file.type)) return { ok: false, error: "Unsupported image type (use JPEG, PNG, WebP, AVIF or GIF)." };
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  await saveUpload(seed, { name: file.name, bytes, contentType: file.type || "image/jpeg" });
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await saveUpload(seed, { name: file.name, bytes, contentType: file.type || "image/jpeg" });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Upload failed." };
+  }
   revalidatePath("/desk/media");
+  return { ok: true };
 }
 
-export async function setImageUrl(formData: FormData) {
+export async function setImageUrl(formData: FormData): Promise<MediaResult> {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
   const url = String(formData.get("url") ?? "").trim();
-  if (!seed || !url) return;
+  if (!seed || !url) return { ok: false, error: "Enter an image URL." };
   if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
-    throw new Error("Enter a full https:// URL or a site-relative /path.");
+    return { ok: false, error: "Enter a full https:// URL or a site-relative /path." };
   }
-  await setOverrideUrl(seed, url);
+  try {
+    await setOverrideUrl(seed, url);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't set the image." };
+  }
   revalidatePath("/desk/media");
+  return { ok: true };
 }
 
 export async function resetImage(formData: FormData) {

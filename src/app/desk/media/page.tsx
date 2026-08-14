@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getMediaGroups, type Slot } from "@/lib/media/registry";
 import { getAllOverrides } from "@/lib/media/store";
-import { uploadImage, setImageUrl, resetImage } from "./actions";
+import { resetImage } from "./actions";
 import { MediaBulkActions } from "@/components/dashboard/MediaBulkActions";
+import { MediaSlotForms } from "@/components/dashboard/MediaSlotForms";
 
 export const metadata: Metadata = { title: "Media", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -71,31 +72,7 @@ function SlotCard({ slot, override, version }: { slot: Slot; override?: string; 
           <p className="font-mono text-[0.66rem] text-ink-muted">{slot.key}</p>
         </div>
 
-        <form action={uploadImage} encType="multipart/form-data" className="flex items-center gap-2">
-          <input type="hidden" name="seed" value={slot.key} />
-          <input
-            type="file"
-            name="file"
-            accept="image/*"
-            required
-            className="block w-full text-xs text-ink-muted file:mr-2 file:rounded-full file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-[0.62rem] file:uppercase file:tracking-eyebrow file:text-sand-50 hover:file:bg-ink-soft"
-          />
-          <button className="rounded-full bg-clay-500 px-3 py-1.5 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-            Upload
-          </button>
-        </form>
-
-        <form action={setImageUrl} className="flex items-center gap-2">
-          <input type="hidden" name="seed" value={slot.key} />
-          <input
-            name="url"
-            placeholder="or paste image URL"
-            className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
-          />
-          <button className="rounded-full border border-ink/15 px-3 py-1.5 text-[0.62rem] uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">
-            Set
-          </button>
-        </form>
+        <MediaSlotForms seed={slot.key} />
 
         {override && (
           <form action={resetImage}>
