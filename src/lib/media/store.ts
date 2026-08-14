@@ -68,16 +68,24 @@ export async function setOverrideUrl(seed: string, url: string) {
   await setOverridesBulk([{ seed, url }]);
 }
 
+// media_overrides is admin-only under RLS (`for all using (is_admin())`). Going
+// through the user client here silently swallowed the write whenever is_admin()
+// didn't resolve in the DB session — the upload "succeeded" but nothing saved.
+// These writes are only reached through admin-gated actions, so use the service
+// role (bypassing RLS) and CHECK the error so a genuine failure surfaces to the
+// UI instead of vanishing. Mirrors the approach in retreat/publish.ts.
+
 /** Set many overrides in ONE operation (single upsert / single file write). */
 export async function setOverridesBulk(entries: { seed: string; url: string }[]) {
   if (!entries.length) return;
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = createClient();
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const supabase = createServiceRoleClient();
     const now = new Date().toISOString();
-    await supabase
+    const { error } = await supabase
       .from("media_overrides")
       .upsert(entries.map((e) => ({ seed: e.seed, url: e.url, updated_at: now })), { onConflict: "seed" });
+    if (error) throw new Error(`Saving the image failed: ${error.message}`);
   } else {
     const map = await loadOverrides();
     for (const e of entries) map[e.seed] = e.url;
@@ -88,8 +96,9 @@ export async function setOverridesBulk(entries: { seed: string; url: string }[])
 
 export async function clearOverride(seed: string) {
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    await createClient().from("media_overrides").delete().eq("seed", seed);
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { error } = await createServiceRoleClient().from("media_overrides").delete().eq("seed", seed);
+    if (error) throw new Error(`Resetting the image failed: ${error.message}`);
   } else {
     const map = await loadOverrides();
     delete map[seed];
@@ -101,8 +110,9 @@ export async function clearOverride(seed: string) {
 /** Remove every override in ONE operation. */
 export async function clearAllOverrides() {
   if (isSupabaseConfigured()) {
-    const { createClient } = await import("@/lib/supabase/server");
-    await createClient().from("media_overrides").delete().neq("seed", "");
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { error } = await createServiceRoleClient().from("media_overrides").delete().neq("seed", "");
+    if (error) throw new Error(`Clearing images failed: ${error.message}`);
   } else {
     await writeFileOverrides({});
   }
