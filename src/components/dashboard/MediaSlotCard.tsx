@@ -30,6 +30,7 @@ export function MediaSlotCard({
   const [ver, setVer] = useState(version);
   const fileRef = useRef<HTMLInputElement>(null);
   const [urlValue, setUrlValue] = useState("");
+  const [imgError, setImgError] = useState(false);
 
   const previewSrc = `/api/img?seed=${encodeURIComponent(slot.key)}&w=${slot.w}&h=${slot.h}&v=${ver}`;
   const hasCustom = Boolean(override);
@@ -56,11 +57,13 @@ export function MediaSlotCard({
         } else {
           setStatus({ ok: false, text: res.error });
         }
-      } catch {
-        // A rejection here (not a returned error) is almost always the request
-        // being blocked before it reached the action — typically too large for
-        // the server/host. Point at that rather than showing nothing.
-        setStatus({ ok: false, text: "Upload didn't reach the server — the image may be too large. Try a smaller photo or paste an image URL." });
+      } catch (e) {
+        // Surface the real reason. A rejection here (rather than a returned
+        // error) is often the request being blocked before it reached the
+        // server (too large for the host), but show the actual message so we're
+        // not guessing.
+        const msg = e instanceof Error ? e.message : String(e);
+        setStatus({ ok: false, text: `Upload error: ${msg} — if the photo is very large try a smaller one or paste a URL.` });
       } finally {
         setBusy(null);
         setUploadingName(null);
@@ -126,7 +129,13 @@ export function MediaSlotCard({
       <div className="relative aspect-[16/10] bg-sand-200">
         {/* Plain <img> so the override redirect and cache-bust are honoured. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={previewSrc} alt={slot.label} className="h-full w-full object-cover" />
+        <img
+          src={previewSrc}
+          alt={slot.label}
+          className="h-full w-full object-cover"
+          onLoad={() => setImgError(false)}
+          onError={() => setImgError(true)}
+        />
         {hasCustom && !uploading && (
           <span className="absolute left-2 top-2 rounded-full bg-palm-500 px-2.5 py-1 text-[0.6rem] font-medium uppercase tracking-eyebrow text-sand-50">
             Custom
@@ -190,6 +199,20 @@ export function MediaSlotCard({
         {status && (
           <p aria-live="polite" className={`text-[0.7rem] leading-relaxed ${status.ok ? "text-palm-600" : "text-clay-600"}`}>
             {status.ok ? "✓ " : ""}{status.text}
+          </p>
+        )}
+
+        {/* Diagnostic: what URL is actually stored for this slot, and whether it
+            loaded. If this shows the NEW file after an upload but the image is
+            blank, the URL is unreachable (bucket not public). If it still shows
+            the OLD file, the override didn't update. */}
+        {override && (
+          <p className="break-all text-[0.6rem] leading-relaxed text-ink-muted">
+            Saved:{" "}
+            <a href={override} target="_blank" rel="noreferrer" className="underline hover:text-ink">
+              {override.length > 64 ? `…${override.slice(-60)}` : override}
+            </a>
+            {imgError && <span className="mt-0.5 block text-clay-600">⚠ This URL didn&apos;t load — the bucket may not be public, or the file is missing.</span>}
           </p>
         )}
 
