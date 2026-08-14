@@ -19,9 +19,16 @@ export interface PrepareOptions {
   maxBytes?: number;
   /** JPEG quality 0–1 for the re-encoded output. */
   quality?: number;
+  /** Target aspect ratio (width / height) to crop to. When set, the image is
+   *  cropped to this ratio at the focal point below (used by the reposition UI). */
+  aspect?: number;
+  /** Horizontal focal point 0–1 (0 = left, 1 = right). Default centre. */
+  focalX?: number;
+  /** Vertical focal point 0–1 (0 = top, 1 = bottom). Default centre. */
+  focalY?: number;
 }
 
-const DEFAULTS: Required<PrepareOptions> = {
+const DEFAULTS: Required<Pick<PrepareOptions, "maxDimension" | "maxBytes" | "quality">> = {
   // Callers pass a per-slot maxDimension (≈ 2× the display size) so a 56px
   // thumbnail isn't stored as a 2048px photo. The fallback cap suits the hero.
   maxDimension: 2048,
@@ -55,31 +62,57 @@ export async function prepareImageForUpload(file: File, options: PrepareOptions 
 
   try {
     const { width, height } = bitmap;
-    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const aspect = options.aspect;
+    const cropping = Boolean(aspect && isFinite(aspect) && aspect > 0);
+
+    // Source crop rectangle. Full image unless a target aspect + focal point are
+    // given (the reposition UI), in which case crop to that ratio at the focal.
+    let sx = 0, sy = 0, sw = width, sh = height;
+    if (cropping) {
+      const focalX = clamp01(options.focalX ?? 0.5);
+      const focalY = clamp01(options.focalY ?? 0.5);
+      const srcAspect = width / height;
+      if (srcAspect > aspect!) {
+        sh = height;
+        sw = Math.round(height * aspect!);
+        sx = Math.round((width - sw) * focalX);
+      } else {
+        sw = width;
+        sh = Math.round(width / aspect!);
+        sy = Math.round((height - sh) * focalY);
+      }
+    }
+
+    const scale = Math.min(1, maxDimension / Math.max(sw, sh));
     const needsResize = scale < 1;
     const needsRecompress = file.size > maxBytes;
-    if (!needsResize && !needsRecompress) return file;
+    // When cropping we always re-encode (the crop is the whole point).
+    if (!cropping && !needsResize && !needsRecompress) return file;
 
-    const w = Math.max(1, Math.round(width * scale));
-    const h = Math.max(1, Math.round(height * scale));
+    const outW = Math.max(1, Math.round(sw * scale));
+    const outH = Math.max(1, Math.round(sh * scale));
     const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = outW;
+    canvas.height = outH;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, w, h);
+    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, outW, outH);
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", quality),
     );
-    // Keep the original if re-encoding didn't actually shrink it.
-    if (!blob || blob.size >= file.size) return file;
+    // When not cropping, keep the original if re-encoding didn't shrink it.
+    if (!blob || (!cropping && blob.size >= file.size)) return file;
 
     const name = file.name.replace(/\.[^./\\]+$/, "") + ".jpg";
     return new File([blob], name, { type: "image/jpeg", lastModified: file.lastModified });
   } finally {
     bitmap.close?.();
   }
+}
+
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
 }
 
 /** Decode via createImageBitmap (fast, respects EXIF orientation), falling back
