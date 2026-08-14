@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getMediaGroups } from "@/lib/media/registry";
-import { getAllOverrides } from "@/lib/media/store";
+import { getAllOverrides, getAllOriginals } from "@/lib/media/store";
 import { MediaBulkActions } from "@/components/dashboard/MediaBulkActions";
 import { MediaSlotCard } from "@/components/dashboard/MediaSlotCard";
 
@@ -12,6 +12,7 @@ export default async function MediaPage() {
   await requireRole("admin", "/desk/media");
   const groups = getMediaGroups();
   const overrides = await getAllOverrides();
+  const originals = await getAllOriginals();
   const version = Date.now(); // cache-bust previews after a change
   const totalSlots = groups.reduce((n, g) => n + g.slots.length, 0);
   const set = Object.keys(overrides).length;
@@ -41,7 +42,7 @@ export default async function MediaPage() {
             <h2 className="mb-4 font-display text-2xl font-semibold text-ink">{g.title}</h2>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {g.slots.map((s) => (
-                <MediaSlotCard key={s.key} slot={s} override={overrides[s.key]} version={version} />
+                <MediaSlotCard key={s.key} slot={s} override={overrides[s.key]} original={originals[s.key]} version={version} />
               ))}
             </div>
           </section>
