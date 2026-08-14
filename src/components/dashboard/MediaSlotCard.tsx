@@ -33,23 +33,76 @@ export function MediaSlotCard({
   const fileRef = useRef<HTMLInputElement>(null);
   const [urlValue, setUrlValue] = useState("");
   const [imgError, setImgError] = useState(false);
-  // Reposition step: after picking a file (or re-framing), the admin frames it.
+  // Reposition step: after picking a file (or editing), the admin frames it by
+  // DRAGGING the photo inside the frame (sliders were fiddly on phones).
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropUrl, setCropUrl] = useState<string | null>(null);
   const [focalX, setFocalX] = useState(0.5);
   const [focalY, setFocalY] = useState(0.5);
-  // A re-frame re-crops the STORED original — no new original is uploaded, and
-  // the existing one is preserved server-side.
+  const [dragging, setDragging] = useState(false);
+  // Whether the loaded photo actually has room to pan in the frame. False for an
+  // image already cropped to the slot's shape (no stored original) — then there's
+  // nothing to reposition and the admin should replace it instead. `measured`
+  // gates the UI until the image has loaded, so no hint flashes prematurely.
+  const [canPan, setCanPan] = useState(false);
+  const [measured, setMeasured] = useState(false);
+  // An edit re-crops the STORED original — no new original is uploaded, and the
+  // existing one is preserved server-side.
   const [isReframe, setIsReframe] = useState(false);
   const [reframeLoading, setReframeLoading] = useState(false);
 
+  const frameRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
+  const natRef = useRef<{ w: number; h: number } | null>(null);
+
   const previewSrc = `/api/img?seed=${encodeURIComponent(slot.key)}&w=${slot.w}&h=${slot.h}&v=${ver}`;
   const hasCustom = Boolean(override);
-  const canReframe = Boolean(override && original);
   const aspect = slot.w / slot.h;
 
   // Revoke the object URL when it changes or the card unmounts.
   useEffect(() => () => { if (cropUrl) URL.revokeObjectURL(cropUrl); }, [cropUrl]);
+
+  // Measure whether the loaded photo overflows the frame (so it can be panned),
+  // and update focal from a drag using true pixel movement over the overflow.
+  function overflow() {
+    const el = frameRef.current;
+    const nat = natRef.current;
+    if (!el || !nat) return { x: 0, y: 0 };
+    const rect = el.getBoundingClientRect();
+    const scale = Math.max(rect.width / nat.w, rect.height / nat.h); // object-cover
+    return { x: nat.w * scale - rect.width, y: nat.h * scale - rect.height };
+  }
+
+  function onImgLoad(e: React.SyntheticEvent<HTMLImageElement>) {
+    const t = e.currentTarget;
+    natRef.current = { w: t.naturalWidth, h: t.naturalHeight };
+    const o = overflow();
+    setCanPan(o.x > 1 || o.y > 1);
+    setMeasured(true);
+  }
+
+  function onDragStart(e: React.PointerEvent) {
+    if (pending) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, fx: focalX, fy: focalY };
+    setDragging(true);
+  }
+
+  function onDragMove(e: React.PointerEvent) {
+    const st = dragRef.current;
+    if (!st) return;
+    const o = overflow();
+    const dx = e.clientX - st.x;
+    const dy = e.clientY - st.y;
+    // Dragging the photo right reveals its left edge → focal moves left.
+    if (o.x > 1) setFocalX(clamp01(st.fx - dx / o.x));
+    if (o.y > 1) setFocalY(clamp01(st.fy - dy / o.y));
+  }
+
+  function onDragEnd() {
+    dragRef.current = null;
+    setDragging(false);
+  }
 
   // Choosing a file opens the reposition step rather than uploading immediately.
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -58,29 +111,34 @@ export function MediaSlotCard({
     setStatus(null);
     setFocalX(0.5);
     setFocalY(0.5);
+    setCanPan(false);
+    setMeasured(false);
     setIsReframe(false);
     setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
     setCropFile(file);
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  // Re-frame: pull the stored ORIGINAL back through our proxy and reopen the
-  // sliders on it, so framing can be changed anytime without re-uploading.
-  async function onReframe() {
+  // Edit: pull the current photo (its stored original if we have one) back
+  // through our proxy and open the drag-to-reposition editor on it, so framing
+  // can be changed anytime without re-uploading.
+  async function onEdit() {
     setStatus(null);
     setReframeLoading(true);
     try {
       const res = await fetch(`/api/img/original?seed=${encodeURIComponent(slot.key)}&v=${ver}`);
-      if (!res.ok) throw new Error("Couldn't load the original photo to re-frame.");
+      if (!res.ok) throw new Error("Couldn't load this photo to edit.");
       const blob = await res.blob();
       const file = new File([blob], "original.jpg", { type: blob.type || "image/jpeg" });
       setFocalX(0.5);
       setFocalY(0.5);
+      setCanPan(false);
+      setMeasured(false);
       setIsReframe(true);
       setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
       setCropFile(file);
     } catch (e) {
-      setStatus({ ok: false, text: e instanceof Error ? e.message : "Couldn't load the original photo." });
+      setStatus({ ok: false, text: e instanceof Error ? e.message : "Couldn't load this photo." });
     } finally {
       setReframeLoading(false);
     }
@@ -89,6 +147,8 @@ export function MediaSlotCard({
   function cancelCrop() {
     setIsReframe(false);
     setCropFile(null);
+    setCanPan(false);
+    setMeasured(false);
     setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   }
 
@@ -188,6 +248,17 @@ export function MediaSlotCard({
 
   return (
     <div className="overflow-hidden rounded-xl2 border border-ink/10 bg-sand-50">
+      {/* Single hidden file input, shared by the Upload button and the editor's
+          Replace button (so both work whether or not the editor is open). */}
+      <input
+        ref={fileRef}
+        type="file"
+        name="file"
+        accept="image/*"
+        className="hidden"
+        disabled={pending}
+        onChange={onPickFile}
+      />
       <div className="relative aspect-[16/10] bg-sand-200">
         {/* Plain <img> so the override redirect and cache-bust are honoured. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -202,6 +273,17 @@ export function MediaSlotCard({
           <span className="absolute left-2 top-2 rounded-full bg-palm-500 px-2.5 py-1 text-[0.6rem] font-medium uppercase tracking-eyebrow text-sand-50">
             Custom
           </span>
+        )}
+        {hasCustom && !uploading && !cropFile && (
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={pending || reframeLoading}
+            className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-sand-50/95 px-3 py-1.5 text-[0.6rem] font-medium uppercase tracking-eyebrow text-ink shadow-soft backdrop-blur transition-colors hover:bg-sand-50 disabled:opacity-70"
+          >
+            {reframeLoading ? <Spinner /> : <ReframeIcon />}
+            {reframeLoading ? "Loading…" : "Edit"}
+          </button>
         )}
         {uploading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/60 text-sand-50">
@@ -220,35 +302,55 @@ export function MediaSlotCard({
         </div>
 
         {cropFile && cropUrl ? (
-          /* Reposition step — frame the photo before it uploads. */
+          /* Editor — DRAG the photo inside the frame to choose what shows. */
           <div className="space-y-2">
             <p className="text-[0.62rem] uppercase tracking-eyebrow text-ink-muted">
-              {isReframe ? "Re-frame — slide to reposition, no quality lost" : "Position the photo — slide to frame it"}
+              {canPan ? "Drag the photo to reposition it" : "Photo preview"}
             </p>
-            <div className="relative w-full overflow-hidden rounded-xl bg-ink/10" style={{ aspectRatio: `${slot.w} / ${slot.h}` }}>
+            <div
+              ref={frameRef}
+              onPointerDown={onDragStart}
+              onPointerMove={onDragMove}
+              onPointerUp={onDragEnd}
+              onPointerCancel={onDragEnd}
+              className={`relative w-full select-none overflow-hidden rounded-xl bg-ink/10 ${canPan ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""}`}
+              style={{ aspectRatio: `${slot.w} / ${slot.h}`, touchAction: "none" }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={cropUrl}
-                alt="New photo preview"
+                alt="Photo preview"
+                draggable={false}
+                onLoad={onImgLoad}
                 className="h-full w-full object-cover"
                 style={{ objectPosition: `${focalX * 100}% ${focalY * 100}%` }}
               />
+              {canPan && !dragging && (
+                <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink/65 px-2.5 py-1 text-[0.56rem] uppercase tracking-eyebrow text-sand-50">
+                  ✥ Drag to reposition
+                </span>
+              )}
             </div>
-            <label className="block">
-              <span className="text-[0.56rem] uppercase tracking-eyebrow text-ink-muted">Left / right</span>
-              <input type="range" min={0} max={1} step={0.01} value={focalX} disabled={pending} onChange={(e) => setFocalX(Number(e.target.value))} className="w-full accent-clay-500" />
-            </label>
-            <label className="block">
-              <span className="text-[0.56rem] uppercase tracking-eyebrow text-ink-muted">Up / down</span>
-              <input type="range" min={0} max={1} step={0.01} value={focalY} disabled={pending} onChange={(e) => setFocalY(Number(e.target.value))} className="w-full accent-clay-500" />
-            </label>
+            {measured && !canPan && (
+              <p className="text-[0.62rem] leading-relaxed text-ink-muted">
+                This photo already fits the frame, so there&apos;s nothing to reposition. To change the crop, tap Replace and pick it again.
+              </p>
+            )}
             <div className="flex items-center gap-2">
               <button
                 onClick={confirmCrop}
                 disabled={pending}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-clay-500 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600 disabled:opacity-50"
               >
-                {uploading ? <><Spinner /> Uploading…</> : "Use this photo"}
+                {uploading ? <><Spinner /> Saving…</> : "Save framing"}
+              </button>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={pending}
+                className="rounded-full border border-ink/15 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50"
+              >
+                Replace
               </button>
               <button
                 onClick={cancelCrop}
@@ -261,20 +363,16 @@ export function MediaSlotCard({
           </div>
         ) : (
           <>
-            {/* Upload — choosing a file opens the reposition step. */}
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-clay-500 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-clay-600">
-              <input
-                ref={fileRef}
-                type="file"
-                name="file"
-                accept="image/*"
-                className="hidden"
-                disabled={pending}
-                onChange={onPickFile}
-              />
+            {/* Upload — choosing a file opens the drag editor. */}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={pending}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-clay-500 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-clay-600 disabled:opacity-50"
+            >
               <UploadIcon />
               {hasCustom ? "Replace photo" : "Upload a photo"}
-            </label>
+            </button>
 
             {/* Or set from a URL. */}
             <div className="flex items-center gap-2">
@@ -320,14 +418,14 @@ export function MediaSlotCard({
 
         {!cropFile && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            {canReframe && (
+            {hasCustom && (
               <button
-                onClick={onReframe}
+                onClick={onEdit}
                 disabled={pending || reframeLoading}
                 className="inline-flex items-center gap-1.5 text-[0.66rem] uppercase tracking-eyebrow text-ocean-700 underline-offset-4 hover:underline disabled:opacity-50"
               >
                 {reframeLoading ? <Spinner /> : <ReframeIcon />}
-                {reframeLoading ? "Loading…" : "Reframe"}
+                {reframeLoading ? "Loading…" : "Edit / reposition"}
               </button>
             )}
             {hasCustom && (
@@ -358,6 +456,10 @@ function Spinner({ big = false }: { big?: boolean }) {
       <span className={`${d} rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.36s]`} />
     </span>
   );
+}
+
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
 }
 
 function ReframeIcon() {
