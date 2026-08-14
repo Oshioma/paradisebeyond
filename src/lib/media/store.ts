@@ -20,7 +20,7 @@ const BUCKET = "media";
 // Short-lived cache of the full overrides map, shared across the many image
 // requests a single page render fires. Invalidated on any write.
 let cache: { at: number; map: Record<string, string> } | null = null;
-const TTL_MS = 30_000;
+const TTL_MS = 5_000;
 function invalidate() {
   cache = null;
 }

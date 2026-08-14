@@ -134,7 +134,7 @@ export function MediaSlotCard({
         )}
         {uploading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/60 text-sand-50">
-            <Spinner size="h-7 w-7" />
+            <Spinner big />
             <span className="max-w-[85%] truncate px-2 text-[0.66rem] uppercase tracking-eyebrow">
               Uploading{uploadingName ? ` ${uploadingName}` : ""}…
             </span>
@@ -208,14 +208,16 @@ export function MediaSlotCard({
   );
 }
 
-function Spinner({ size = "h-3.5 w-3.5" }: { size?: string }) {
-  // Slower, calmer rotation than Tailwind's default 1s — the fast spin read as
-  // frantic, especially on the small inline spinners.
+function Spinner({ big = false }: { big?: boolean }) {
+  // Three gently pulsing dots instead of a rotating arc — a calm "working"
+  // signal that doesn't read as frantic.
+  const d = big ? "h-2.5 w-2.5" : "h-1.5 w-1.5";
   return (
-    <svg viewBox="0 0 24 24" className={`${size} animate-spin [animation-duration:1.6s]`} aria-hidden>
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-      <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
+    <span className="inline-flex items-center gap-1" aria-hidden>
+      <span className={`${d} rounded-full bg-current animate-pulse [animation-duration:1.1s]`} />
+      <span className={`${d} rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.18s]`} />
+      <span className={`${d} rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.36s]`} />
+    </span>
   );
 }
 

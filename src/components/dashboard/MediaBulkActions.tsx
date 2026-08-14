@@ -63,10 +63,12 @@ export function MediaBulkActions() {
 }
 
 function Spinner() {
+  // Calm pulsing dots — matches the media slot cards, no frantic rotation.
   return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 animate-spin" aria-hidden>
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-      <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
+    <span className="inline-flex items-center gap-1" aria-hidden>
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse [animation-duration:1.1s]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.18s]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse [animation-duration:1.1s] [animation-delay:0.36s]" />
+    </span>
   );
 }
