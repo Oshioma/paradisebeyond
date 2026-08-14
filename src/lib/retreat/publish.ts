@@ -40,7 +40,11 @@ const usdToMinor = (v: number) => Math.round((Number.isFinite(v) ? v : 0) * 100)
 function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): Experience {
   const hotels = (draft.hotels ?? []).filter((h) => h.name?.trim()).map((h) => ({ name: h.name.trim(), description: h.description ?? "" }));
   const heroSeed = `${slug}-hero`;
-  const gallerySeeds = (draft.galleryUrls ?? []).map((_, i) => `${slug}-g${i}`);
+  // Only real photos become image slots. A blank gallery entry must not mint a
+  // seed — that would render as an empty placeholder tile in the gallery, the
+  // "Where you'll stay" grid, and (via the pool below) the highlights.
+  const galleryUrls = (draft.galleryUrls ?? []).map((u) => (u ?? "").trim()).filter(Boolean);
+  const gallerySeeds = galleryUrls.map((_, i) => `${slug}-g${i}`);
   const imageSeeds = gallerySeeds.length ? gallerySeeds : [heroSeed];
   const currency = draft.currency || "USD";
 
@@ -99,7 +103,11 @@ function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): E
     story: (draft.story ?? []).filter(Boolean),
     highlights: (draft.highlights ?? [])
       .filter((h) => h.title?.trim() || h.description?.trim())
-      .map((h, i) => ({ title: h.title, description: h.description, imageSeed: imageSeeds[i % imageSeeds.length] })),
+      // Each highlight gets its OWN stable image slot so a host can give every
+      // "moment" a distinct photo. Reusing the gallery/hero seeds collapsed
+      // multiple highlights onto a single slot when the gallery was small, so
+      // every card showed the same image and uploads overwrote each other.
+      .map((h, i) => ({ title: h.title, description: h.description, imageSeed: `${slug}-h${i}` })),
     stay: {
       property: hotels[0]?.name ?? draft.propertyName ?? "",
       description: hotels[0]?.description ?? draft.propertyDescription ?? "",
@@ -139,7 +147,11 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
 
   // Reuse the slug from a prior publish of this draft (idempotency), else mint a
   // unique one.
-  const { data: prior } = await supabase.from("experiences").select("id, slug").eq("retreat_draft_id", draft.id).maybeSingle();
+  const { data: prior } = await supabase
+    .from("experiences")
+    .select("id, slug, verified, featured")
+    .eq("retreat_draft_id", draft.id)
+    .maybeSingle();
   let slug = (prior?.slug as string) ?? slugify(draft.name);
   if (!prior) {
     const base = slug;
@@ -151,6 +163,13 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   }
 
   const content = buildContent(draft, slug, hostSlugs);
+  // buildContent starts every experience unverified and unfeatured. On a
+  // re-publish (a host edited a live listing), carry the admin's existing
+  // Verified / Featured flags forward so an edit never silently drops them.
+  const keepVerified = Boolean(prior?.verified);
+  const keepFeatured = Boolean(prior?.featured);
+  content.verified = keepVerified;
+  content.featured = keepFeatured;
 
   // Point the experience's image seeds at the uploaded photos. Write straight
   // through the service-role client already in scope: media_overrides is
@@ -158,8 +177,28 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   // which left the hero/gallery blank on the live page.
   const overrides: { seed: string; url: string; updated_at: string }[] = [];
   const stamp = new Date().toISOString();
-  if (draft.heroImageUrl) overrides.push({ seed: slotKey(`${slug}-hero`), url: draft.heroImageUrl, updated_at: stamp });
-  (draft.galleryUrls ?? []).forEach((url, i) => { if (url) overrides.push({ seed: slotKey(`${slug}-g${i}`), url, updated_at: stamp }); });
+  // Mirror buildContent's filtering so a blank entry never writes an override
+  // for a seed that isn't rendered (and seed indices stay aligned with it).
+  const heroUrl = (draft.heroImageUrl ?? "").trim();
+  const galleryUrls = (draft.galleryUrls ?? []).map((u) => (u ?? "").trim()).filter(Boolean);
+  if (heroUrl) overrides.push({ seed: slotKey(`${slug}-hero`), url: heroUrl, updated_at: stamp });
+  galleryUrls.forEach((url, i) => overrides.push({ seed: slotKey(`${slug}-g${i}`), url, updated_at: stamp }));
+
+  // Seed each highlight's own slot once from the uploaded photo pool (gallery,
+  // else hero), cycled so the "moments" cards start populated and differ. Never
+  // overwrite a photo already set for a highlight (e.g. one the host chose in
+  // the Media manager) on a later re-publish.
+  const pool = galleryUrls.length ? galleryUrls : heroUrl ? [heroUrl] : [];
+  if (pool.length && content.highlights.length) {
+    const seeds = content.highlights.map((h) => slotKey(h.imageSeed));
+    const { data: existing } = await supabase.from("media_overrides").select("seed").in("seed", seeds);
+    const already = new Set(((existing ?? []) as { seed: string }[]).map((r) => r.seed));
+    content.highlights.forEach((h, i) => {
+      const seed = slotKey(h.imageSeed);
+      if (!already.has(seed)) overrides.push({ seed, url: pool[i % pool.length], updated_at: stamp });
+    });
+  }
+
   if (overrides.length) {
     const { error: ovErr } = await supabase.from("media_overrides").upsert(overrides, { onConflict: "seed" });
     if (ovErr) return { ok: false, error: `Saving photos failed: ${ovErr.message}` };
@@ -183,6 +222,8 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
         hero_image_url: draft.heroImageUrl || null,
         story: content.story,
         for_you_if: content.forYouIf,
+        verified: keepVerified,
+        featured: keepFeatured,
         created_by: actingUserId,
         content,
         updated_at: new Date().toISOString(),

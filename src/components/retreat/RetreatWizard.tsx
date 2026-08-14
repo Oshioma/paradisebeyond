@@ -15,6 +15,7 @@ import {
   uploadRetreatPhoto,
 } from "@/app/studio/retreats/new/actions";
 import { cn } from "@/lib/utils";
+import { prepareImageForUpload } from "@/lib/media/clientImage";
 
 interface Opt { value: string; label: string }
 
@@ -725,8 +726,11 @@ function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, 
       let failures = 0;
       for (let i = 0; i < files.length; i++) {
         if (files.length > 1) setProgress(`Uploading ${i + 1} of ${files.length}…`);
+        // Downscale/compress big phone photos in the browser first so they
+        // don't hit the server size cap and upload fast on mobile data.
+        const ready = await prepareImageForUpload(files[i]);
         const fd = new FormData();
-        fd.set("file", files[i]);
+        fd.set("file", ready);
         // Unique slot per file so concurrent images don't overwrite each other.
         const fileSlot = files.length > 1 ? `${slot}-${i}` : slot;
         try {

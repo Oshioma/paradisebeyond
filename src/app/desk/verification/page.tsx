@@ -2,22 +2,24 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getAllExperiences, getAllHosts } from "@/lib/data/repository";
-import { getVerificationCriteria, getDemoVerifiedSlugs } from "@/lib/admin/verification";
+import { getVerificationCriteria, getDemoVerifiedSlugs, getDemoFeaturedSlugs } from "@/lib/admin/verification";
 import { CriteriaEditor } from "@/components/admin/CriteriaEditor";
-import { toggleVerified } from "./actions";
+import { ExperienceBadgeCells } from "@/components/admin/ExperienceBadgeCells";
 
 export const metadata: Metadata = { title: "Verification", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function VerificationPage() {
   await requireRole("admin", "/desk/verification");
-  const [criteria, experiences, demoVerified, hosts] = await Promise.all([
+  const [criteria, experiences, demoVerified, demoFeatured, hosts] = await Promise.all([
     getVerificationCriteria(),
     getAllExperiences(),
     getDemoVerifiedSlugs(),
+    getDemoFeaturedSlugs(),
     getAllHosts(),
   ]);
   const overrides = new Set(demoVerified);
+  const featuredOverrides = new Set(demoFeatured);
   const hostBySlug = new Map(hosts.map((h) => [h.slug, h]));
 
   return (
@@ -42,21 +44,23 @@ export default async function VerificationPage() {
 
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold text-ink">Experiences</h2>
-        <p className="mt-1 text-sm text-ink-muted">Award once you&apos;ve checked every criterion above.</p>
+        <p className="mt-1 text-sm text-ink-muted">Award Verified once you&apos;ve checked every criterion above. Feature an experience to surface it on the homepage.</p>
         <div className="mt-4 overflow-x-auto rounded-xl2 border border-ink/10">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-sand-100 text-[0.66rem] uppercase tracking-eyebrow text-ink-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Experience</th>
                 <th className="px-4 py-3 font-medium">Host</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Action</th>
+                <th className="px-4 py-3 font-medium">Verified</th>
+                <th className="px-4 py-3 font-medium">Featured</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink/10">
               {experiences.map((e) => {
                 const host = hostBySlug.get(e.hostSlugs[0]);
                 const verified = e.verified || overrides.has(e.slug);
+                const featured = e.featured || featuredOverrides.has(e.slug);
                 return (
                   <tr key={e.slug} className="bg-sand-50">
                     <td className="px-4 py-3">
@@ -64,20 +68,7 @@ export default async function VerificationPage() {
                       <span className="block text-xs text-ink-muted">{e.location}</span>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{host?.name ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {verified
-                        ? <span className="rounded-full bg-palm-500/15 px-2.5 py-1 text-[0.62rem] uppercase tracking-eyebrow text-palm-600">Verified</span>
-                        : <span className="rounded-full bg-ink/5 px-2.5 py-1 text-[0.62rem] uppercase tracking-eyebrow text-ink-muted">Not verified</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <form action={toggleVerified} className="inline">
-                        <input type="hidden" name="slug" value={e.slug} />
-                        <input type="hidden" name="verified" value={verified ? "0" : "1"} />
-                        <button className={`rounded-full px-4 py-1.5 text-xs uppercase tracking-eyebrow ${verified ? "border border-ink/15 text-ink-muted hover:border-clay-500 hover:text-clay-600" : "bg-palm-500 text-sand-50 hover:bg-palm-600"}`}>
-                          {verified ? "Revoke" : "Award"}
-                        </button>
-                      </form>
-                    </td>
+                    <ExperienceBadgeCells slug={e.slug} verified={verified} featured={featured} />
                   </tr>
                 );
               })}

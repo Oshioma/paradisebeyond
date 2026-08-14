@@ -56,7 +56,7 @@ export async function getFeaturedExperiences(limit = 6): Promise<Experience[]> {
 export async function filterExperiences(
   filter: ExperienceFilter,
 ): Promise<Experience[]> {
-  return (await source()).filter((e) => {
+  const matched = (await source()).filter((e) => {
     if (filter.duration && e.duration !== filter.duration) return false;
     if (filter.category && !e.categorySlugs.includes(filter.category as never)) return false;
     if (filter.destination && e.destinationSlug !== filter.destination) return false;
@@ -70,6 +70,9 @@ export async function filterExperiences(
     }
     return true;
   });
+  // Featured experiences lead the listing; order is otherwise preserved
+  // (Array.prototype.sort is stable).
+  return matched.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
 }
 
 export async function getExperienceBySlug(slug: string): Promise<Experience | undefined> {

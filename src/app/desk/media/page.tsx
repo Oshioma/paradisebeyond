@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getMediaGroups, type Slot } from "@/lib/media/registry";
+import { getMediaGroups } from "@/lib/media/registry";
 import { getAllOverrides } from "@/lib/media/store";
-import { resetImage } from "./actions";
 import { MediaBulkActions } from "@/components/dashboard/MediaBulkActions";
-import { MediaSlotForms } from "@/components/dashboard/MediaSlotForms";
+import { MediaSlotCard } from "@/components/dashboard/MediaSlotCard";
 
 export const metadata: Metadata = { title: "Media", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -42,46 +41,11 @@ export default async function MediaPage() {
             <h2 className="mb-4 font-display text-2xl font-semibold text-ink">{g.title}</h2>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {g.slots.map((s) => (
-                <SlotCard key={s.key} slot={s} override={overrides[s.key]} version={version} />
+                <MediaSlotCard key={s.key} slot={s} override={overrides[s.key]} version={version} />
               ))}
             </div>
           </section>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function SlotCard({ slot, override, version }: { slot: Slot; override?: string; version: number }) {
-  const previewSrc = `/api/img?seed=${encodeURIComponent(slot.key)}&w=${slot.w}&h=${slot.h}&v=${version}`;
-  return (
-    <div className="overflow-hidden rounded-xl2 border border-ink/10 bg-sand-50">
-      <div className="relative aspect-[16/10] bg-sand-200">
-        {/* Plain <img> so the override redirect and cache-bust are honoured. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={previewSrc} alt={slot.label} className="h-full w-full object-cover" />
-        {override && (
-          <span className="absolute left-2 top-2 rounded-full bg-palm-500 px-2.5 py-1 text-[0.6rem] font-medium uppercase tracking-eyebrow text-sand-50">
-            Custom
-          </span>
-        )}
-      </div>
-      <div className="space-y-3 p-4">
-        <div>
-          <p className="font-medium text-ink">{slot.label}</p>
-          <p className="font-mono text-[0.66rem] text-ink-muted">{slot.key}</p>
-        </div>
-
-        <MediaSlotForms seed={slot.key} />
-
-        {override && (
-          <form action={resetImage}>
-            <input type="hidden" name="seed" value={slot.key} />
-            <button className="text-[0.66rem] uppercase tracking-eyebrow text-ink-muted underline-offset-4 hover:text-clay-600 hover:underline">
-              Reset to placeholder
-            </button>
-          </form>
-        )}
       </div>
     </div>
   );

@@ -5,24 +5,33 @@ import { requireRole } from "@/lib/auth/session";
 import { saveUpload, setOverrideUrl, setOverridesBulk, clearOverride, clearAllOverrides } from "@/lib/media/store";
 import { allDemoPhotos } from "@/lib/media/demoPhotos";
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
+// Generous cap: the browser downscales large photos before upload, but leave
+// headroom for originals that couldn't be re-encoded (e.g. HEIC on desktop).
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif", "image/heic", "image/heif"];
 
-export type MediaResult = { ok: boolean; error?: string };
+/**
+ * These return a {ok, error} result rather than throwing. Next.js redacts
+ * thrown Server Action error messages in production (the client just gets a
+ * generic, often empty, message) — so a returned reason is the only way the
+ * real cause (e.g. "create a public media bucket") actually reaches the UI.
+ */
+export type MediaResult = { ok: true } | { ok: false; error: string };
 
 export async function uploadImage(formData: FormData): Promise<MediaResult> {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
   const file = formData.get("file");
-  if (!seed || !(file instanceof File) || file.size === 0) return { ok: false, error: "Choose an image file first." };
-  if (file.size > MAX_BYTES) return { ok: false, error: "Image too large (max 8MB)." };
-  if (file.type && !OK_TYPES.includes(file.type)) return { ok: false, error: "Unsupported image type (use JPEG, PNG, WebP, AVIF or GIF)." };
+  if (!seed) return { ok: false, error: "Missing image slot." };
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "No file selected." };
+  if (file.size > MAX_BYTES) return { ok: false, error: `That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — too large (max 20MB). Try a smaller photo.` };
+  if (file.type && !OK_TYPES.includes(file.type)) return { ok: false, error: `Unsupported image type (${file.type}). Use JPEG, PNG, WebP or HEIC.` };
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
     await saveUpload(seed, { name: file.name, bytes, contentType: file.type || "image/jpeg" });
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Upload failed." };
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Upload failed on the server. Try again or paste an image URL." };
   }
   revalidatePath("/desk/media");
   return { ok: true };
@@ -32,25 +41,31 @@ export async function setImageUrl(formData: FormData): Promise<MediaResult> {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
   const url = String(formData.get("url") ?? "").trim();
-  if (!seed || !url) return { ok: false, error: "Enter an image URL." };
+  if (!seed) return { ok: false, error: "Missing image slot." };
+  if (!url) return { ok: false, error: "Enter an image URL first." };
   if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) {
     return { ok: false, error: "Enter a full https:// URL or a site-relative /path." };
   }
   try {
     await setOverrideUrl(seed, url);
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Couldn't set the image." };
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't save that URL." };
   }
   revalidatePath("/desk/media");
   return { ok: true };
 }
 
-export async function resetImage(formData: FormData) {
+export async function resetImage(formData: FormData): Promise<MediaResult> {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
-  if (!seed) return;
-  await clearOverride(seed);
+  if (!seed) return { ok: false, error: "Missing image slot." };
+  try {
+    await clearOverride(seed);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't reset." };
+  }
   revalidatePath("/desk/media");
+  return { ok: true };
 }
 
 /** Point every slot at demo stock photography, in a SINGLE write. */
