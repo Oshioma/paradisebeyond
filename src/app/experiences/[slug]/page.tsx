@@ -207,7 +207,7 @@ export default async function ExperiencePage({
               </div>
               <div className="mt-6 space-y-2">
                 <p className="eyebrow text-ocean-700">Accommodation options</p>
-                {[...e.stay.roomTypes].sort((a, b) => b.priceDeltaMinor - a.priceDeltaMinor).map((r) => (
+                {[...e.stay.roomTypes].sort((a, b) => a.priceDeltaMinor - b.priceDeltaMinor).map((r) => (
                   <div key={r.id} className="flex items-center justify-between rounded-xl border border-ink/10 px-4 py-3">
                     <div>
                       {r.property && <p className="text-[0.62rem] uppercase tracking-eyebrow text-ocean-700">{r.property}</p>}
