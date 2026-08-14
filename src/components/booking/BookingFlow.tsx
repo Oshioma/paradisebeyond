@@ -74,7 +74,7 @@ export function BookingFlow({
       <div className="space-y-8">
         <Step n={1} title="Your accommodation">
           <div className="space-y-2">
-            {[...experience.stay.roomTypes].sort((a, b) => b.priceDeltaMinor - a.priceDeltaMinor).map((r) => (
+            {[...experience.stay.roomTypes].sort((a, b) => a.priceDeltaMinor - b.priceDeltaMinor).map((r) => (
               <button
                 key={r.id}
                 onClick={() => { setRoomId(r.id); if (applied) { setApplied(null); setPromoMsg(null); } }}
