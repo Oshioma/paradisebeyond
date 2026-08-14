@@ -236,7 +236,7 @@ function StepContent({
                   updateArr(setDraft, "departures", i, patch);
                 }} /></Sub>
                 <Sub label={`End${dep.startDate && dep.endDate ? "" : ` (defaults to +${draft.duration} nights)`}`}><input type="date" className={inp} value={dep.endDate} onChange={(e) => updateArr(setDraft, "departures", i, { endDate: e.target.value })} /></Sub>
-                <Sub label="Capacity"><input type="number" className={inp} value={dep.capacity} onChange={(e) => updateArr(setDraft, "departures", i, { capacity: Number(e.target.value) })} /></Sub>
+                <Sub label="Capacity"><input type="number" min={0} inputMode="numeric" placeholder="8" className={inp} value={dep.capacity || ""} onChange={(e) => updateArr(setDraft, "departures", i, { capacity: Number(e.target.value) })} /></Sub>
                 <RemoveBtn onClick={() => set("departures", draft.departures.filter((_, j) => j !== i))} />
               </div>
             ))}
@@ -328,7 +328,7 @@ function StepContent({
                   <select className={inp} value={r.occupancy} onChange={(e) => updateArr(setDraft, "rooms", i, { occupancy: e.target.value as never })}>
                     <option value="shared">Shared</option><option value="private">Private</option><option value="single">Single</option>
                   </select>
-                  <Sub label="Rate + USD"><input type="number" className={inp} value={r.priceDeltaUsd} onChange={(e) => updateArr(setDraft, "rooms", i, { priceDeltaUsd: Number(e.target.value) })} /></Sub>
+                  <Sub label="Rate + USD"><input type="number" min={0} inputMode="numeric" placeholder="0" className={inp} value={r.priceDeltaUsd || ""} onChange={(e) => updateArr(setDraft, "rooms", i, { priceDeltaUsd: Number(e.target.value) })} /></Sub>
                 </div>
               </div>
             ))}
@@ -345,7 +345,7 @@ function StepContent({
               {["USD", "EUR", "GBP"].map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="Max group size"><input type="number" className={inp} value={draft.maxGroupSize} onChange={(e) => set("maxGroupSize", Number(e.target.value))} /></Field>
+          <Field label="Max group size"><input type="number" min={0} inputMode="numeric" placeholder="12" className={inp} value={draft.maxGroupSize || ""} onChange={(e) => set("maxGroupSize", Number(e.target.value))} /></Field>
         </div>
       );
     case 10:
@@ -353,7 +353,7 @@ function StepContent({
         <div className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Deposit to reserve (per person)"><MoneyInput value={draft.depositUsd} onChange={(v) => set("depositUsd", v)} currency={draft.currency} /></Field>
-            <Field label="Balance due (days before start)"><input type="number" className={inp} value={draft.balanceDueDays} onChange={(e) => set("balanceDueDays", Number(e.target.value))} /></Field>
+            <Field label="Balance due (days before start)"><input type="number" min={0} inputMode="numeric" placeholder="60" className={inp} value={draft.balanceDueDays || ""} onChange={(e) => set("balanceDueDays", Number(e.target.value))} /></Field>
           </div>
           <div className="flex flex-wrap gap-3">
             <Toggle label="Allow deposit" on={draft.allowDeposit} onClick={() => set("allowDeposit", !draft.allowDeposit)} />
