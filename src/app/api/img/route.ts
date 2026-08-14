@@ -20,20 +20,20 @@ export async function GET(req: NextRequest) {
   if (override) {
     const target = override.startsWith("http") ? override : new URL(override, req.url).toString();
     const res = NextResponse.redirect(target, 307);
-    // Short cache only. The redirect must stay fresh so a newly-uploaded image
-    // shows within seconds — the OLD headers (max-age=600 + 24h stale-while-
-    // revalidate) meant the browser kept following the redirect to the previous
-    // image for up to 10 minutes. The image FILE it points at is uniquely named
-    // per upload, so it's still cached long by Supabase's CDN + the browser.
-    res.headers.set("Cache-Control", "public, max-age=15, must-revalidate");
+    // Cache the redirect generously and revalidate in the BACKGROUND (stale-
+    // while-revalidate) so the hero never blocks or flickers on a reload. This
+    // no longer risks a stale image: the mapping read itself is uncached
+    // (noStore in the store), so each revalidation resolves the current row, and
+    // a hard refresh shows a new upload instantly. The image file is immutable
+    // (unique name per upload), so it's cached long by its own URL.
+    res.headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=604800");
     return res;
   }
 
   return new Response(placeholderSvg(seed, w, h), {
     headers: {
       "Content-Type": "image/svg+xml",
-      // Short too, so a slot updates promptly once an override is added.
-      "Cache-Control": "public, max-age=15, must-revalidate",
+      "Cache-Control": "public, max-age=300, stale-while-revalidate=604800",
     },
   });
 }
