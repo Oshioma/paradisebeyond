@@ -145,6 +145,33 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
     if (host?.slug) hostSlugs = [host.slug as string];
   }
 
+  // No host linked yet, but host details were entered in the builder — this is
+  // the admin-build case (an admin has no hosts row, so draft.hostId stays
+  // unset, and the "Host profile" step was otherwise dropped). Create or update
+  // a host from those details so the experience actually shows a host.
+  // Idempotent by slug across re-publishes.
+  if (!hostSlugs.length && draft.hostName?.trim()) {
+    const hostSlug = slugify(draft.hostName);
+    const hostRow = {
+      name: draft.hostName.trim(),
+      headline: draft.hostHeadline?.trim() || null,
+      bio: draft.hostBio?.trim() || null,
+    };
+    const { data: existing } = await supabase.from("hosts").select("id").eq("slug", hostSlug).maybeSingle();
+    if (existing?.id) {
+      await supabase.from("hosts").update(hostRow).eq("id", existing.id);
+      hostId = existing.id as string;
+    } else {
+      const { data: created } = await supabase
+        .from("hosts")
+        .insert({ slug: hostSlug, owner_id: actingUserId, ...hostRow })
+        .select("id")
+        .maybeSingle();
+      if (created?.id) hostId = created.id as string;
+    }
+    if (hostId) hostSlugs = [hostSlug];
+  }
+
   // Reuse the slug from a prior publish of this draft (idempotency), else mint a
   // unique one.
   const { data: prior } = await supabase
