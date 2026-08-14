@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { unstable_noStore as noStore } from "next/cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 /**
@@ -35,6 +36,12 @@ export async function getAllOverrides(): Promise<Record<string, string>> {
 
 async function loadOverrides(): Promise<Record<string, string>> {
   if (isSupabaseConfigured()) {
+    // Never serve a cached override map: Next's Data Cache would otherwise pin
+    // the Supabase read (a cacheable GET) to a stale result, so an uploaded
+    // image never shows even though the DB row is updated. noStore() opts this
+    // read out of that cache; the short in-memory map above still coalesces the
+    // many image requests within a single render.
+    noStore();
     try {
       const { createAnonClient } = await import("@/lib/supabase/server");
       const supabase = createAnonClient();
