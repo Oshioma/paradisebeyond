@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { uploadImage, setImageUrl, resetImage } from "@/app/desk/media/actions";
+import { prepareImageForUpload } from "@/lib/media/clientImage";
 import type { Slot } from "@/lib/media/registry";
 
 /**
@@ -39,11 +40,14 @@ export function MediaSlotCard({
     setStatus(null);
     setBusy("upload");
     setUploadingName(file.name);
-    const fd = new FormData();
-    fd.set("seed", slot.key);
-    fd.set("file", file);
     startTransition(async () => {
       try {
+        // Downscale/compress big phone photos in the browser first so they
+        // don't hit the server size cap and upload fast on mobile data.
+        const ready = await prepareImageForUpload(file);
+        const fd = new FormData();
+        fd.set("seed", slot.key);
+        fd.set("file", ready);
         await uploadImage(fd);
         setVer(Date.now());
         setStatus({ ok: true, text: `Uploaded ${file.name}` });

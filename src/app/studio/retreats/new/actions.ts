@@ -100,7 +100,7 @@ export async function uploadRetreatPhoto(draftId: string, slot: string, formData
   await requireRole("host");
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return null;
-  if (file.size > 8 * 1024 * 1024) throw new Error("Image too large (max 8MB).");
+  if (file.size > 20 * 1024 * 1024) throw new Error("Image too large (max 20MB).");
   const bytes = new Uint8Array(await file.arrayBuffer());
   return saveUpload(`retreat-${draftId}-${slot}`, { name: file.name, bytes, contentType: file.type || "image/jpeg" });
 }

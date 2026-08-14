@@ -5,15 +5,17 @@ import { requireRole } from "@/lib/auth/session";
 import { saveUpload, setOverrideUrl, setOverridesBulk, clearOverride, clearAllOverrides } from "@/lib/media/store";
 import { allDemoPhotos } from "@/lib/media/demoPhotos";
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
+// Generous cap: the browser downscales large photos before upload, but leave
+// headroom for originals that couldn't be re-encoded (e.g. HEIC on desktop).
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif", "image/heic", "image/heif"];
 
 export async function uploadImage(formData: FormData) {
   await requireRole("admin");
   const seed = String(formData.get("seed") ?? "");
   const file = formData.get("file");
   if (!seed || !(file instanceof File) || file.size === 0) return;
-  if (file.size > MAX_BYTES) throw new Error("Image too large (max 8MB).");
+  if (file.size > MAX_BYTES) throw new Error("Image too large (max 20MB).");
   if (file.type && !OK_TYPES.includes(file.type)) throw new Error("Unsupported image type.");
 
   const bytes = new Uint8Array(await file.arrayBuffer());
