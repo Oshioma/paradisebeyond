@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { uploadImage, setImageUrl, resetImage } from "@/app/desk/media/actions";
 import { prepareImageForUpload } from "@/lib/media/clientImage";
@@ -31,24 +31,47 @@ export function MediaSlotCard({
   const fileRef = useRef<HTMLInputElement>(null);
   const [urlValue, setUrlValue] = useState("");
   const [imgError, setImgError] = useState(false);
+  // Reposition step: after picking a file, the admin frames it before upload.
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropUrl, setCropUrl] = useState<string | null>(null);
+  const [focalX, setFocalX] = useState(0.5);
+  const [focalY, setFocalY] = useState(0.5);
 
   const previewSrc = `/api/img?seed=${encodeURIComponent(slot.key)}&w=${slot.w}&h=${slot.h}&v=${ver}`;
   const hasCustom = Boolean(override);
+  const aspect = slot.w / slot.h;
 
+  // Revoke the object URL when it changes or the card unmounts.
+  useEffect(() => () => { if (cropUrl) URL.revokeObjectURL(cropUrl); }, [cropUrl]);
+
+  // Choosing a file opens the reposition step rather than uploading immediately.
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setStatus(null);
+    setFocalX(0.5);
+    setFocalY(0.5);
+    setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+    setCropFile(file);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function cancelCrop() {
+    setCropFile(null);
+    setCropUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+  }
+
+  // Crop to the slot's aspect at the chosen focal point, then upload.
+  function confirmCrop() {
+    if (!cropFile) return;
+    const file = cropFile;
     setStatus(null);
     setBusy("upload");
     setUploadingName(file.name);
     startTransition(async () => {
       try {
-        // Downscale/compress in the browser first — sized to THIS slot's actual
-        // on-page dimensions (≈2× for retina, capped at 2048), so a small
-        // thumbnail isn't stored as a full-resolution photo. Keeps uploads fast
-        // on mobile data and makes the pages that use the image load quickly.
         const maxDimension = Math.min(2048, Math.max(768, Math.round(Math.max(slot.w, slot.h) * 2)));
-        const ready = await prepareImageForUpload(file, { maxDimension });
+        const ready = await prepareImageForUpload(file, { maxDimension, aspect, focalX, focalY });
         const fd = new FormData();
         fd.set("seed", slot.key);
         fd.set("file", ready);
@@ -56,15 +79,12 @@ export function MediaSlotCard({
         if (res.ok) {
           setVer(Date.now());
           setStatus({ ok: true, text: `Uploaded ${file.name}` });
+          cancelCrop();
           router.refresh();
         } else {
           setStatus({ ok: false, text: res.error });
         }
       } catch (e) {
-        // Surface the real reason. A rejection here (rather than a returned
-        // error) is often the request being blocked before it reached the
-        // server (too large for the host), but show the actual message so we're
-        // not guessing.
         const msg = e instanceof Error ? e.message : String(e);
         setStatus({ ok: false, text: `Upload error: ${msg} — if the photo is very large try a smaller one or paste a URL.` });
       } finally {
@@ -160,44 +180,82 @@ export function MediaSlotCard({
           <p className="font-mono text-[0.66rem] text-ink-muted">{slot.key}</p>
         </div>
 
-        {/* Upload — choosing a file starts the upload immediately. */}
-        <label
-          className={`flex cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 transition-colors ${
-            uploading ? "bg-ink" : "bg-clay-500 hover:bg-clay-600"
-          }`}
-        >
-          <input
-            ref={fileRef}
-            type="file"
-            name="file"
-            accept="image/*"
-            className="hidden"
-            disabled={pending}
-            onChange={onPickFile}
-          />
-          {uploading ? <Spinner /> : <UploadIcon />}
-          {uploading ? "Uploading…" : hasCustom ? "Replace photo" : "Upload a photo"}
-        </label>
+        {cropFile && cropUrl ? (
+          /* Reposition step — frame the photo before it uploads. */
+          <div className="space-y-2">
+            <p className="text-[0.62rem] uppercase tracking-eyebrow text-ink-muted">Position the photo — slide to frame it</p>
+            <div className="relative w-full overflow-hidden rounded-xl bg-ink/10" style={{ aspectRatio: `${slot.w} / ${slot.h}` }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cropUrl}
+                alt="New photo preview"
+                className="h-full w-full object-cover"
+                style={{ objectPosition: `${focalX * 100}% ${focalY * 100}%` }}
+              />
+            </div>
+            <label className="block">
+              <span className="text-[0.56rem] uppercase tracking-eyebrow text-ink-muted">Left / right</span>
+              <input type="range" min={0} max={1} step={0.01} value={focalX} disabled={pending} onChange={(e) => setFocalX(Number(e.target.value))} className="w-full accent-clay-500" />
+            </label>
+            <label className="block">
+              <span className="text-[0.56rem] uppercase tracking-eyebrow text-ink-muted">Up / down</span>
+              <input type="range" min={0} max={1} step={0.01} value={focalY} disabled={pending} onChange={(e) => setFocalY(Number(e.target.value))} className="w-full accent-clay-500" />
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={confirmCrop}
+                disabled={pending}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-clay-500 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600 disabled:opacity-50"
+              >
+                {uploading ? <><Spinner /> Uploading…</> : "Use this photo"}
+              </button>
+              <button
+                onClick={cancelCrop}
+                disabled={pending}
+                className="rounded-full border border-ink/15 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Upload — choosing a file opens the reposition step. */}
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-clay-500 px-3 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-clay-600">
+              <input
+                ref={fileRef}
+                type="file"
+                name="file"
+                accept="image/*"
+                className="hidden"
+                disabled={pending}
+                onChange={onPickFile}
+              />
+              <UploadIcon />
+              {hasCustom ? "Replace photo" : "Upload a photo"}
+            </label>
 
-        {/* Or set from a URL. */}
-        <div className="flex items-center gap-2">
-          <input
-            value={urlValue}
-            onChange={(e) => setUrlValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onSetUrl(); } }}
-            placeholder="or paste image URL"
-            disabled={pending}
-            className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500 disabled:opacity-60"
-          />
-          <button
-            onClick={onSetUrl}
-            disabled={pending || !urlValue.trim()}
-            className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3 py-1.5 text-[0.62rem] uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50"
-          >
-            {busy === "url" && <Spinner />}
-            {busy === "url" ? "Setting…" : "Set"}
-          </button>
-        </div>
+            {/* Or set from a URL. */}
+            <div className="flex items-center gap-2">
+              <input
+                value={urlValue}
+                onChange={(e) => setUrlValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onSetUrl(); } }}
+                placeholder="or paste image URL"
+                disabled={pending}
+                className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-1.5 text-xs text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500 disabled:opacity-60"
+              />
+              <button
+                onClick={onSetUrl}
+                disabled={pending || !urlValue.trim()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 px-3 py-1.5 text-[0.62rem] uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50"
+              >
+                {busy === "url" && <Spinner />}
+                {busy === "url" ? "Setting…" : "Set"}
+              </button>
+            </div>
+          </>
+        )}
 
         {status && (
           <p aria-live="polite" className={`text-[0.7rem] leading-relaxed ${status.ok ? "text-palm-600" : "text-clay-600"}`}>
