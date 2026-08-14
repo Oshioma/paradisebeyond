@@ -126,6 +126,15 @@ export async function saveUpload(seed: string, file: { name: string; bytes: Uint
   const filename = `${safe}-${Date.now()}.${ext}`;
 
   if (isSupabaseConfigured()) {
+    // Uploads REQUIRE the service-role key (Storage writes bypass RLS with it).
+    // isSupabaseConfigured() only checks the public URL/anon key, so guard the
+    // service key explicitly — otherwise the client is built with an undefined
+    // key and fails with a confusing 401.
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error(
+        "Image upload needs SUPABASE_SERVICE_ROLE_KEY, which isn't set. Add it to your environment (Supabase → Project Settings → API → service_role key), or paste an image URL instead.",
+      );
+    }
     // Use the service role so Storage RLS/policies can't silently block the
     // upload, and CHECK the error — otherwise getPublicUrl returns a URL that
     // 404s (a broken image). On any failure, throw so the UI can fall back to
