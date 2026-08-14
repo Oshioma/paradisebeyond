@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getMediaGroups } from "@/lib/media/registry";
 import { getAllOverrides, getAllOriginals } from "@/lib/media/store";
+import { getAllHosts } from "@/lib/data/repository";
 import { MediaBulkActions } from "@/components/dashboard/MediaBulkActions";
 import { MediaSlotCard } from "@/components/dashboard/MediaSlotCard";
 
@@ -10,7 +11,8 @@ export const dynamic = "force-dynamic";
 
 export default async function MediaPage() {
   await requireRole("admin", "/desk/media");
-  const groups = getMediaGroups();
+  const hosts = await getAllHosts();
+  const groups = getMediaGroups(hosts);
   const overrides = await getAllOverrides();
   const originals = await getAllOriginals();
   const version = Date.now(); // cache-bust previews after a change

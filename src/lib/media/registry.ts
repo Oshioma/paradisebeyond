@@ -36,7 +36,11 @@ const SITE_SLOTS: Slot[] = [
   slot("login-cover", "Sign-in cover", 2000, 1200),
 ];
 
-export function getMediaGroups(): SlotGroup[] {
+export function getMediaGroups(
+  // Real hosts (including ones created in the Desk) so their photo slots show up
+  // here too — not just the built-in seed hosts. Deduped by image seed.
+  hosts: { imageSeed: string; name: string }[] = HOSTS,
+): SlotGroup[] {
   const groups: SlotGroup[] = [];
 
   groups.push({ title: "Site", slots: SITE_SLOTS });
@@ -51,9 +55,15 @@ export function getMediaGroups(): SlotGroup[] {
     slots: CATEGORIES.map((c) => slot(c.imageSeed, c.name, 700, 933)),
   });
 
+  const seenHost = new Set<string>();
+  const hostList = [...HOSTS, ...hosts].filter((h) => {
+    if (seenHost.has(h.imageSeed)) return false;
+    seenHost.add(h.imageSeed);
+    return true;
+  });
   groups.push({
     title: "Hosts",
-    slots: HOSTS.flatMap((h) => [
+    slots: hostList.flatMap((h) => [
       slot(h.imageSeed, `${h.name} — portrait`, 600, 720),
       slot(`host-cover-${h.imageSeed}`, `${h.name} — cover`, 2000, 1200),
     ]),
