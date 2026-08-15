@@ -190,6 +190,13 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
   }
 
   const content = buildContent(draft, slug, hostSlugs);
+  // A published experience with no accommodation options can't be booked (the
+  // booking flow prices against a room). Refuse to publish rather than create an
+  // unbookable listing — this catches any path, including approvals of older
+  // drafts, whatever the client-side validation did.
+  if (content.stay.roomTypes.length === 0) {
+    return { ok: false, error: "Add at least one accommodation option (with a name) before publishing — the retreat can't be booked without one." };
+  }
   // buildContent starts every experience unverified and unfeatured. On a
   // re-publish (a host edited a live listing), carry the admin's existing
   // Verified / Featured flags forward so an edit never silently drops them.

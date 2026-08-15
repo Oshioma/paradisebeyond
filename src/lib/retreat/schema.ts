@@ -174,7 +174,10 @@ export const submitRetreatSchema = z.object({
     .refine((a) => a.some((h) => h.name.trim().length >= 2), "Add at least one hotel / property"),
   inclusions: z.array(z.string().min(1)).min(1, "List what's included"),
   priceFromUsd: z.number().positive("Set a starting price"),
-  rooms: z.array(z.object({ name: z.string().min(1) })).min(1, "Add at least one room option"),
+  // Trim before length-checking so a whitespace-only name can't pass validation
+  // yet get dropped by buildContent (which trims) — that produced a published
+  // experience with zero accommodation options that then couldn't be booked.
+  rooms: z.array(z.object({ name: z.string().trim().min(1) })).min(1, "Add at least one room option"),
   hostName: z.string().min(2, "Add your host name"),
 });
 
