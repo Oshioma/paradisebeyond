@@ -69,32 +69,45 @@ export function RetreatWizard({
 
   const go = (i: number) => setStep(Math.max(0, Math.min(STEPS.length - 1, i)));
 
+  // On mobile the step list is tucked into a collapsible "jump to step" menu so
+  // it fits — open it, pick any step, it closes. Desktop shows the list inline.
+  const [navOpen, setNavOpen] = useState(false);
+
   return (
     <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
       {/* Stepper */}
       <aside className="lg:sticky lg:top-6 lg:self-start">
-        <ol className="hidden space-y-1 lg:block">
-          {STEPS.map((label, i) => (
-            <li key={label}>
-              <button
-                onClick={() => go(i)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors",
-                  i === step ? "bg-ink text-sand-50" : "text-ink-muted hover:bg-ink/5",
-                )}
-              >
-                <span className={cn("flex h-5 w-5 flex-none items-center justify-center rounded-full text-[0.62rem]", i === step ? "bg-sand-50 text-ink" : "bg-ink/10 text-ink-muted")}>{i + 1}</span>
-                {label}
-              </button>
-            </li>
-          ))}
-        </ol>
+        {/* Desktop: full step list, always visible. */}
+        <StepList step={step} onGo={go} className="hidden lg:block" />
+
+        {/* Mobile: current step + progress, with a tap-to-open jump menu. */}
         <div className="lg:hidden">
-          <p className="eyebrow text-ocean-700">Step {step + 1} of {STEPS.length}</p>
+          <button
+            type="button"
+            onClick={() => setNavOpen((o) => !o)}
+            aria-expanded={navOpen}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink/15 bg-sand-50 px-3 py-2.5 text-left"
+          >
+            <span className="min-w-0">
+              <span className="eyebrow block text-ocean-700">Step {step + 1} of {STEPS.length}</span>
+              <span className="mt-0.5 block truncate text-sm font-medium text-ink">{STEPS[step]}</span>
+            </span>
+            <svg viewBox="0 0 24 24" className={cn("h-4 w-4 flex-none text-ink-muted transition-transform", navOpen && "rotate-180")} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink/10">
-            <div className="h-full rounded-full bg-clay-500" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            <div className="h-full rounded-full bg-clay-500 transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
           </div>
+          {navOpen && (
+            <StepList
+              step={step}
+              onGo={(i) => { go(i); setNavOpen(false); }}
+              className="mt-3 max-h-[55vh] overflow-auto rounded-xl border border-ink/10 bg-sand-50 p-2"
+            />
+          )}
         </div>
+
         <button onClick={saveDraftNow} disabled={saving} className="mt-4 hidden w-full rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50 lg:block">
           {saving ? "Saving…" : "Save draft"}
         </button>
@@ -135,6 +148,30 @@ export function RetreatWizard({
         </div>
       </div>
     </div>
+  );
+}
+
+// The clickable list of steps — shared by the desktop sidebar and the mobile
+// "jump to step" menu, so both navigate to any step in one tap.
+function StepList({ step, onGo, className }: { step: number; onGo: (i: number) => void; className?: string }) {
+  return (
+    <ol className={cn("space-y-1", className)}>
+      {STEPS.map((label, i) => (
+        <li key={label}>
+          <button
+            onClick={() => onGo(i)}
+            aria-current={i === step ? "step" : undefined}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+              i === step ? "bg-ink text-sand-50" : "text-ink-muted hover:bg-ink/5",
+            )}
+          >
+            <span className={cn("flex h-5 w-5 flex-none items-center justify-center rounded-full text-[0.62rem]", i === step ? "bg-sand-50 text-ink" : "bg-ink/10 text-ink-muted")}>{i + 1}</span>
+            {label}
+          </button>
+        </li>
+      ))}
+    </ol>
   );
 }
 
