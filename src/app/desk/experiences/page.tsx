@@ -3,13 +3,26 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getAllExperiences, getAllHosts } from "@/lib/data/repository";
 import { formatFrom } from "@/lib/money";
+import { ExperienceReorder, type ReorderItem } from "@/components/dashboard/ExperienceReorder";
 
 export const metadata: Metadata = { title: "Experiences", robots: { index: false } };
+export const dynamic = "force-dynamic";
 
 export default async function DeskExperiencesPage() {
   await requireRole("admin", "/desk/experiences");
   const [experiences, hosts] = await Promise.all([getAllExperiences(), getAllHosts()]);
   const hostBySlug = new Map(hosts.map((h) => [h.slug, h]));
+
+  const reorderItems: ReorderItem[] = experiences.map((e) => ({
+    slug: e.slug,
+    name: e.name,
+    location: e.location,
+    host: hostBySlug.get(e.hostSlugs[0])?.name ?? "—",
+    meta: `${e.duration} days · ${formatFrom(e.priceFromMinor, e.currency)}`,
+    verified: Boolean(e.verified),
+    featured: Boolean(e.featured),
+    editHref: e.retreatDraftId ? `/studio/retreats/new?id=${e.retreatDraftId}` : undefined,
+  }));
 
   return (
     <div className="container-editorial py-12">
@@ -23,7 +36,18 @@ export default async function DeskExperiencesPage() {
         </Link>
       </header>
 
-      <div className="mt-10 overflow-x-auto rounded-xl2 border border-ink/10">
+      <section className="mt-10">
+        <h2 className="font-display text-2xl font-semibold text-ink">Order on the site</h2>
+        <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+          This is the exact order guests see across the listing and homepage. Put any retreat first by tapping <span className="font-medium text-ink">Top</span>.
+        </p>
+        <div className="mt-4">
+          <ExperienceReorder items={reorderItems} />
+        </div>
+      </section>
+
+      <h2 className="mt-12 font-display text-2xl font-semibold text-ink">Details</h2>
+      <div className="mt-4 overflow-x-auto rounded-xl2 border border-ink/10">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-sand-100 text-[0.66rem] uppercase tracking-eyebrow text-ink-muted">
             <tr>
