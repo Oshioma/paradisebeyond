@@ -52,6 +52,18 @@ export function priceBooking(
   };
 }
 
+/**
+ * The share of the snapshotted platform fee attributable to a partial payment
+ * (e.g. the deposit leg), proportional to how much of the subtotal it covers.
+ * Using this for the deposit leg and taking the REMAINDER for the balance leg
+ * guarantees the two legs' fees sum to exactly `platformFeeMinor` — no stray
+ * cent is lost to, or taken from, the host.
+ */
+export function feeForPayment(platformFeeMinor: number, subtotalMinor: number, payNowMinor: number): number {
+  if (subtotalMinor <= 0) return 0;
+  return Math.round((platformFeeMinor * payNowMinor) / subtotalMinor);
+}
+
 /** Find the experience that owns a given departure id. */
 export function findByDeparture(experiences: Experience[], departureId: string) {
   for (const e of experiences) {

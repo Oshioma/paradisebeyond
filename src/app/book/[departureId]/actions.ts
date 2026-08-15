@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { getAllExperiences } from "@/lib/data/repository";
-import { findByDeparture, priceBooking } from "@/lib/booking/pricing";
+import { findByDeparture, priceBooking, feeForPayment } from "@/lib/booking/pricing";
 import { getActiveCommissionBps } from "@/lib/booking/commission";
 import { getPaymentProvider } from "@/lib/payments";
 import { money, splitCommission } from "@/lib/money";
@@ -67,7 +67,7 @@ export async function createBooking(formData: FormData) {
   const dueNowMinor = payFull ? subtotalMinor : depositMinor;
   const paidMinor = dueNowMinor;
   const balanceMinor = subtotalMinor - paidMinor;
-  const feeDueNowMinor = subtotalMinor > 0 ? Math.round((platformFeeMinor * paidMinor) / subtotalMinor) : 0;
+  const feeDueNowMinor = feeForPayment(platformFeeMinor, subtotalMinor, paidMinor);
 
   const bookingId = "bk-" + crypto.randomUUID().slice(0, 8);
   const reference = "PB-" + crypto.randomUUID().slice(0, 8).toUpperCase();
