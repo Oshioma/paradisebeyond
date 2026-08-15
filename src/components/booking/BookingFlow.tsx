@@ -20,7 +20,7 @@ export function BookingFlow({
   loginHref?: string;
 }) {
   const maxGuests = Math.max(1, Math.min(departure.spacesRemaining, 6));
-  const [roomId, setRoomId] = useState(experience.stay.roomTypes[0].id);
+  const [roomId, setRoomId] = useState(experience.stay.roomTypes[0]?.id ?? "");
   const [guests, setGuests] = useState(1);
   const [payFull, setPayFull] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -29,7 +29,7 @@ export function BookingFlow({
   const [promoMsg, setPromoMsg] = useState<string | null>(null);
   const [checking, startChecking] = useTransition();
 
-  const room = experience.stay.roomTypes.find((r) => r.id === roomId)!;
+  const room = experience.stay.roomTypes.find((r) => r.id === roomId) ?? experience.stay.roomTypes[0];
   const breakdown = useMemo(
     () => priceBooking(experience, departure, room, guests),
     [experience, departure, room, guests],

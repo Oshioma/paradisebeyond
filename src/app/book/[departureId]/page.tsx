@@ -23,6 +23,10 @@ export default async function BookingPage({
   if (!found) notFound();
   const { experience, departure } = found;
   const soldOut = departure.spacesRemaining <= 0;
+  // A published experience must have at least one accommodation option to be
+  // bookable — the booking flow prices against a selected room. Guard here so a
+  // listing with none shows a clear message instead of crashing the page.
+  const noRooms = experience.stay.roomTypes.length === 0;
   const user = await getSessionUser();
   const loginHref = `/login?next=${encodeURIComponent(`/book/${departure.id}`)}`;
 
@@ -77,6 +81,20 @@ export default async function BookingPage({
             className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink/90"
           >
             See other dates
+          </Link>
+        </div>
+      ) : noRooms ? (
+        <div className="mt-10 rounded-xl2 border border-ink/10 bg-sand-100 p-8 text-center">
+          <p className="eyebrow text-clay-600">Not bookable yet</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-ink">Accommodation options are being finalised</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">
+            This experience doesn&apos;t have any accommodation options set yet, so it can&apos;t be reserved. Please check back shortly.
+          </p>
+          <Link
+            href={`/experiences/${experience.slug}`}
+            className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink/90"
+          >
+            Back to {experience.name}
           </Link>
         </div>
       ) : (
