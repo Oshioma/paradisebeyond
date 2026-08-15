@@ -10,6 +10,7 @@ import { HOSTS } from "./hosts";
 import { EXPERIENCES } from "./experiences";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { nextOpenDeparture, upcomingDeparture } from "./helpers";
+import { getExperienceOrder, applyExperienceOrder } from "./experienceOrder";
 
 /**
  * The repository is the single seam between the magazine and its data source.
@@ -25,14 +26,20 @@ import { nextOpenDeparture, upcomingDeparture } from "./helpers";
 let cache: { at: number; data: Experience[] } | null = null;
 
 async function source(): Promise<Experience[]> {
-  if (!isSupabaseConfigured()) return EXPERIENCES;
+  if (!isSupabaseConfigured()) {
+    return applyExperienceOrder(EXPERIENCES, await getExperienceOrder());
+  }
   // Small per-request-ish cache to avoid refetching the catalogue repeatedly
   // within a single render pass.
   if (cache && Date.now() - cache.at < 5000) return cache.data;
   const supa = await import("./supabaseRepository");
   const data = await supa.getAllExperiences();
-  cache = { at: Date.now(), data };
-  return data.length ? data : EXPERIENCES;
+  const list = data.length ? data : EXPERIENCES;
+  // Apply the admin-defined display order so every listing on the site is
+  // consistent (the reorder screen writes this order).
+  const ordered = applyExperienceOrder(list, await getExperienceOrder());
+  cache = { at: Date.now(), data: ordered };
+  return ordered;
 }
 
 export interface ExperienceFilter {
@@ -70,9 +77,9 @@ export async function filterExperiences(
     }
     return true;
   });
-  // Featured experiences lead the listing; order is otherwise preserved
-  // (Array.prototype.sort is stable).
-  return matched.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
+  // Order is already applied globally in source() (admin order, then
+  // featured-first). Filtering preserves it, so just return the matches.
+  return matched;
 }
 
 export async function getExperienceBySlug(slug: string): Promise<Experience | undefined> {
