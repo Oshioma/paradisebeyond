@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth/session";
 import { getAllExperiences, getAllHosts } from "@/lib/data/repository";
 import { formatFrom } from "@/lib/money";
 import { ExperienceReorder, type ReorderItem } from "@/components/dashboard/ExperienceReorder";
+import { ExperienceHostSelect } from "@/components/dashboard/ExperienceHostSelect";
 
 export const metadata: Metadata = { title: "Experiences", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function DeskExperiencesPage() {
   await requireRole("admin", "/desk/experiences");
   const [experiences, hosts] = await Promise.all([getAllExperiences(), getAllHosts()]);
   const hostBySlug = new Map(hosts.map((h) => [h.slug, h]));
+  const hostOptions = hosts.map((h) => ({ slug: h.slug, name: h.name }));
 
   const reorderItems: ReorderItem[] = experiences.map((e) => ({
     slug: e.slug,
@@ -56,11 +58,10 @@ export default async function DeskExperiencesPage() {
           </thead>
           <tbody className="divide-y divide-ink/10">
             {experiences.map((e) => {
-              const host = hostBySlug.get(e.hostSlugs[0]);
               return (
                 <tr key={e.slug} className="bg-sand-50">
                   <Td className="font-medium text-ink">{e.name}<span className="block text-xs font-normal text-ink-muted">{e.location}</span></Td>
-                  <Td>{host?.name ?? "—"}</Td>
+                  <Td><ExperienceHostSelect slug={e.slug} currentHostSlug={e.hostSlugs[0]} hosts={hostOptions} /></Td>
                   <Td>{e.duration} days</Td>
                   <Td>{formatFrom(e.priceFromMinor, e.currency)}</Td>
                   <Td>{e.verified ? <Dot tone="palm">Verified</Dot> : <Dot tone="muted">Not yet</Dot>}</Td>

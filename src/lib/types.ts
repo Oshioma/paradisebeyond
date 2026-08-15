@@ -102,6 +102,10 @@ export interface Experience {
   location: string; // e.g. "Kendwa, Zanzibar"
   categorySlugs: CategorySlug[];
   hostSlugs: string[];
+  /** Host display info resolved at read time (so cards can show the host even
+   *  when it's a DB host not in the static seed). Optional; falls back to seed. */
+  hostName?: string;
+  hostImageSeed?: string;
   verified: boolean;
   currency: string;
   priceFromMinor: number;

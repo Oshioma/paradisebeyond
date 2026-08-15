@@ -20,7 +20,12 @@ export function ExperienceCard({
   const e = experience;
   const next = upcomingDeparture(e);
   const primaryCategory = getCategory(e.categorySlugs[0]);
-  const host = getHost(e.hostSlugs[0]);
+  // Prefer the host info resolved at read time (covers DB hosts); fall back to
+  // the static seed lookup for the demo catalogue.
+  const seedHost = getHost(e.hostSlugs[0]);
+  const host = e.hostName
+    ? { name: e.hostName, imageSeed: e.hostImageSeed ?? seedHost?.imageSeed ?? `host-${e.hostSlugs[0] ?? ""}` }
+    : seedHost;
   const scarce = next && next.spacesRemaining > 0 && next.spacesRemaining <= 5;
 
   return (

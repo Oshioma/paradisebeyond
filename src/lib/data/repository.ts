@@ -33,7 +33,7 @@ export function invalidateExperiences() {
 
 async function source(): Promise<Experience[]> {
   if (!isSupabaseConfigured()) {
-    return applyExperienceOrder(EXPERIENCES, await getExperienceOrder());
+    return withHostDisplay(applyExperienceOrder(EXPERIENCES, await getExperienceOrder()));
   }
   // Small per-request-ish cache to avoid refetching the catalogue repeatedly
   // within a single render pass.
@@ -44,8 +44,20 @@ async function source(): Promise<Experience[]> {
   // Apply the admin-defined display order so every listing on the site is
   // consistent (the reorder screen writes this order).
   const ordered = applyExperienceOrder(list, await getExperienceOrder());
-  cache = { at: Date.now(), data: ordered };
-  return ordered;
+  const enriched = await withHostDisplay(ordered);
+  cache = { at: Date.now(), data: enriched };
+  return enriched;
+}
+
+/** Attach each experience's host name + image seed from the real host list, so
+ *  cards render the host even when it's a DB host outside the static seed. */
+async function withHostDisplay(list: Experience[]): Promise<Experience[]> {
+  const hosts = await getAllHosts();
+  const bySlug = new Map(hosts.map((h) => [h.slug, h] as const));
+  return list.map((e) => {
+    const h = e.hostSlugs?.[0] ? bySlug.get(e.hostSlugs[0]) : undefined;
+    return h ? { ...e, hostName: h.name, hostImageSeed: h.imageSeed } : e;
+  });
 }
 
 export interface ExperienceFilter {
