@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import type { Departure, Experience, RoomType } from "@/lib/types";
 import { getStripe } from "./stripe";
+import { feeForPayment } from "@/lib/booking/pricing";
 import { siteUrl } from "@/lib/siteUrl";
 import { formatDateRange } from "@/lib/utils";
 
@@ -183,9 +184,7 @@ export async function startBalanceCheckout(
   // the deposit leg — not an independent round — so deposit fee + balance fee
   // reconcile exactly to platform_fee_minor (no stray cent lost to the host).
   const paidSoFar = (booking.subtotal_minor ?? 0) - (booking.balance_minor ?? 0);
-  const feeDeposit = booking.subtotal_minor
-    ? Math.round((booking.platform_fee_minor * paidSoFar) / booking.subtotal_minor)
-    : 0;
+  const feeDeposit = feeForPayment(booking.platform_fee_minor ?? 0, booking.subtotal_minor ?? 0, paidSoFar);
   const feeBalance = Math.max(0, (booking.platform_fee_minor ?? 0) - feeDeposit);
 
   const { data: host } = await supabase
