@@ -25,6 +25,12 @@ import { getExperienceOrder, applyExperienceOrder } from "./experienceOrder";
 
 let cache: { at: number; data: Experience[] } | null = null;
 
+/** Drop the in-memory experiences cache so the next read is fresh — call after
+ *  a write that changes the catalogue or its order. */
+export function invalidateExperiences() {
+  cache = null;
+}
+
 async function source(): Promise<Experience[]> {
   if (!isSupabaseConfigured()) {
     return applyExperienceOrder(EXPERIENCES, await getExperienceOrder());

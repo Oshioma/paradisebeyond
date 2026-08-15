@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { reorderExperiences } from "@/app/desk/experiences/actions";
 
 export interface ReorderItem {
@@ -18,27 +17,29 @@ export interface ReorderItem {
 
 /**
  * Drag-free reordering that's reliable on touch: each row has Top / ↑ / ↓
- * controls. Every move saves the new order immediately and shows a saved state,
- * so an admin can pin any retreat (or their own) to the top of the listing.
+ * controls. Moves apply instantly to local state (which drives the list), and
+ * the new order is saved in the background — debounced so rapid taps coalesce
+ * into one write. Buttons are never disabled mid-save, so a quick second tap
+ * always registers.
  */
 export function ExperienceReorder({ items }: { items: ReorderItem[] }) {
-  const router = useRouter();
   const [order, setOrder] = useState<ReorderItem[]>(items);
-  const [pending, startTransition] = useTransition();
+  const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const latest = useRef<ReorderItem[]>(items);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function persist(next: ReorderItem[]) {
-    setOrder(next);
-    setStatus(null);
-    startTransition(async () => {
-      const res = await reorderExperiences(next.map((i) => i.slug));
-      if (res.ok) {
-        setStatus({ ok: true, text: "Order saved." });
-        router.refresh();
-      } else {
-        setStatus({ ok: false, text: res.error ?? "Couldn't save the order." });
-      }
-    });
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  function scheduleSave() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      setSaving(true);
+      setStatus(null);
+      const res = await reorderExperiences(latest.current.map((i) => i.slug));
+      setSaving(false);
+      setStatus(res.ok ? { ok: true, text: "Order saved." } : { ok: false, text: res.error ?? "Couldn't save the order." });
+    }, 450);
   }
 
   function move(from: number, to: number) {
@@ -46,20 +47,21 @@ export function ExperienceReorder({ items }: { items: ReorderItem[] }) {
     const next = [...order];
     const [row] = next.splice(from, 1);
     next.splice(to, 0, row);
-    persist(next);
+    latest.current = next;
+    setOrder(next);
+    setStatus(null);
+    scheduleSave();
   }
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-ink-muted">
-          Use <span className="font-medium text-ink">Top</span> / <span className="font-medium text-ink">↑</span> / <span className="font-medium text-ink">↓</span> to set the order guests see. Changes save and go live immediately.
+          Use <span className="font-medium text-ink">Top</span> / <span className="font-medium text-ink">↑</span> / <span className="font-medium text-ink">↓</span> to set the order guests see. Changes save and go live automatically.
         </p>
-        {status && (
-          <p aria-live="polite" className={`text-xs ${status.ok ? "text-palm-600" : "text-clay-600"}`}>
-            {status.ok ? "✓ " : ""}{status.text}
-          </p>
-        )}
+        <p aria-live="polite" className="text-xs">
+          {saving ? <span className="text-ink-muted">Saving…</span> : status ? <span className={status.ok ? "text-palm-600" : "text-clay-600"}>{status.ok ? "✓ " : ""}{status.text}</span> : null}
+        </p>
       </div>
 
       <ol className="mt-4 space-y-2">
@@ -77,9 +79,9 @@ export function ExperienceReorder({ items }: { items: ReorderItem[] }) {
             <div className="flex flex-none items-center gap-1">
               <Link href={`/experiences/${e.slug}`} className="hidden px-2 text-[0.62rem] uppercase tracking-eyebrow text-ink hover:underline sm:inline">View</Link>
               {e.editHref && <Link href={e.editHref} className="hidden px-2 text-[0.62rem] uppercase tracking-eyebrow text-ocean-700 hover:underline sm:inline">Edit</Link>}
-              <MoveBtn label="Move to top" disabled={pending || i === 0} onClick={() => move(i, 0)}>Top</MoveBtn>
-              <IconBtn label="Move up" disabled={pending || i === 0} onClick={() => move(i, i - 1)}>↑</IconBtn>
-              <IconBtn label="Move down" disabled={pending || i === order.length - 1} onClick={() => move(i, i + 1)}>↓</IconBtn>
+              <MoveBtn label="Move to top" disabled={i === 0} onClick={() => move(i, 0)}>Top</MoveBtn>
+              <IconBtn label="Move up" disabled={i === 0} onClick={() => move(i, i - 1)}>↑</IconBtn>
+              <IconBtn label="Move down" disabled={i === order.length - 1} onClick={() => move(i, i + 1)}>↓</IconBtn>
             </div>
           </li>
         ))}
