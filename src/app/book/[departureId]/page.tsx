@@ -25,8 +25,9 @@ export default async function BookingPage({
   const soldOut = departure.spacesRemaining <= 0;
   // A published experience must have at least one accommodation option to be
   // bookable — the booking flow prices against a selected room. Guard here so a
-  // listing with none shows a clear message instead of crashing the page.
-  const noRooms = experience.stay.roomTypes.length === 0;
+  // listing with none (or a malformed content shape where roomTypes is missing)
+  // shows a clear message instead of crashing the page.
+  const noRooms = !experience.stay?.roomTypes?.length;
   const user = await getSessionUser();
   const loginHref = `/login?next=${encodeURIComponent(`/book/${departure.id}`)}`;
 
