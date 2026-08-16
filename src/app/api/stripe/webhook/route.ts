@@ -100,6 +100,16 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "account.updated": {
+        // A connected host account changed (finished onboarding, or Stripe
+        // enabled/disabled charges after review). Keep stripe_onboarded in sync
+        // so the checkout routes the transfer only when it will actually work.
+        const account = event.data.object as Stripe.Account;
+        const onboarded = Boolean(account.details_submitted && account.charges_enabled);
+        await supabase.from("hosts").update({ stripe_onboarded: onboarded }).eq("stripe_account_id", account.id);
+        break;
+      }
+
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
         // charge.refunded also fires for PARTIAL refunds — only a full refund
