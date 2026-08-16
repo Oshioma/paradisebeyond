@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/session";
 import { isStripeEnabled } from "@/lib/payments/stripe";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { startOnboarding, refreshPayoutStatus } from "./actions";
+import { syncOnboardedByAccountId } from "@/lib/payments/connect";
 
 export const metadata: Metadata = { title: "Payouts", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,14 @@ export default async function PayoutsPage({ searchParams }: { searchParams: { er
   }
 
   const started = Boolean(host?.stripe_account_id);
-  const ready = Boolean(host?.stripe_onboarded);
+  let ready = Boolean(host?.stripe_onboarded);
+
+  // Just returned from Stripe onboarding — re-check status now so the page shows
+  // "Connected" immediately, instead of waiting for a manual "Refresh status".
+  if (searchParams.done && started && !ready && host?.stripe_account_id && isStripeEnabled()) {
+    const synced = await syncOnboardedByAccountId(host.stripe_account_id);
+    if (synced != null) ready = synced;
+  }
 
   return (
     <div className="container-editorial py-12">
