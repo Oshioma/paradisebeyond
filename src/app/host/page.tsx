@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { hero, img } from "@/lib/images";
 import { Button } from "@/components/ui/Button";
+import { getSessionUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Host a retreat",
@@ -9,13 +10,22 @@ export const metadata: Metadata = {
     "Bring the experience. We'll help you bring the people. Apply to host a 7 or 14-day retreat with Paradise Beyond.",
 };
 
+export const dynamic = "force-dynamic";
+
 const STEPS = [
   "The basics", "7 or 14 days", "Location", "Dates", "Accommodation", "What's included",
   "Activities", "Itinerary", "Rooms", "Pricing", "Deposit & terms", "Cancellation",
   "Photos", "Host profile", "Preview", "Submit for approval",
 ];
 
-export default function HostLandingPage() {
+export default async function HostLandingPage() {
+  // Approved hosts (and admins) already applied — send them to the builder, not
+  // the application form, so "Host a Retreat" doesn't loop them back to "Apply".
+  const user = await getSessionUser();
+  const canBuild = user?.role === "host" || user?.role === "admin";
+  const primaryHref = canBuild ? "/studio/retreats/new" : "/host/apply";
+  const primaryLabel = canBuild ? "Create your experience" : "Apply to Host";
+
   return (
     <>
       <section className="relative flex min-h-[80vh] items-end overflow-hidden">
@@ -32,7 +42,7 @@ export default function HostLandingPage() {
             handle the money and look world-class doing it.
           </p>
           <div className="mt-8">
-            <Button href="/host/apply" size="lg" variant="primary">Apply to Host</Button>
+            <Button href={primaryHref} size="lg" variant="primary">{primaryLabel}</Button>
           </div>
         </div>
       </section>
@@ -99,7 +109,9 @@ export default function HostLandingPage() {
               ))}
             </ol>
             <div className="mt-8">
-              <Button href="/host/apply" variant="ink">Start your application</Button>
+              <Button href={canBuild ? "/studio/retreats" : "/host/apply"} variant="ink">
+                {canBuild ? "Go to your Studio" : "Start your application"}
+              </Button>
             </div>
           </div>
           <div className="relative aspect-[4/5] overflow-hidden rounded-xl2 reveal">
