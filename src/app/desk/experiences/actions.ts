@@ -78,3 +78,39 @@ export async function setExperienceHost(slug: string, hostSlug: string): Promise
   revalidatePath("/");
   return { ok: true };
 }
+
+/**
+ * Re-run publishing for a live experience from its current linked draft. Copies
+ * the draft's latest state — photos included — into the live listing and its
+ * image overrides. Fixes the case where a host edited/added photos after
+ * approval (which doesn't auto-publish), so the live slots were left empty.
+ */
+export async function republishExperience(slug: string): Promise<{ ok: boolean; error?: string }> {
+  const admin = await requireRole("admin");
+  if (!slug) return { ok: false, error: "Missing experience." };
+  if (!isSupabaseConfigured()) return { ok: false, error: "Re-publishing needs the live database." };
+
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data: exp } = await createServiceRoleClient()
+    .from("experiences")
+    .select("retreat_draft_id")
+    .eq("slug", slug)
+    .maybeSingle();
+  const draftId = exp?.retreat_draft_id as string | null | undefined;
+  if (!draftId) return { ok: false, error: "This experience isn't linked to a builder draft, so there's nothing to re-publish from." };
+
+  const { getDraft } = await import("@/lib/retreat/store");
+  const draft = await getDraft(draftId);
+  if (!draft) return { ok: false, error: "Couldn't load the linked draft." };
+
+  const { publishDraft } = await import("@/lib/retreat/publish");
+  const res = await publishDraft(draft, admin.id);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  invalidateExperiences();
+  revalidatePath("/desk/experiences");
+  revalidatePath("/experiences");
+  revalidatePath(`/experiences/${res.slug}`);
+  revalidatePath("/");
+  return { ok: true };
+}
