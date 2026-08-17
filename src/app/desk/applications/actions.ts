@@ -28,14 +28,20 @@ export async function setApplicationStatus(formData: FormData) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = createClient();
     await supabase.from("host_applications").update({ status, review_notes: notes, updated_at: new Date().toISOString() }).eq("id", id);
-    const { data } = await supabase.from("host_applications").select("name, email").eq("id", id).maybeSingle();
+    const { data } = await supabase.from("host_applications").select("name, email, applicant_id").eq("id", id).maybeSingle();
     if (data) applicant = { name: data.name, email: data.email };
-    // On approval, grant the host role so the "create your experience" link in
-    // the email actually works. Promotes any existing account with this email;
-    // brand-new sign-ups are handled by the handle_new_user trigger.
+    // On approval: grant the host role AND create their host profile row, so they
+    // show up in Desk → Hosts immediately and their drafts/payouts link up. The
+    // host row is keyed by owner_id, so the later retreat build reuses it (never
+    // duplicates). promote_host_by_email covers the role for any existing account.
     if (applicant && status === "approved") {
       const { createServiceRoleClient } = await import("@/lib/supabase/server");
       await createServiceRoleClient().rpc("promote_host_by_email", { p_email: applicant.email });
+      const applicantId = (data?.applicant_id as string | null) ?? null;
+      if (applicantId) {
+        const { ensureHostForOwner } = await import("@/lib/host/ensureHost");
+        await ensureHostForOwner(applicantId, applicant.name);
+      }
     }
     await supabase.from("admin_actions").insert({
       actor_id: admin.id,
@@ -62,5 +68,6 @@ export async function setApplicationStatus(formData: FormData) {
   }
 
   revalidatePath("/desk/applications");
+  revalidatePath("/desk/hosts");
   revalidatePath("/desk");
 }
