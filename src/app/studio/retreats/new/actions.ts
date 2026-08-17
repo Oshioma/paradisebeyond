@@ -9,39 +9,15 @@ import { saveUpload } from "@/lib/media/store";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { callClaude, isAiEnabled, parseJsonObject } from "@/lib/ai/anthropic";
 import { draftRetreat, type RetreatDraftSuggestion } from "@/lib/ai/retreat";
+import { ensureHostForOwner } from "@/lib/host/ensureHost";
 
 /**
  * Resolve — creating if necessary — the hosts.id owned by the current host, so
  * drafts carry a valid host_id (RLS on retreat_drafts / experiences keys off
- * hosts.owner_id). Approval grants the `host` role but no `hosts` row, so a host
- * would otherwise be unable to save a draft at all. The Host-profile step later
- * fills in the persona's details. Uses the service role for the slug-uniqueness
- * check + insert so it doesn't depend on how broadly hosts are readable.
+ * hosts.owner_id). Shared with the application-approval path so a host is never
+ * duplicated (both resolve the same row by owner_id).
  */
-async function ensureOwnedHostId(userId: string, displayName: string): Promise<string | undefined> {
-  if (!isSupabaseConfigured()) return undefined;
-  const { createServiceRoleClient } = await import("@/lib/supabase/server");
-  const db = createServiceRoleClient();
-  const { data: existing } = await db.from("hosts").select("id").eq("owner_id", userId).maybeSingle();
-  if (existing?.id) return existing.id as string;
-
-  const base =
-    (displayName || "host")
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "host";
-  let slug = base;
-  for (let n = 2; n < 60; n++) {
-    const { data: clash } = await db.from("hosts").select("id").eq("slug", slug).maybeSingle();
-    if (!clash) break;
-    slug = `${base}-${n}`;
-  }
-  const { data: created } = await db.from("hosts").insert({ owner_id: userId, slug, name: displayName || "Host" }).select("id").maybeSingle();
-  return (created?.id as string) ?? undefined;
-}
+const ensureOwnedHostId = ensureHostForOwner;
 
 /** Persist the current draft (autosave / "Save draft"). */
 export async function saveRetreatDraft(draft: RetreatDraft) {

@@ -6,10 +6,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { updateDemoState } from "@/lib/demo/state";
 
 /**
- * Persist a host application. Public (applicants may not be signed in): the
- * host_applications RLS allows an insert with a null applicant_id. Re-validates
- * server-side, writes to Supabase in live mode (or demo state otherwise), and
- * best-effort emails the admin desk.
+ * Persist a host application. Requires a signed-in account so the application is
+ * always tied to a user (applicant_id) — that's what lets approval create the
+ * host profile and link their drafts/payouts. Re-validates server-side, writes
+ * to Supabase in live mode (or demo state otherwise), and best-effort emails the
+ * admin desk.
  */
 export async function submitHostApplication(raw: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
   const parsed = hostApplicationSchema.safeParse(raw);
@@ -20,8 +21,9 @@ export async function submitHostApplication(raw: Record<string, unknown>): Promi
     const { createClient, createServiceRoleClient } = await import("@/lib/supabase/server");
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Please create an account or sign in before applying." };
     const row = {
-      applicant_id: user?.id ?? null,
+      applicant_id: user.id,
       name: a.name,
       email: a.email,
       links: a.links || null,
