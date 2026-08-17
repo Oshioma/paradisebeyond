@@ -65,10 +65,46 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
   }
   draft.status = "submitted";
   await saveDraft(draft);
+  await notifyAdminOfSubmission(draft, user.name);
   revalidatePath("/studio/retreats");
   revalidatePath("/desk/submissions");
   revalidatePath("/desk");
   return { ok: true };
+}
+
+/**
+ * Email the admin desk that a retreat needs review — for a brand-new submission
+ * or an update to an already-live listing (e.g. a host who added photos after
+ * approval). This is what makes edits reach the live site: the admin approves
+ * from the email link, which re-publishes. Best-effort; never blocks the submit.
+ */
+async function notifyAdminOfSubmission(draft: RetreatDraft, hostName: string): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) return;
+  try {
+    let isUpdate = false;
+    if (isSupabaseConfigured()) {
+      const { createServiceRoleClient } = await import("@/lib/supabase/server");
+      const { data } = await createServiceRoleClient()
+        .from("experiences")
+        .select("slug")
+        .eq("retreat_draft_id", draft.id)
+        .maybeSingle();
+      isUpdate = Boolean(data?.slug);
+    }
+    const { sendEmail } = await import("@/lib/email");
+    const { siteUrl } = await import("@/lib/siteUrl");
+    const title = draft.name?.trim() || "Untitled retreat";
+    await sendEmail({
+      to: adminEmail,
+      subject: isUpdate ? `Retreat update to approve — ${title}` : `New retreat to review — ${title}`,
+      html: `<p><strong>${hostName}</strong> ${isUpdate ? "updated their live retreat" : "submitted a retreat for review"}: <strong>${title}</strong>.</p>
+${isUpdate ? "<p>Approving pushes their changes — including any new photos — live.</p>" : ""}
+<p><a href="${siteUrl()}/desk/submissions">Review &amp; approve in the admin desk →</a></p>`,
+    });
+  } catch {
+    /* non-fatal — the submission is queued regardless */
+  }
 }
 
 /** Upload a photo used inside a draft; returns its URL. */
