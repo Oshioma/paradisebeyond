@@ -1,14 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Per-experience subdomains: `<label>.paradisebeyond.com` is a single retreat's
- * microsite. To stop the subdomain "leaking" the whole marketplace (and showing
- * other retreats under the wrong name), we scope it tightly:
- *   - "/"                    → rewrite to that retreat's microsite (/r/<label>)
+ * Retreat microsites reachable two ways, both scoped to a single retreat so the
+ * whole marketplace never "leaks" under the wrong name:
+ *
+ *   1. Per-experience subdomain — `<label>.paradisebeyond.com`
+ *      (needs a wildcard domain `*.paradisebeyond.com` in hosting + DNS)
+ *   2. The host's own custom domain — e.g. `aminaretreats.com`
+ *      (any host reaching us that isn't our own domain / a preview URL; the
+ *      domain must be added to the hosting project + pointed here via DNS)
+ *
+ * On either, we route tightly:
+ *   - "/"                    → rewrite to that retreat's microsite (/r/<key>)
  *   - booking / api / assets → pass through, so Reserve + images work here
  *   - anything else          → redirect to the canonical www site
  *
- * Needs a wildcard domain (`*.paradisebeyond.com`) in hosting + DNS to resolve.
+ * For a custom domain the request Host itself is the key; the microsite resolves
+ * it against experiences.custom_domain.
  */
 function baseDomain(): string | null {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL;
@@ -30,30 +38,40 @@ export function middleware(req: NextRequest) {
   if (!base) return NextResponse.next();
 
   const host = (req.headers.get("host") || "").split(":")[0].toLowerCase();
-  if (!host.endsWith("." + base)) return NextResponse.next(); // apex / www → normal marketplace
-
-  const sub = host.slice(0, host.length - (base.length + 1));
-  if (!sub || sub === "www") return NextResponse.next();
-
   const path = req.nextUrl.pathname;
+  const isAsset = ALLOW_ON_SUBDOMAIN.some((p) => path === p || path.startsWith(p + "/"));
 
-  // The retreat's landing page.
-  if (path === "/") {
-    const rw = req.nextUrl.clone();
-    rw.pathname = `/r/${sub}`;
-    return NextResponse.rewrite(rw);
+  // Route a single retreat's microsite, given its lookup key (subdomain label or
+  // full custom-domain host). "/" → microsite; booking/assets stay put; the rest
+  // belongs on the canonical marketplace.
+  const routeMicrosite = (key: string) => {
+    if (path === "/") {
+      const rw = req.nextUrl.clone();
+      rw.pathname = `/r/${key}`;
+      return NextResponse.rewrite(rw);
+    }
+    if (isAsset) return NextResponse.next();
+    const to = new URL(req.url);
+    to.protocol = "https:";
+    to.host = `www.${base}`;
+    return NextResponse.redirect(to, 307);
+  };
+
+  // 1. Subdomain of our base domain (`<label>.paradisebeyond.com`).
+  if (host.endsWith("." + base)) {
+    const sub = host.slice(0, host.length - (base.length + 1));
+    if (!sub || sub === "www") return NextResponse.next();
+    return routeMicrosite(sub);
   }
 
-  // Booking + assets stay on the subdomain so checkout and images just work.
-  if (ALLOW_ON_SUBDOMAIN.some((p) => path === p || path.startsWith(p + "/"))) {
+  // 2. Our own apex/www, or a preview/local host → normal marketplace.
+  if (host === base || host === `www.${base}` || host.endsWith(".vercel.app") || host.startsWith("localhost")) {
     return NextResponse.next();
   }
 
-  // Everything else belongs on the main site — never under a retreat's subdomain.
-  const to = new URL(req.url);
-  to.protocol = "https:";
-  to.host = `www.${base}`;
-  return NextResponse.redirect(to, 307);
+  // 3. Anything else is a host's own custom domain pointed at us → their
+  //    retreat, keyed by the request Host (resolved via experiences.custom_domain).
+  return routeMicrosite(host);
 }
 
 // Run on everything except Next's static asset pipeline (which needs no rewrite).

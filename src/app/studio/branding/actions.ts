@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth/session";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { ensureHostForOwner } from "@/lib/host/ensureHost";
 import { saveUpload } from "@/lib/media/store";
+import { siteUrl } from "@/lib/siteUrl";
 
 export type Social = { label: string; href: string };
 export type BrandingResult = { ok: true } | { ok: false; error: string };
@@ -93,6 +94,83 @@ export async function setExperienceSubdomain(slug: string, labelRaw: string): Pr
   } catch (e) {
     return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't save the address." };
   }
+
+  const { invalidateExperiences } = await import("@/lib/data/repository");
+  invalidateExperiences();
+  revalidatePath("/studio/branding");
+  revalidatePath(`/experiences/${slug}`);
+  return { ok: true };
+}
+
+const DOMAIN_RE = /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+
+/**
+ * Best-effort: register the domain with the hosting project (Vercel) so it
+ * serves the site + gets SSL automatically. No-op unless VERCEL_API_TOKEN and
+ * VERCEL_PROJECT_ID are configured; failures are swallowed (the host can add the
+ * domain in the dashboard instead), so this never blocks saving.
+ */
+async function tryAddVercelDomain(domain: string): Promise<void> {
+  const token = process.env.VERCEL_API_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!token || !projectId) return;
+  const teamId = process.env.VERCEL_TEAM_ID;
+  const qs = teamId ? `?teamId=${encodeURIComponent(teamId)}` : "";
+  try {
+    await fetch(`https://api.vercel.com/v10/projects/${projectId}/domains${qs}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: domain }),
+    });
+  } catch {
+    /* ignore — the host can add the domain in the hosting dashboard manually */
+  }
+}
+
+/**
+ * Connect (or clear) the host's own custom domain for a retreat's microsite —
+ * e.g. aminaretreats.com. Host may only set it for their own retreat. Must be a
+ * valid domain, not a paradisebeyond.com address, unique across experiences.
+ * Pass "" to disconnect. The host still points DNS + it must be added to the
+ * hosting project (attempted automatically when Vercel creds are configured).
+ */
+export async function setCustomDomain(slug: string, domainRaw: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireRole("host");
+  if (!isSupabaseConfigured()) return { ok: false, error: "Needs the live database." };
+
+  let domain = domainRaw.trim().toLowerCase();
+  if (domain) {
+    domain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/:\d+$/, "").replace(/\.$/, "");
+    if (!DOMAIN_RE.test(domain)) return { ok: false, error: "Enter a valid domain like retreats.example.com." };
+    let ownBase = "";
+    try { ownBase = new URL(siteUrl()).host.replace(/^www\./, "").toLowerCase(); } catch { /* none */ }
+    if (ownBase && (domain === ownBase || domain.endsWith("." + ownBase))) {
+      return { ok: false, error: "Use your own domain, not a paradisebeyond.com address." };
+    }
+  }
+
+  const { getExperienceBySlug } = await import("@/lib/data/repository");
+  const exp = await getExperienceBySlug(slug);
+  if (!exp) return { ok: false, error: "Experience not found." };
+  if (!user.hostSlug || !exp.hostSlugs.includes(user.hostSlug)) {
+    return { ok: false, error: "That's not your retreat." };
+  }
+
+  try {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { error } = await createServiceRoleClient()
+      .from("experiences")
+      .update({ custom_domain: domain || null })
+      .eq("slug", slug);
+    if (error) {
+      if (/duplicate|unique/i.test(error.message)) return { ok: false, error: "That domain is already connected to another retreat." };
+      return { ok: false, error: `Couldn't save: ${error.message}` };
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't save the domain." };
+  }
+
+  if (domain) await tryAddVercelDomain(domain);
 
   const { invalidateExperiences } = await import("@/lib/data/repository");
   invalidateExperiences();
