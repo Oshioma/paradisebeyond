@@ -71,11 +71,15 @@ export default async function DeskExperiencesPage() {
                   <Td>
                     <div className="flex flex-wrap justify-end gap-3">
                       <Link href={`/experiences/${e.slug}`} className="text-xs uppercase tracking-eyebrow text-ink hover:underline">View</Link>
-                      {e.retreatDraftId && (
-                        <Link href={`/studio/retreats/new?id=${e.retreatDraftId}`} className="text-xs uppercase tracking-eyebrow text-ocean-700 hover:underline">Edit</Link>
+                      {e.retreatDraftId ? (
+                        <>
+                          <Link href={`/studio/retreats/new?id=${e.retreatDraftId}`} className="text-xs uppercase tracking-eyebrow text-ocean-700 hover:underline">Edit</Link>
+                          <RepublishButton slug={e.slug} />
+                        </>
+                      ) : (
+                        // Samples have no editable draft behind them — offer a copy instead.
+                        <StartFromSampleButton slug={e.slug} />
                       )}
-                      {e.retreatDraftId && <RepublishButton slug={e.slug} />}
-                      <StartFromSampleButton slug={e.slug} />
                     </div>
                   </Td>
                 </tr>
