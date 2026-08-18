@@ -24,9 +24,17 @@ export function micrositeUrl(slug: string): string {
     const u = new URL(base);
     const host = u.host.replace(/^www\./, "");
     const registrable = host.split(".").length >= 2 && !host.endsWith("vercel.app") && !host.startsWith("localhost");
-    if (registrable) return `${u.protocol}//${slug}.${host}`;
+    // Hyphen-free subdomain label — cleaner as a domain; the microsite resolves
+    // it back to the hyphenated slug.
+    if (registrable) return `${u.protocol}//${subdomainLabel(slug)}.${host}`;
   } catch {
     /* fall through to path form */
   }
   return `${base}/r/${slug}`;
+}
+
+/** The subdomain label for an experience slug — lowercased, letters/digits only
+ *  (drops the hyphens so `zanzibar-party-time` → `zanzibarpartytime`). */
+export function subdomainLabel(slug: string): string {
+  return slug.toLowerCase().replace(/[^a-z0-9]/g, "");
 }

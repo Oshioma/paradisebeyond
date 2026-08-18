@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getExperienceBySlug, getHost } from "@/lib/data/repository";
+import { getExperienceBySlug, getAllExperiences, getHost } from "@/lib/data/repository";
+import { subdomainLabel } from "@/lib/siteUrl";
+import type { Experience } from "@/lib/types";
 import { hero, img, portrait } from "@/lib/images";
 import { formatFrom } from "@/lib/money";
 import { getCategory, categoryLabel } from "@/lib/data/categories";
@@ -17,14 +19,22 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_BRAND = "#B4633B";
 
+/** Resolve by the exact slug, or by the hyphen-free subdomain label. */
+async function resolveExperience(param: string): Promise<Experience | undefined> {
+  const exact = await getExperienceBySlug(param);
+  if (exact) return exact;
+  const label = subdomainLabel(param);
+  return (await getAllExperiences()).find((e) => subdomainLabel(e.slug) === label);
+}
+
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const e = await getExperienceBySlug(params.slug);
+  const e = await resolveExperience(params.slug);
   if (!e) return { title: "Retreat" };
   return { title: `${e.name} · ${e.location}`, description: e.strapline };
 }
 
 export default async function MicrositePage({ params }: { params: { slug: string } }) {
-  const e = await getExperienceBySlug(params.slug);
+  const e = await resolveExperience(params.slug);
   if (!e) notFound();
 
   const host = e.hostSlugs[0] ? await getHost(e.hostSlugs[0]) : undefined;
