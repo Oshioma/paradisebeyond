@@ -15,12 +15,16 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_BRAND = "#B4633B";
 
-/** Resolve by the exact slug, or by the hyphen-free subdomain label. */
+/** Resolve by exact slug, a custom vanity subdomain, or the hyphen-free slug. */
 async function resolveExperience(param: string): Promise<Experience | undefined> {
   const exact = await getExperienceBySlug(param);
   if (exact) return exact;
   const label = subdomainLabel(param);
-  return (await getAllExperiences()).find((e) => subdomainLabel(e.slug) === label);
+  const all = await getAllExperiences();
+  return (
+    all.find((e) => e.subdomain && subdomainLabel(e.subdomain) === label) ??
+    all.find((e) => subdomainLabel(e.slug) === label)
+  );
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
