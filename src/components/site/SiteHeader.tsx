@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { WishlistCount } from "@/components/wishlist/WishlistButton";
 
@@ -15,6 +16,7 @@ const NAV = [
 type Me = { role: "guest" | "host" | "admin" | null };
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<Me["role"]>(null);
@@ -42,6 +44,9 @@ export function SiteHeader() {
       : role === "host"
         ? { label: "Studio", href: "/studio" }
         : null;
+
+  // Host microsites (/r/<slug>) render their own branded chrome — no marketplace nav.
+  if (pathname?.startsWith("/r/")) return null;
 
   return (
     <header

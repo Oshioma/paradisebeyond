@@ -65,7 +65,7 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
   }
   draft.status = "submitted";
   await saveDraft(draft);
-  await notifyAdminOfSubmission(draft, user.name);
+  await notifyOnSubmission(draft, { name: user.name, email: user.email });
   revalidatePath("/studio/retreats");
   revalidatePath("/desk/submissions");
   revalidatePath("/desk");
@@ -78,9 +78,7 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
  * approval). This is what makes edits reach the live site: the admin approves
  * from the email link, which re-publishes. Best-effort; never blocks the submit.
  */
-async function notifyAdminOfSubmission(draft: RetreatDraft, hostName: string): Promise<void> {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) return;
+async function notifyOnSubmission(draft: RetreatDraft, host: { name: string; email: string }): Promise<void> {
   try {
     let isUpdate = false;
     if (isSupabaseConfigured()) {
@@ -94,14 +92,33 @@ async function notifyAdminOfSubmission(draft: RetreatDraft, hostName: string): P
     }
     const { sendEmail } = await import("@/lib/email");
     const { siteUrl } = await import("@/lib/siteUrl");
+    const base = siteUrl();
     const title = draft.name?.trim() || "Untitled retreat";
-    await sendEmail({
-      to: adminEmail,
-      subject: isUpdate ? `Retreat update to approve — ${title}` : `New retreat to review — ${title}`,
-      html: `<p><strong>${hostName}</strong> ${isUpdate ? "updated their live retreat" : "submitted a retreat for review"}: <strong>${title}</strong>.</p>
+
+    // 1. Admin: there's something to review/approve.
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      await sendEmail({
+        to: adminEmail,
+        subject: isUpdate ? `Retreat update to approve — ${title}` : `New retreat to review — ${title}`,
+        html: `<p><strong>${host.name}</strong> ${isUpdate ? "updated their live retreat" : "submitted a retreat for review"}: <strong>${title}</strong>.</p>
 ${isUpdate ? "<p>Approving pushes their changes — including any new photos — live.</p>" : ""}
-<p><a href="${siteUrl()}/desk/submissions">Review &amp; approve in the admin desk →</a></p>`,
-    });
+<p><a href="${base}/desk/submissions">Review &amp; approve in the admin desk →</a></p>`,
+      });
+    }
+
+    // 2. Host (first submission only): invite them to personalise their page
+    //    while we review — so the retreat goes up first, branding comes after.
+    if (!isUpdate && host.email) {
+      await sendEmail({
+        to: host.email,
+        subject: `Your retreat is in review — make its page yours`,
+        html: `<p>Hi ${host.name.split(" ")[0] || "there"},</p>
+<p>Thanks for submitting <strong>${title}</strong> — our team is reviewing it now, and we'll be in touch soon.</p>
+<p>While you wait, you can make your retreat's page feel like your own: pick your brand colour and add your links (Instagram, your website). It'll show on your shareable retreat page.</p>
+<p><a href="${base}/studio/branding">Customise your page →</a></p>`,
+      });
+    }
   } catch {
     /* non-fatal — the submission is queued regardless */
   }
