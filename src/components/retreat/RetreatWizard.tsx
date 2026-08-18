@@ -76,12 +76,15 @@ export function RetreatWizard({
     const t = setTimeout(() => {
       startSaving(async () => {
         try {
-          await saveRetreatDraft(draft);
-          lastSavedRef.current = json;
-          setSavedAt(new Date().toLocaleTimeString());
+          const res = await saveRetreatDraft(draft);
+          if (res.ok) {
+            lastSavedRef.current = json;
+            setSavedAt(new Date().toLocaleTimeString());
+          }
+          // On failure leave lastSavedRef unchanged so the next change retries;
+          // the localStorage copy still holds the work in the meantime.
         } catch {
-          // Leave lastSavedRef unchanged so the next change retries; the
-          // localStorage copy still holds the work in the meantime.
+          /* network hiccup — retry on next change */
         }
       });
     }, 1500);
@@ -94,9 +97,17 @@ export function RetreatWizard({
 
   function saveDraftNow() {
     startSaving(async () => {
-      await saveRetreatDraft(draft);
-      lastSavedRef.current = JSON.stringify(draft);
-      setSavedAt(new Date().toLocaleTimeString());
+      try {
+        const res = await saveRetreatDraft(draft);
+        if (res.ok) {
+          lastSavedRef.current = JSON.stringify(draft);
+          setSavedAt(new Date().toLocaleTimeString());
+        } else {
+          setSavedAt(`Couldn't save: ${res.error ?? "try again"}`);
+        }
+      } catch {
+        setSavedAt("Couldn't save — check your connection.");
+      }
     });
   }
 
