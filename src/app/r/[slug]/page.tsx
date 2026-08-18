@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getExperienceBySlug, getAllExperiences, getHost } from "@/lib/data/repository";
-import { subdomainLabel } from "@/lib/siteUrl";
+import { subdomainLabel, siteUrl } from "@/lib/siteUrl";
 import type { Experience } from "@/lib/types";
 import { hero, img, portrait } from "@/lib/images";
 import { formatFrom } from "@/lib/money";
@@ -158,7 +157,7 @@ export default async function MicrositePage({ params }: { params: { slug: string
       </div>
 
       <footer className="border-t border-ink/10 py-8 text-center text-xs text-ink-muted">
-        <Link href={`/experiences/${e.slug}`} className="hover:text-ink">Powered by Paradise Beyond</Link>
+        <a href={siteUrl()} className="hover:text-ink">Powered by Paradise Beyond</a>
       </footer>
     </div>
   );
