@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { reorderExperiences } from "@/app/desk/experiences/actions";
+import { StartFromSampleButton } from "@/components/dashboard/StartFromSampleButton";
 
 export interface ReorderItem {
   slug: string;
@@ -79,6 +80,7 @@ export function ExperienceReorder({ items }: { items: ReorderItem[] }) {
             <div className="flex flex-none items-center gap-1">
               <Link href={`/experiences/${e.slug}`} className="hidden px-2 text-[0.62rem] uppercase tracking-eyebrow text-ink hover:underline sm:inline">View</Link>
               {e.editHref && <Link href={e.editHref} className="hidden px-2 text-[0.62rem] uppercase tracking-eyebrow text-ocean-700 hover:underline sm:inline">Edit</Link>}
+              <span className="px-1"><StartFromSampleButton slug={e.slug} /></span>
               <MoveBtn label="Move to top" disabled={i === 0} onClick={() => move(i, 0)}>Top</MoveBtn>
               <IconBtn label="Move up" disabled={i === 0} onClick={() => move(i, i - 1)}>↑</IconBtn>
               <IconBtn label="Move down" disabled={i === order.length - 1} onClick={() => move(i, i + 1)}>↓</IconBtn>
