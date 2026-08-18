@@ -81,6 +81,70 @@ export async function startDraftFromSample(slug: string): Promise<{ ok: false; e
 }
 
 /**
+ * Delete a retreat entirely (admin only). Cascades to its departures, rooms,
+ * hosts, categories, itinerary and highlights via FK. Refuses when any booking
+ * references it — guest records must never be orphaned; unpublish instead. Also
+ * clears its image overrides and the builder draft it came from.
+ */
+export async function deleteExperience(slug: string): Promise<{ ok: boolean; error?: string }> {
+  await requireRole("admin");
+  if (!slug) return { ok: false, error: "Missing experience." };
+  if (!isSupabaseConfigured()) return { ok: false, error: "Deleting needs the live database." };
+
+  try {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { slotKey } = await import("@/lib/images");
+    const supabase = createServiceRoleClient();
+
+    const { data: exp } = await supabase
+      .from("experiences")
+      .select("id, retreat_draft_id, content")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!exp) return { ok: false, error: "Couldn't find that experience." };
+
+    // Guard: never delete a retreat guests have booked (FK RESTRICT protects the
+    // rows anyway; this returns a clear message instead of a raw DB error).
+    const { data: deps } = await supabase.from("departures").select("id").eq("experience_id", exp.id);
+    const depIds = ((deps ?? []) as { id: string }[]).map((d) => d.id);
+    if (depIds.length) {
+      const { count } = await supabase
+        .from("bookings")
+        .select("id", { count: "exact", head: true })
+        .in("departure_id", depIds);
+      if ((count ?? 0) > 0) {
+        return { ok: false, error: "This retreat has bookings, so it can't be deleted. Unpublish it to hide it from the site instead." };
+      }
+    }
+
+    const { error: delErr } = await supabase.from("experiences").delete().eq("id", exp.id);
+    if (delErr) return { ok: false, error: `Couldn't delete: ${delErr.message}` };
+
+    // Best-effort cleanup: image overrides (keyed by seed text, not FK) + the
+    // linked builder draft, so the retreat is fully gone.
+    const content = exp.content as Experience;
+    const seeds = [
+      content?.heroImageSeed,
+      ...(content?.gallerySeeds ?? []),
+      ...(content?.stay?.imageSeeds ?? []),
+      ...((content?.highlights ?? []).map((h) => h.imageSeed)),
+    ]
+      .filter(Boolean)
+      .map((s) => slotKey(s as string));
+    if (seeds.length) await supabase.from("media_overrides").delete().in("seed", [...new Set(seeds)]);
+    if (exp.retreat_draft_id) await supabase.from("retreat_drafts").delete().eq("id", exp.retreat_draft_id as string);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't delete the retreat." };
+  }
+
+  invalidateExperiences();
+  revalidatePath("/desk/experiences");
+  revalidatePath("/experiences");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/**
  * Assign a different host to an experience. Updates both the stored content
  * (`hostSlugs`, which the public site reads) and the experience_hosts join, so
  * the change is consistent everywhere. Admin only; service-role write.
