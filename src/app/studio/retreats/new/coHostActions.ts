@@ -41,6 +41,23 @@ export async function addCoHost(draftId: string, email: string): Promise<{ ok: b
     .upsert({ draft_id: draftId, host_id: host.id }, { onConflict: "draft_id,host_id", ignoreDuplicates: true });
   if (error) return { ok: false, error: `Couldn't add them: ${error.message}` };
 
+  // Let the new co-host know they've been given access (best-effort).
+  try {
+    const { data: draft } = await db.from("retreat_drafts").select("data").eq("id", draftId).maybeSingle();
+    const retreatName = (draft?.data as { name?: string } | null)?.name?.trim() || "a retreat";
+    const { sendEmail } = await import("@/lib/email");
+    const { siteUrl } = await import("@/lib/siteUrl");
+    await sendEmail({
+      to: clean,
+      subject: `You're now a co-host of ${retreatName}`,
+      html: `<p>Hi ${(host.name as string)?.split(" ")[0] || "there"},</p>
+<p><strong>${user.name}</strong> added you as a co-host of <strong>${retreatName}</strong> on Paradise Beyond. You can now open, edit and submit it alongside them.</p>
+<p><a href="${siteUrl()}/studio/retreats">Open it in your Studio →</a></p>`,
+    });
+  } catch {
+    /* non-fatal — they still have access */
+  }
+
   revalidatePath("/studio/retreats/new");
   return { ok: true };
 }
