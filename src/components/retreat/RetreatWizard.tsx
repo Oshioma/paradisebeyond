@@ -16,6 +16,7 @@ import {
 } from "@/app/studio/retreats/new/actions";
 import { cn } from "@/lib/utils";
 import { prepareImageForUpload } from "@/lib/media/clientImage";
+import { CoHostManager } from "@/components/retreat/CoHostManager";
 
 interface Opt { value: string; label: string }
 
@@ -31,12 +32,16 @@ export function RetreatWizard({
   destinations,
   isLiveListing = false,
   applicationBrief = "",
+  draftId,
+  isOwner = false,
 }: {
   initialDraft: RetreatDraft;
   categories: Opt[];
   destinations: { slug: string; name: string; country: string }[];
   isLiveListing?: boolean;
   applicationBrief?: string;
+  draftId: string;
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<RetreatDraft>(initialDraft);
@@ -138,7 +143,7 @@ export function RetreatWizard({
         </div>
 
         <div className="min-h-[340px]">
-          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} />
+          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} draftId={draftId} isOwner={isOwner} />
         </div>
 
         {/* Nav */}
@@ -205,7 +210,7 @@ function addNights(iso: string, n: number): string {
 type SetFn = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) => void;
 
 function StepContent({
-  step, draft, set, setDraft, categories, destinations, validation, router, go, applicationBrief,
+  step, draft, set, setDraft, categories, destinations, validation, router, go, applicationBrief, draftId, isOwner,
 }: {
   step: number;
   draft: RetreatDraft;
@@ -217,6 +222,8 @@ function StepContent({
   router: ReturnType<typeof useRouter>;
   go: (i: number) => void;
   applicationBrief?: string;
+  draftId: string;
+  isOwner: boolean;
 }) {
   switch (step) {
     case 0:
@@ -458,6 +465,7 @@ function StepContent({
           <Field label="Your name (as host)"><input className={inp} value={draft.hostName} onChange={(e) => set("hostName", e.target.value)} placeholder="Amina Yusuf" /></Field>
           <Field label="Headline"><input className={inp} value={draft.hostHeadline} onChange={(e) => set("hostHeadline", e.target.value)} placeholder="Yoga teacher & breathwork guide" /></Field>
           <Field label="Short bio"><textarea rows={4} className={inp} value={draft.hostBio} onChange={(e) => set("hostBio", e.target.value)} placeholder="Amina has taught yoga on the Zanzibari coast for over a decade…" /></Field>
+          <CoHostManager draftId={draftId} isOwner={isOwner} />
         </div>
       );
     case 14:

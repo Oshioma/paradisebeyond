@@ -173,6 +173,18 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
     if (hostId) hostSlugs = [hostSlug];
   }
 
+  // Co-hosts: add each editor host to the listing (display + experience_hosts).
+  const { editorHostIds } = await import("@/lib/retreat/coHosts");
+  const coHostIds = await editorHostIds(draft.id);
+  const coHostSlugs: string[] = [];
+  for (const cid of coHostIds) {
+    const { data: ch } = await supabase.from("hosts").select("slug").eq("id", cid).maybeSingle();
+    if (ch?.slug && !hostSlugs.includes(ch.slug as string)) {
+      hostSlugs.push(ch.slug as string);
+      coHostSlugs.push(ch.slug as string);
+    }
+  }
+
   // Reuse the slug from a prior publish of this draft (idempotency), else mint a
   // unique one.
   const { data: prior } = await supabase
@@ -386,8 +398,9 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
     }
   }
 
-  if (hostId) {
-    await supabase.from("experience_hosts").upsert({ experience_id: experienceId, host_id: hostId }, { onConflict: "experience_id,host_id" });
+  const linkHostIds = [hostId, ...coHostIds].filter((id): id is string => Boolean(id));
+  for (const id of [...new Set(linkHostIds)]) {
+    await supabase.from("experience_hosts").upsert({ experience_id: experienceId, host_id: id }, { onConflict: "experience_id,host_id" });
   }
 
   return { ok: true, slug };
