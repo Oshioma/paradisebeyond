@@ -8,6 +8,7 @@ import { hero } from "@/lib/images";
 import { formatFrom } from "@/lib/money";
 import { getCategory, categoryLabel } from "@/lib/data/categories";
 import { VerifiedBadge } from "@/components/ui/Badge";
+import { OwnerEditButton } from "@/components/experience/OwnerEditButton";
 import { ReservePanel } from "@/components/experience/ReservePanel";
 import { ExperienceBody } from "@/components/experience/ExperienceBody";
 import { getExperienceReviews } from "@/lib/data/reviews";
@@ -102,6 +103,8 @@ export default async function MicrositePage({ params }: { params: { slug: string
         <Image src={hero(e.heroImageSeed)} alt={e.name} fill priority sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/25 to-transparent" />
         <div className="container-editorial relative w-full pb-14 pt-24 text-sand-50">
+          {/* Owner-only "Edit this retreat" — renders nothing for guests. */}
+          <OwnerEditButton hostSlugs={e.hostSlugs} retreatDraftId={e.retreatDraftId} />
           <div className="flex flex-wrap items-center gap-3">
             <p className="eyebrow text-sand-100/90">{category ? categoryLabel(category) : "Retreat"} · {e.location}</p>
             {e.verified && <VerifiedBadge />}
