@@ -528,13 +528,19 @@ function SubmitStep({ draft, validation, router, go }: { draft: RetreatDraft; va
 
   function doSubmit() {
     start(async () => {
-      const res = await submitRetreat(draft);
-      if (res.ok) {
-        try { localStorage.removeItem(`pb:retreat:${draft.id}`); } catch { /* ignore */ }
-        // Admin direct-publish returns the live slug; hosts go to the queue.
-        router.push(res.slug ? `/experiences/${res.slug}` : "/studio/retreats?submitted=1");
-      } else {
-        setServerErrors((res.errors ?? ["Something went wrong."]).map((m) => ({ message: m, step: 15 })));
+      try {
+        const res = await submitRetreat(draft);
+        if (res.ok) {
+          try { localStorage.removeItem(`pb:retreat:${draft.id}`); } catch { /* ignore */ }
+          // Admin direct-publish returns the live slug; hosts go to the queue.
+          router.push(res.slug ? `/experiences/${res.slug}` : "/studio/retreats?submitted=1");
+        } else {
+          setServerErrors((res.errors ?? ["Something went wrong."]).map((m) => ({ message: m, step: 15 })));
+        }
+      } catch (e) {
+        // Keep the host on the page with a clear message instead of the generic
+        // error screen; their work is still saved.
+        setServerErrors([{ message: e instanceof Error && e.message ? e.message : "Something went wrong submitting. Your work is saved — please try again.", step: 15 }]);
       }
     });
   }
