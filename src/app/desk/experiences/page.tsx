@@ -6,6 +6,7 @@ import { formatFrom } from "@/lib/money";
 import { ExperienceReorder, type ReorderItem } from "@/components/dashboard/ExperienceReorder";
 import { ExperienceHostSelect } from "@/components/dashboard/ExperienceHostSelect";
 import { RepublishButton } from "@/components/dashboard/RepublishButton";
+import { StartFromSampleButton } from "@/components/dashboard/StartFromSampleButton";
 
 export const metadata: Metadata = { title: "Experiences", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -74,6 +75,7 @@ export default async function DeskExperiencesPage() {
                         <Link href={`/studio/retreats/new?id=${e.retreatDraftId}`} className="text-xs uppercase tracking-eyebrow text-ocean-700 hover:underline">Edit</Link>
                       )}
                       {e.retreatDraftId && <RepublishButton slug={e.slug} />}
+                      <StartFromSampleButton slug={e.slug} />
                     </div>
                   </Td>
                 </tr>
@@ -84,6 +86,9 @@ export default async function DeskExperiencesPage() {
       </div>
       <p className="mt-4 text-xs text-ink-muted">
         Verified is awarded by admins only — never self-serve. Criteria are configurable and stored against hosts, properties and experiences.
+      </p>
+      <p className="mt-2 text-xs text-ink-muted">
+        <span className="font-medium text-clay-600">Make mine</span> forks a retreat (including the built-in samples) into a fresh editable draft owned by you and opens the builder — edit it, then publish it as your own.
       </p>
     </div>
   );

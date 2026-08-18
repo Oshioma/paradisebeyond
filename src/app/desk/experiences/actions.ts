@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/session";
 import { setExperienceOrder } from "@/lib/data/experienceOrder";
-import { invalidateExperiences } from "@/lib/data/repository";
+import { invalidateExperiences, getExperienceBySlug } from "@/lib/data/repository";
+import { ensureHostForOwner } from "@/lib/host/ensureHost";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Experience } from "@/lib/types";
 
@@ -26,6 +28,44 @@ export async function reorderExperiences(slugs: string[]): Promise<{ ok: boolean
   revalidatePath("/experiences");
   revalidatePath("/");
   return { ok: true };
+}
+
+/**
+ * Admin shortcut: fork any experience (including a built-in sample) into a fresh,
+ * editable wizard draft owned by the admin, then open it in the builder. Lets you
+ * turn a good-looking sample into your own real retreat by editing rather than
+ * starting from a blank wizard. On publish it becomes a normal DB experience,
+ * which also replaces the placeholder samples on the public site.
+ */
+export async function startDraftFromSample(slug: string): Promise<{ ok: false; error: string }> {
+  const user = await requireRole("admin");
+  if (!isSupabaseConfigured()) return { ok: false, error: "This needs the live database." };
+
+  const exp = await getExperienceBySlug(slug);
+  if (!exp) return { ok: false, error: "Couldn't find that experience." };
+
+  const id = `r-${crypto.randomUUID().slice(0, 8)}`;
+  const { draftFromExperience } = await import("@/lib/retreat/fromExperience");
+  const draft = draftFromExperience(exp, id);
+  draft.hostName = user.name;
+  // Own it — attach the admin's host row so the copy is theirs on publish.
+  const hostId = await ensureHostForOwner(user.id, user.name);
+  if (hostId) draft.hostId = hostId;
+  draft.updatedAt = new Date().toISOString();
+
+  try {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { error } = await createServiceRoleClient().from("retreat_drafts").upsert(
+      { id: draft.id, host_id: draft.hostId ?? null, status: draft.status, data: draft, updated_at: draft.updatedAt },
+      { onConflict: "id" },
+    );
+    if (error) return { ok: false, error: `Couldn't create the draft: ${error.message}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't create the draft." };
+  }
+
+  // Success → straight into the builder, pre-filled and ready to edit.
+  redirect(`/studio/retreats/new?id=${id}`);
 }
 
 /**
