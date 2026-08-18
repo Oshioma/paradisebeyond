@@ -28,6 +28,7 @@ export default async function HostPage({ params }: { params: { slug: string } })
   if (!h) notFound();
   const experiences = await getExperiencesByHost(h.slug);
   const reviewSummary = await getHostReviewSummary(experiences.map((e) => e.slug));
+  const brandStyle = h.brandColor ? { color: h.brandColor } : undefined;
 
   return (
     <>
@@ -46,11 +47,16 @@ export default async function HostPage({ params }: { params: { slug: string } })
             className="h-48 w-40 flex-none rounded-xl2 border-4 border-sand-50 object-cover shadow-lift"
           />
           <div className="pb-2">
+            {h.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={h.logoUrl} alt={h.name} className="mb-2 h-10 w-auto max-w-[220px] object-contain" />
+            )}
             <div className="flex items-center gap-3">
               <h1 className="text-display font-semibold text-ink">{h.name}</h1>
               {h.verified && <VerifiedBadge />}
             </div>
-            <p className="mt-1 text-lg text-ocean-700">{h.headline}</p>
+            <p className="mt-1 text-lg text-ocean-700" style={brandStyle}>{h.headline}</p>
+            {h.tagline && <p className="mt-1 italic text-ink-muted">{h.tagline}</p>}
             <p className="mt-1 text-sm text-ink-muted">Hosting with Paradise Beyond since {h.since}</p>
             {reviewSummary.count > 0 && <div className="mt-2"><RatingSummary average={reviewSummary.average} count={reviewSummary.count} /></div>}
           </div>
@@ -66,7 +72,10 @@ export default async function HostPage({ params }: { params: { slug: string } })
                 <a
                   key={s.label}
                   href={s.href}
-                  className="rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft transition-colors hover:border-ink/40"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={h.brandColor ? { borderColor: h.brandColor, color: h.brandColor } : undefined}
+                  className={`rounded-full border px-4 py-2 text-xs uppercase tracking-eyebrow transition-colors hover:opacity-80 ${h.brandColor ? "" : "border-ink/15 text-ink-soft hover:border-ink/40"}`}
                 >
                   {s.label}
                 </a>
@@ -77,13 +86,13 @@ export default async function HostPage({ params }: { params: { slug: string } })
 
         <aside className="space-y-6 rounded-xl2 bg-sand-100 p-6">
           <div>
-            <p className="eyebrow text-ocean-700">Qualifications</p>
+            <p className="eyebrow text-ocean-700" style={brandStyle}>Qualifications</p>
             <ul className="mt-2 space-y-1.5 text-sm text-ink-soft">
               {h.qualifications.map((q) => <li key={q}>{q}</li>)}
             </ul>
           </div>
           <div>
-            <p className="eyebrow text-ocean-700">Specialisms</p>
+            <p className="eyebrow text-ocean-700" style={brandStyle}>Specialisms</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {h.specialisms.map((s) => (
                 <span key={s} className="rounded-full bg-sand-50 px-3 py-1 text-xs text-ink-soft">{s}</span>
@@ -95,7 +104,7 @@ export default async function HostPage({ params }: { params: { slug: string } })
 
       {experiences.length > 0 && (
         <section className="container-editorial pb-24">
-          <p className="eyebrow text-ocean-700">Upcoming</p>
+          <p className="eyebrow text-ocean-700" style={brandStyle}>Upcoming</p>
           <h2 className="mt-2 text-headline font-semibold text-ink">
             {h.name.split(" ")[0]}&apos;s Paradise Beyond experiences
           </h2>
