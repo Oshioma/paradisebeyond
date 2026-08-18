@@ -77,7 +77,7 @@ export async function setExperienceSubdomain(slug: string, labelRaw: string): Pr
   const { getExperienceBySlug } = await import("@/lib/data/repository");
   const exp = await getExperienceBySlug(slug);
   if (!exp) return { ok: false, error: "Experience not found." };
-  if (!user.hostSlug || !exp.hostSlugs.includes(user.hostSlug)) {
+  if (user.role !== "admin" && (!user.hostSlug || !exp.hostSlugs.includes(user.hostSlug))) {
     return { ok: false, error: "That's not your retreat to rename." };
   }
 
@@ -152,7 +152,7 @@ export async function setCustomDomain(slug: string, domainRaw: string): Promise<
   const { getExperienceBySlug } = await import("@/lib/data/repository");
   const exp = await getExperienceBySlug(slug);
   if (!exp) return { ok: false, error: "Experience not found." };
-  if (!user.hostSlug || !exp.hostSlugs.includes(user.hostSlug)) {
+  if (user.role !== "admin" && (!user.hostSlug || !exp.hostSlugs.includes(user.hostSlug))) {
     return { ok: false, error: "That's not your retreat." };
   }
 

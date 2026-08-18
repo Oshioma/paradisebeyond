@@ -108,6 +108,16 @@ export async function getExperiencesByHost(hostSlug: string): Promise<Experience
   return (await source()).filter((e) => e.hostSlugs.includes(hostSlug));
 }
 
+/**
+ * The retreats a Studio user may manage: an admin manages every retreat, a host
+ * only their own. Used by the host dashboard so admins (who have no host slug of
+ * their own) still see and edit the full catalogue.
+ */
+export async function getManagedExperiences(user: { role: string; hostSlug?: string }): Promise<Experience[]> {
+  if (user.role === "admin") return source();
+  return user.hostSlug ? getExperiencesByHost(user.hostSlug) : [];
+}
+
 export async function getExperiencesByCategory(categorySlug: string): Promise<Experience[]> {
   return (await source()).filter((e) => e.categorySlugs.includes(categorySlug as never));
 }
