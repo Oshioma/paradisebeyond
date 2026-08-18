@@ -41,6 +41,15 @@ export async function addCoHost(draftId: string, email: string): Promise<{ ok: b
     .upsert({ draft_id: draftId, host_id: host.id }, { onConflict: "draft_id,host_id", ignoreDuplicates: true });
   if (error) return { ok: false, error: `Couldn't add them: ${error.message}` };
 
+  // A co-host is a host: make sure their account role reflects that, so they can
+  // open the builder (which requires the host role) and see the owner "Edit"
+  // controls on their retreat's pages. Never downgrade an admin.
+  const { data: hostRow } = await db.from("hosts").select("owner_id").eq("id", host.id).maybeSingle();
+  const ownerId = (hostRow?.owner_id as string | null) ?? null;
+  if (ownerId) {
+    await db.from("profiles").update({ role: "host" }).eq("id", ownerId).neq("role", "admin");
+  }
+
   // Let the new co-host know they've been given access (best-effort).
   try {
     const { data: draft } = await db.from("retreat_drafts").select("data").eq("id", draftId).maybeSingle();
