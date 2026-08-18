@@ -1,28 +1,52 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateHostBranding, type Social } from "@/app/studio/branding/actions";
+import { updateHostBranding, uploadHostLogo, type Social } from "@/app/studio/branding/actions";
 
 const PRESETS = ["#B4633B", "#1F6F6B", "#2E5B8A", "#7A5C3E", "#8A5A83", "#3F7A52", "#C08A2D", "#1B1B1A"];
 
 export function BrandingForm({
   initialColor,
   initialSocials,
+  initialTagline,
+  initialLogoUrl,
 }: {
   initialColor: string;
   initialSocials: Social[];
+  initialTagline: string;
+  initialLogoUrl: string;
 }) {
   const router = useRouter();
   const [color, setColor] = useState(initialColor || "#B4633B");
   const [socials, setSocials] = useState<Social[]>(initialSocials.length ? initialSocials : [{ label: "Instagram", href: "" }]);
+  const [tagline, setTagline] = useState(initialTagline);
+  const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
+  const [uploading, setUploading] = useState(false);
+  const logoRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStatus(null);
+    setUploading(true);
+    const fd = new FormData();
+    fd.set("file", file);
+    start(async () => {
+      const res = await uploadHostLogo(fd);
+      setUploading(false);
+      if (res.ok && res.url) setLogoUrl(res.url);
+      else setStatus({ ok: false, text: res.error ?? "Logo upload failed." });
+      if (logoRef.current) logoRef.current.value = "";
+    });
+  }
 
   function save() {
     setStatus(null);
     start(async () => {
-      const res = await updateHostBranding(color, socials);
+      const res = await updateHostBranding(color, socials, tagline, logoUrl);
       setStatus(res.ok ? { ok: true, text: "Saved — your page is updated." } : { ok: false, text: res.error });
       if (res.ok) router.refresh();
     });
@@ -30,6 +54,44 @@ export function BrandingForm({
 
   return (
     <div className="space-y-8">
+      <section>
+        <h2 className="font-medium text-ink">Logo</h2>
+        <p className="mt-0.5 text-sm text-ink-muted">Shown on your retreat page. A transparent PNG works best.</p>
+        <div className="mt-3 flex items-center gap-4">
+          <div className="flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-xl border border-ink/10 bg-sand-100">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+            ) : (
+              <span className="text-[0.6rem] uppercase tracking-eyebrow text-ink-muted">None</span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => logoRef.current?.click()} disabled={pending} className="rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50">
+              {uploading ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
+            </button>
+            {logoUrl && (
+              <button type="button" onClick={() => setLogoUrl("")} disabled={pending} className="text-xs uppercase tracking-eyebrow text-ink-muted hover:text-clay-600 disabled:opacity-50">
+                Remove
+              </button>
+            )}
+            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={onLogo} />
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="font-medium text-ink">Tagline</h2>
+        <p className="mt-0.5 text-sm text-ink-muted">A short line under your retreat name. Optional.</p>
+        <input
+          value={tagline}
+          onChange={(e) => setTagline(e.target.value)}
+          maxLength={80}
+          placeholder="Slow mornings, warm water, come back lighter."
+          className="mt-3 w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
+        />
+      </section>
+
       <section>
         <h2 className="font-medium text-ink">Brand colour</h2>
         <p className="mt-0.5 text-sm text-ink-muted">Used for buttons and accents across your page.</p>
