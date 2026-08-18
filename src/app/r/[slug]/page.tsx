@@ -16,12 +16,19 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_BRAND = "#B4633B";
 
-/** Resolve by exact slug, a custom vanity subdomain, or the hyphen-free slug. */
+/** Resolve by exact slug, the host's own custom domain, a custom vanity
+ *  subdomain, or the hyphen-free slug (middleware passes the request Host for
+ *  custom domains, so a full domain also lands here). */
 async function resolveExperience(param: string): Promise<Experience | undefined> {
   const exact = await getExperienceBySlug(param);
   if (exact) return exact;
-  const label = subdomainLabel(param);
   const all = await getAllExperiences();
+  const domain = param.toLowerCase().replace(/^www\./, "");
+  const byDomain = all.find(
+    (e) => e.customDomain && e.customDomain.toLowerCase().replace(/^www\./, "") === domain,
+  );
+  if (byDomain) return byDomain;
+  const label = subdomainLabel(param);
   return (
     all.find((e) => e.subdomain && subdomainLabel(e.subdomain) === label) ??
     all.find((e) => subdomainLabel(e.slug) === label)

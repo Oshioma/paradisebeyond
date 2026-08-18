@@ -142,4 +142,6 @@ export interface Experience {
   retreatDraftId?: string;
   /** Custom vanity subdomain label for the microsite (else derived from slug). */
   subdomain?: string;
+  /** The host's own custom domain (e.g. aminaretreats.com) → this microsite. */
+  customDomain?: string;
 }

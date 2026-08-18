@@ -5,6 +5,7 @@ import { getHost, getExperiencesByHost } from "@/lib/data/repository";
 import { siteUrl, subdomainLabel } from "@/lib/siteUrl";
 import { BrandingForm } from "@/components/dashboard/BrandingForm";
 import { SubdomainEditor } from "@/components/dashboard/SubdomainEditor";
+import { CustomDomainEditor } from "@/components/dashboard/CustomDomainEditor";
 
 export const metadata: Metadata = { title: "Customise your page", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -43,6 +44,20 @@ export default async function BrandingPage() {
                 defaultLabel={subdomainLabel(e.slug)}
                 hostSuffix={hostSuffix}
               />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {experiences.length > 0 && (
+        <div className="mt-10 max-w-2xl">
+          <h2 className="font-display text-2xl font-semibold text-ink">Use your own domain</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Optional. Already have a domain? Connect it so guests reach your retreat at your own web address.
+          </p>
+          <div className="mt-4 space-y-3">
+            {experiences.map((e) => (
+              <CustomDomainEditor key={e.slug} slug={e.slug} name={e.name} currentDomain={e.customDomain ?? ""} />
             ))}
           </div>
         </div>
