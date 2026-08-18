@@ -7,6 +7,7 @@ import { ExperienceReorder, type ReorderItem } from "@/components/dashboard/Expe
 import { ExperienceHostSelect } from "@/components/dashboard/ExperienceHostSelect";
 import { RepublishButton } from "@/components/dashboard/RepublishButton";
 import { StartFromSampleButton } from "@/components/dashboard/StartFromSampleButton";
+import { DeleteExperienceButton } from "@/components/dashboard/DeleteExperienceButton";
 
 export const metadata: Metadata = { title: "Experiences", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -75,6 +76,7 @@ export default async function DeskExperiencesPage() {
                         <>
                           <Link href={`/studio/retreats/new?id=${e.retreatDraftId}`} className="text-xs uppercase tracking-eyebrow text-ocean-700 hover:underline">Edit</Link>
                           <RepublishButton slug={e.slug} />
+                          <DeleteExperienceButton slug={e.slug} name={e.name} />
                         </>
                       ) : (
                         // Samples have no editable draft behind them — offer a copy instead.
