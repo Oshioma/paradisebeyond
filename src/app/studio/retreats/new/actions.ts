@@ -19,8 +19,9 @@ import { ensureHostForOwner } from "@/lib/host/ensureHost";
  */
 const ensureOwnedHostId = ensureHostForOwner;
 
-/** Persist the current draft (autosave / "Save draft"). */
-export async function saveRetreatDraft(draft: RetreatDraft) {
+/** Persist the current draft (autosave / "Save draft"). Never throws — returns a
+ *  result so a save failure shows as a message, not the full-page error screen. */
+export async function saveRetreatDraft(draft: RetreatDraft): Promise<{ ok: boolean; error?: string }> {
   const user = await requireRole("host");
   // Only stamp ownership when the draft has none yet (a brand-new build). A
   // co-host saving an existing draft must NOT reassign it to themselves.
@@ -32,9 +33,18 @@ export async function saveRetreatDraft(draft: RetreatDraft) {
   // draft, by contrast, is a live listing the host has reopened to edit — those
   // edits must persist (they stay in the draft until re-submitted and
   // re-approved; the published listing is untouched meanwhile).
-  if (draft.status === "submitted" || draft.status === "under_review") return;
-  await saveDraft(draft);
-  revalidatePath("/studio/retreats");
+  if (draft.status === "submitted" || draft.status === "under_review") return { ok: true };
+  try {
+    // Admins have no host row of their own, so the RLS drafts policy (which keys
+    // off is_admin() / host ownership) can reject and throw — save reliably via
+    // the service role instead.
+    if (user.role === "admin") await saveDraftAsAdmin(draft);
+    else await saveDraft(draft);
+    revalidatePath("/studio/retreats");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Could not save your draft." };
+  }
 }
 
 /**
