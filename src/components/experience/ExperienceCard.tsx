@@ -1,7 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { Experience } from "@/lib/types";
 import { img } from "@/lib/images";
+import { micrositeUrl } from "@/lib/siteUrl";
 import { formatFrom } from "@/lib/money";
 import { formatDateRange } from "@/lib/utils";
 import { upcomingDeparture } from "@/lib/data/helpers";
@@ -28,9 +28,12 @@ export function ExperienceCard({
     : seedHost;
   const scarce = next && next.spacesRemaining > 0 && next.spacesRemaining <= 5;
 
+  // Each retreat opens its own microsite (subdomain in production, /r/<slug>
+  // otherwise) — so a card leads to the host's branded page, not the marketplace
+  // listing. Plain <a>: the subdomain is a different origin from the marketplace.
   return (
-    <Link
-      href={`/experiences/${e.slug}`}
+    <a
+      href={micrositeUrl(e.slug, e.subdomain)}
       className="group block focus:outline-none"
     >
       <article className="flex h-full flex-col">
@@ -99,6 +102,6 @@ export function ExperienceCard({
           </div>
         </div>
       </article>
-    </Link>
+    </a>
   );
 }
