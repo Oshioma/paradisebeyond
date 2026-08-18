@@ -10,9 +10,12 @@ import { cn } from "@/lib/utils";
 export function ReservePanel({
   departures,
   currency,
+  accent,
 }: {
   departures: Departure[];
   currency: string;
+  /** Optional brand colour for the primary Reserve button (host microsite). */
+  accent?: string;
 }) {
   const bookable = departures.filter((d) => d.status !== "closed");
   const firstOpen = bookable.find((d) => d.status === "open") ?? bookable[0];
@@ -97,7 +100,8 @@ export function ReservePanel({
       ) : (
         <Link
           href={`/book/${selected.id}`}
-          className="mt-6 flex w-full items-center justify-center rounded-full bg-clay-500 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 hover:shadow-lift"
+          style={accent ? { backgroundColor: accent } : undefined}
+          className={`mt-6 flex w-full items-center justify-center rounded-full px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:shadow-lift ${accent ? "" : "bg-clay-500 hover:bg-clay-600"}`}
         >
           {selected.status === "waitlist" ? "Join the waitlist" : "Reserve your place"}
         </Link>

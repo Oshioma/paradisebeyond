@@ -54,6 +54,8 @@ export interface Host {
   verified: boolean;
   imageSeed: string;
   since: number;
+  /** Optional brand accent colour (hex) for the host's microsite/pages. */
+  brandColor?: string;
 }
 
 export interface ItineraryItem {

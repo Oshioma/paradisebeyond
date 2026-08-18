@@ -3,6 +3,7 @@ import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { ChromeGate } from "@/components/site/ChromeGate";
 import { WishlistProvider } from "@/components/wishlist/WishlistProvider";
 import { RevealScript } from "@/components/site/RevealScript";
 
@@ -56,7 +57,7 @@ export default function RootLayout({
         <WishlistProvider>
           <SiteHeader />
           <main>{children}</main>
-          <SiteFooter />
+          <ChromeGate><SiteFooter /></ChromeGate>
         </WishlistProvider>
         <RevealScript />
       </body>
