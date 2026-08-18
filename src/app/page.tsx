@@ -118,7 +118,8 @@ export default async function HomePage() {
         </div>
 
         <div className="mt-12">
-          <ExperienceGrid experiences={featured} priorityCount={3} />
+          {/* Homepage cards open each retreat's own branded microsite. */}
+          <ExperienceGrid experiences={featured} priorityCount={3} linkMode="microsite" />
         </div>
       </section>
 

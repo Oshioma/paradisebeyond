@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Experience } from "@/lib/types";
 import { img } from "@/lib/images";
 import { micrositeUrl } from "@/lib/siteUrl";
@@ -13,9 +14,13 @@ import { WishlistButton } from "@/components/wishlist/WishlistButton";
 export function ExperienceCard({
   experience,
   priority = false,
+  linkMode = "marketplace",
 }: {
   experience: Experience;
   priority?: boolean;
+  /** "marketplace" → the /experiences page (your brand); "microsite" → the
+   *  retreat's own branded microsite/subdomain. */
+  linkMode?: "marketplace" | "microsite";
 }) {
   const e = experience;
   const next = upcomingDeparture(e);
@@ -28,14 +33,7 @@ export function ExperienceCard({
     : seedHost;
   const scarce = next && next.spacesRemaining > 0 && next.spacesRemaining <= 5;
 
-  // Each retreat opens its own microsite (subdomain in production, /r/<slug>
-  // otherwise) — so a card leads to the host's branded page, not the marketplace
-  // listing. Plain <a>: the subdomain is a different origin from the marketplace.
-  return (
-    <a
-      href={micrositeUrl(e.slug, e.subdomain)}
-      className="group block focus:outline-none"
-    >
+  const inner = (
       <article className="flex h-full flex-col">
         <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl2 bg-sand-200">
           <Image
@@ -102,6 +100,13 @@ export function ExperienceCard({
           </div>
         </div>
       </article>
-    </a>
+  );
+
+  // Microsite link is a different origin (subdomain) → plain <a>. Marketplace is
+  // same-origin → <Link> for smooth client navigation + prefetch.
+  return linkMode === "microsite" ? (
+    <a href={micrositeUrl(e.slug, e.subdomain)} className="group block focus:outline-none">{inner}</a>
+  ) : (
+    <Link href={`/experiences/${e.slug}`} className="group block focus:outline-none">{inner}</Link>
   );
 }
