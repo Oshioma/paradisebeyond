@@ -7,6 +7,7 @@ import type { Experience, Host } from "@/lib/types";
 import { hero } from "@/lib/images";
 import { formatFrom } from "@/lib/money";
 import { getCategory, categoryLabel } from "@/lib/data/categories";
+import { VerifiedBadge } from "@/components/ui/Badge";
 import { ReservePanel } from "@/components/experience/ReservePanel";
 import { ExperienceBody } from "@/components/experience/ExperienceBody";
 import { getExperienceReviews } from "@/lib/data/reviews";
@@ -56,8 +57,24 @@ export default async function MicrositePage({ params }: { params: { slug: string
   const category = getCategory(e.categorySlugs[0]);
   const reviews = await getExperienceReviews(e.slug);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "TouristTrip",
+    name: e.name,
+    description: e.strapline,
+    touristType: e.categorySlugs.map((s) => getCategory(s)?.name).filter(Boolean),
+    provider: hosts[0] ? { "@type": "Organization", name: hosts[0].name } : undefined,
+    offers: {
+      "@type": "Offer",
+      price: (e.priceFromMinor / 100).toFixed(2),
+      priceCurrency: e.currency,
+      availability: "https://schema.org/InStock",
+    },
+  };
+
   return (
     <div className="min-h-screen bg-sand-50 text-ink">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {/* Minimal branded top bar (no marketplace nav). */}
       <header className="sticky top-0 z-30 border-b border-ink/10 bg-sand-50/90 backdrop-blur">
         <div className="container-editorial flex items-center justify-between gap-3 py-3">
@@ -78,7 +95,10 @@ export default async function MicrositePage({ params }: { params: { slug: string
         <Image src={hero(e.heroImageSeed)} alt={e.name} fill priority sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/25 to-transparent" />
         <div className="container-editorial relative w-full pb-14 pt-24 text-sand-50">
-          <p className="eyebrow text-sand-100/90">{category ? categoryLabel(category) : "Retreat"} · {e.location}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="eyebrow text-sand-100/90">{category ? categoryLabel(category) : "Retreat"} · {e.location}</p>
+            {e.verified && <VerifiedBadge />}
+          </div>
           <h1 className="mt-3 max-w-3xl text-display-lg font-semibold">{e.name}</h1>
           <p className="mt-3 max-w-xl text-lg text-sand-100/90">{e.strapline}</p>
           {tagline && <p className="mt-1 max-w-xl italic text-sand-100/80">{tagline}</p>}

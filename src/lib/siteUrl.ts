@@ -21,15 +21,18 @@ export function siteUrl(): string {
 export function micrositeUrl(slug: string, customLabel?: string): string {
   const base = siteUrl();
   const label = customLabel?.trim() ? subdomainLabel(customLabel) : subdomainLabel(slug);
-  try {
-    const u = new URL(base);
-    const host = u.host.replace(/^www\./, "");
-    const registrable = host.split(".").length >= 2 && !host.endsWith("vercel.app") && !host.startsWith("localhost");
-    // Hyphen-free subdomain label — cleaner as a domain; the microsite resolves
-    // it back to the experience.
-    if (registrable) return `${u.protocol}//${label}.${host}`;
-  } catch {
-    /* fall through to path form */
+  // Use real subdomains only once the wildcard domain is live — opt in with
+  // NEXT_PUBLIC_MICROSITE_SUBDOMAINS=on — so we never hand out links that don't
+  // resolve yet. Until then the same page lives at /r/<label> (always works).
+  if (process.env.NEXT_PUBLIC_MICROSITE_SUBDOMAINS === "on") {
+    try {
+      const u = new URL(base);
+      const host = u.host.replace(/^www\./, "");
+      const registrable = host.split(".").length >= 2 && !host.endsWith("vercel.app") && !host.startsWith("localhost");
+      if (registrable) return `${u.protocol}//${label}.${host}`;
+    } catch {
+      /* fall through to path form */
+    }
   }
   return `${base}/r/${label}`;
 }
