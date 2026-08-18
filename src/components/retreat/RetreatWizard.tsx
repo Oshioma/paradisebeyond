@@ -29,10 +29,14 @@ export function RetreatWizard({
   initialDraft,
   categories,
   destinations,
+  isLiveListing = false,
+  applicationBrief = "",
 }: {
   initialDraft: RetreatDraft;
   categories: Opt[];
   destinations: { slug: string; name: string; country: string }[];
+  isLiveListing?: boolean;
+  applicationBrief?: string;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<RetreatDraft>(initialDraft);
@@ -116,13 +120,25 @@ export function RetreatWizard({
 
       {/* Step content */}
       <div>
+        {isLiveListing && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl2 border border-clay-500/40 bg-clay-500/5 p-4">
+            <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 flex-none text-clay-600" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="text-sm text-ink-soft">
+              <span className="font-medium text-ink">This retreat is already live.</span> Your edits — including new
+              photos — <span className="font-medium text-ink">won&apos;t appear on the site until you reach the last step and press “Submit”.</span> Saving a draft alone doesn&apos;t publish them.
+            </p>
+          </div>
+        )}
+
         <div className="mb-6">
           <p className="eyebrow text-clay-600">Step {step + 1}</p>
           <h2 className="mt-1 font-display text-3xl font-semibold text-ink">{STEPS[step]}</h2>
         </div>
 
         <div className="min-h-[340px]">
-          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} />
+          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} />
         </div>
 
         {/* Nav */}
@@ -189,7 +205,7 @@ function addNights(iso: string, n: number): string {
 type SetFn = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) => void;
 
 function StepContent({
-  step, draft, set, setDraft, categories, destinations, validation, router, go,
+  step, draft, set, setDraft, categories, destinations, validation, router, go, applicationBrief,
 }: {
   step: number;
   draft: RetreatDraft;
@@ -200,6 +216,7 @@ function StepContent({
   validation: ReturnType<typeof validateForSubmit>;
   router: ReturnType<typeof useRouter>;
   go: (i: number) => void;
+  applicationBrief?: string;
 }) {
   switch (step) {
     case 0:
@@ -224,7 +241,7 @@ function StepContent({
     case 1:
       return (
         <div className="space-y-5">
-          <AiDraftPanel draft={draft} setDraft={setDraft} />
+          <AiDraftPanel draft={draft} setDraft={setDraft} applicationBrief={applicationBrief} />
           <Field label="Retreat name" hint="Evocative, not generic. e.g. “Zanzibar Reconnection”">
             <input className={inp} value={draft.name} onChange={(e) => set("name", e.target.value)} placeholder="Zanzibar Reconnection" />
           </Field>
@@ -627,9 +644,11 @@ function RemoveBtn({ onClick }: { onClick: () => void }) {
  * and changes anything before submitting, and admin still approves by hand
  * before it goes live. AI assists; it never publishes.
  */
-function AiDraftPanel({ draft, setDraft }: { draft: RetreatDraft; setDraft: React.Dispatch<React.SetStateAction<RetreatDraft>> }) {
-  const [open, setOpen] = useState(false);
-  const [brief, setBrief] = useState("");
+function AiDraftPanel({ draft, setDraft, applicationBrief = "" }: { draft: RetreatDraft; setDraft: React.Dispatch<React.SetStateAction<RetreatDraft>>; applicationBrief?: string }) {
+  // Prefill the brief from the host's approved application and open the panel,
+  // so they can just press "Draft my retreat" instead of retyping their idea.
+  const [open, setOpen] = useState(Boolean(applicationBrief));
+  const [brief, setBrief] = useState(applicationBrief);
   const [pending, start] = useTransition();
   const [note, setNote] = useState<string | null>(null);
 
@@ -685,10 +704,12 @@ function AiDraftPanel({ draft, setDraft }: { draft: RetreatDraft; setDraft: Reac
         <button onClick={() => setOpen(false)} className="text-xs uppercase tracking-eyebrow text-ink-muted hover:text-ink">Close</button>
       </div>
       <p className="mt-1 text-sm text-ink-muted">
-        e.g. “A yoga &amp; breathwork retreat for women wanting to reset after burnout, slow mornings and beach walks.”
+        {applicationBrief
+          ? "We've filled in the idea from your application — tweak it if you like, then draft your retreat."
+          : "e.g. “A yoga & breathwork retreat for women wanting to reset after burnout, slow mornings and beach walks.”"}
       </p>
       <textarea
-        rows={3}
+        rows={applicationBrief ? 5 : 3}
         value={brief}
         onChange={(e) => setBrief(e.target.value)}
         placeholder="Describe the retreat, who it's for, and the feeling you want guests to leave with…"

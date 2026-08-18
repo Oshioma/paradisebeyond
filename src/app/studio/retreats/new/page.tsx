@@ -8,6 +8,7 @@ import { getHost, getExperiencesByHost } from "@/lib/data/repository";
 import { getDraft } from "@/lib/retreat/store";
 import { emptyDraft, type RetreatDraft } from "@/lib/retreat/schema";
 import { RetreatWizard } from "@/components/retreat/RetreatWizard";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Build a retreat", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -29,6 +30,33 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
   const isLiveListing = user.hostSlug
     ? (await getExperiencesByHost(user.hostSlug)).some((e) => e.retreatDraftId === id)
     : false;
+  // For a brand-new draft, carry over what the host already told us in their
+  // approved application — the retreat idea (used to prefill the AI draft) plus
+  // destination and duration — so they don't retype it.
+  let applicationBrief = "";
+  let appSeed: Partial<RetreatDraft> = {};
+  if (!existing && isSupabaseConfigured()) {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { data: app } = await createServiceRoleClient()
+      .from("host_applications")
+      .select("retreat_idea, description, destination, duration")
+      .eq("applicant_id", user.id)
+      .eq("status", "approved")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (app) {
+      applicationBrief = [app.retreat_idea, app.description].map((s) => (s ?? "").trim()).filter(Boolean).join("\n\n");
+      const dur = Number(app.duration) === 14 ? 14 : Number(app.duration) === 7 ? 7 : undefined;
+      const wanted = String(app.destination ?? "").toLowerCase();
+      const match = wanted ? DESTINATIONS.find((d) => wanted.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(wanted)) : undefined;
+      appSeed = {
+        ...(dur ? { duration: dur as 7 | 14, durationChosen: true } : {}),
+        ...(match ? { destinationSlug: match.slug, destinationName: match.name, country: match.country } : {}),
+      };
+    }
+  }
+
   const initial: RetreatDraft = existing
     ? {
         ...existing,
@@ -42,6 +70,7 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
         hostName: host?.name ?? user.name,
         hostHeadline: host?.headline ?? "",
         hostBio: host?.bio ?? "",
+        ...appSeed,
       };
 
   return (
@@ -67,6 +96,8 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
         initialDraft={initial}
         categories={CATEGORIES.map((c) => ({ value: c.slug, label: categoryLabel(c) }))}
         destinations={DESTINATIONS.map((d) => ({ slug: d.slug, name: d.name, country: d.country }))}
+        isLiveListing={isLiveListing}
+        applicationBrief={applicationBrief}
       />
     </div>
   );
