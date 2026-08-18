@@ -46,32 +46,52 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
   const check = validateForSubmit(draft);
   if (!check.ok) return { ok: false, errors: check.errors.map((e) => e.message) };
 
-  // Admin direct-create → publish immediately.
-  if (user.role === "admin") {
-    if (!isSupabaseConfigured()) return { ok: false, errors: ["Publishing requires a live Supabase connection (demo mode is read-only)."] };
-    draft.status = "approved";
-    await saveDraft(draft);
-    const { publishDraft } = await import("@/lib/retreat/publish");
-    const res = await publishDraft(draft, user.id);
-    if (!res.ok) return { ok: false, errors: [res.error] };
-    revalidatePath("/desk/experiences");
-    revalidatePath("/experiences");
-    revalidatePath(`/experiences/${res.slug}`);
-    return { ok: true, slug: res.slug };
-  }
+  try {
+    // Admin direct-create → publish immediately.
+    if (user.role === "admin") {
+      if (!isSupabaseConfigured()) return { ok: false, errors: ["Publishing requires a live Supabase connection (demo mode is read-only)."] };
+      draft.status = "approved";
+      // Persist via service role: the RLS user-client save throws if is_admin()
+      // / the drafts policy hiccups, which surfaced as a generic error page. The
+      // service-role write is reliable and admin-gated by requireRole above.
+      await saveDraftAsAdmin(draft);
+      const { publishDraft } = await import("@/lib/retreat/publish");
+      const res = await publishDraft(draft, user.id);
+      if (!res.ok) return { ok: false, errors: [res.error] };
+      revalidatePath("/desk/experiences");
+      revalidatePath("/experiences");
+      revalidatePath(`/experiences/${res.slug}`);
+      return { ok: true, slug: res.slug };
+    }
 
-  // Host → queue for review.
-  if (!draft.hostId) {
-    const hostId = await ensureOwnedHostId(user.id, user.name);
-    if (hostId) draft.hostId = hostId;
+    // Host → queue for review.
+    if (!draft.hostId) {
+      const hostId = await ensureOwnedHostId(user.id, user.name);
+      if (hostId) draft.hostId = hostId;
+    }
+    draft.status = "submitted";
+    await saveDraft(draft);
+    await notifyOnSubmission(draft, { name: user.name, email: user.email });
+    revalidatePath("/studio/retreats");
+    revalidatePath("/desk/submissions");
+    revalidatePath("/desk");
+    return { ok: true };
+  } catch (e) {
+    // Never let an unexpected failure become the scary full-page error — return
+    // it as an inline message the host can act on (and retry).
+    return { ok: false, errors: [e instanceof Error && e.message ? e.message : "Something went wrong saving your retreat. Please try again."] };
   }
-  draft.status = "submitted";
-  await saveDraft(draft);
-  await notifyOnSubmission(draft, { name: user.name, email: user.email });
-  revalidatePath("/studio/retreats");
-  revalidatePath("/desk/submissions");
-  revalidatePath("/desk");
-  return { ok: true };
+}
+
+/** Persist a draft with the service role (used by the admin publish path). */
+async function saveDraftAsAdmin(draft: RetreatDraft): Promise<void> {
+  draft.updatedAt = new Date().toISOString();
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { error } = await createServiceRoleClient().from("retreat_drafts").upsert(
+    { id: draft.id, host_id: draft.hostId ?? null, status: draft.status, data: draft, updated_at: draft.updatedAt },
+    { onConflict: "id" },
+  );
+  if (error) throw new Error(`Could not save the retreat: ${error.message}`);
 }
 
 /**
