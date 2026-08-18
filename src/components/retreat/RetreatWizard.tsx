@@ -49,6 +49,9 @@ export function RetreatWizard({
   const [saving, startSaving] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const storageKey = `pb:retreat:${initialDraft.id}`;
+  // The last draft we've persisted to the server, so autosave only fires on real
+  // changes and never re-saves the same thing.
+  const lastSavedRef = useRef<string>(JSON.stringify(initialDraft));
 
   // Hydrate from localStorage (resume) once on mount.
   useEffect(() => {
@@ -59,10 +62,32 @@ export function RetreatWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Autosave to localStorage on every change.
+  // Autosave to localStorage on every change (instant, local).
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(draft)); } catch { /* ignore */ }
   }, [draft, storageKey]);
+
+  // Autosave to the SERVER, debounced, so work is never lost even if they never
+  // press "Save draft", switch device, or hit an error later. Only fires when the
+  // draft actually changed since the last successful save.
+  useEffect(() => {
+    const json = JSON.stringify(draft);
+    if (json === lastSavedRef.current) return;
+    const t = setTimeout(() => {
+      startSaving(async () => {
+        try {
+          await saveRetreatDraft(draft);
+          lastSavedRef.current = json;
+          setSavedAt(new Date().toLocaleTimeString());
+        } catch {
+          // Leave lastSavedRef unchanged so the next change retries; the
+          // localStorage copy still holds the work in the meantime.
+        }
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
 
   const set = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -70,6 +95,7 @@ export function RetreatWizard({
   function saveDraftNow() {
     startSaving(async () => {
       await saveRetreatDraft(draft);
+      lastSavedRef.current = JSON.stringify(draft);
       setSavedAt(new Date().toLocaleTimeString());
     });
   }
@@ -77,6 +103,9 @@ export function RetreatWizard({
   const validation = useMemo(() => validateForSubmit(draft), [draft]);
 
   const go = (i: number) => setStep(Math.max(0, Math.min(STEPS.length - 1, i)));
+
+  // What (if anything) stops the host advancing from this step with "Continue".
+  const advanceBlock = advanceBlockReason(step, draft);
 
   // On mobile the step list is tucked into a collapsible "jump to step" menu so
   // it fits — open it, pick any step, it closes. Desktop shows the list inline.
@@ -156,20 +185,32 @@ export function RetreatWizard({
               {saving ? "Saving…" : "Save draft"}
             </button>
             {step < STEPS.length - 1 && (
-              <button
-                onClick={() => go(step + 1)}
-                disabled={step === 0 && !draft.durationChosen}
-                title={step === 0 && !draft.durationChosen ? "Choose 7 or 14 days first" : undefined}
-                className="rounded-full bg-ink px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft disabled:opacity-40"
-              >
-                Continue
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  onClick={() => { if (!advanceBlock) go(step + 1); }}
+                  disabled={Boolean(advanceBlock)}
+                  title={advanceBlock ?? undefined}
+                  className="rounded-full bg-ink px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft disabled:opacity-40"
+                >
+                  Continue
+                </button>
+                {advanceBlock && <span className="text-[0.66rem] text-clay-600">{advanceBlock}</span>}
+              </div>
             )}
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// What stops a host clicking "Continue" from a given step. Null = free to go on.
+// Keeps the required essentials from being skipped (and silently failing later at
+// Submit): the length, and at least one category.
+function advanceBlockReason(step: number, d: RetreatDraft): string | null {
+  if (step === 0 && !d.durationChosen) return "Choose 7 or 14 days first";
+  if (step === 1 && d.categorySlugs.length === 0) return "Pick at least one category (e.g. Wellness) first";
+  return null;
 }
 
 // The clickable list of steps — shared by the desktop sidebar and the mobile
@@ -255,7 +296,7 @@ function StepContent({
           <Field label="Strapline" suggest={<Suggest kind="strapline" draft={draft} apply={(v) => set("strapline", v[0] ?? "")} />}>
             <input className={inp} value={draft.strapline} onChange={(e) => set("strapline", e.target.value)} placeholder={`${draft.duration} days to come back to yourself.`} />
           </Field>
-          <Field label="Categories" hint="Pick all that fit.">
+          <Field label="Categories" hint={draft.categorySlugs.length === 0 ? "Pick at least one — e.g. Wellness. Required before you can continue." : "Pick all that fit."}>
             <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => set("categorySlugs", toggle(draft.categorySlugs, v))} />
           </Field>
           <Field label="This experience is for you if…" suggest={<Suggest kind="idealGuest" draft={draft} apply={(v) => set("idealGuest", v)} />}>
