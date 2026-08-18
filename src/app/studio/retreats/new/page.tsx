@@ -5,11 +5,10 @@ import { requireRole } from "@/lib/auth/session";
 import { CATEGORIES, categoryLabel } from "@/lib/data/categories";
 import { DESTINATIONS } from "@/lib/data/destinations";
 import { getHost, getExperiencesByHost } from "@/lib/data/repository";
-import { getDraft } from "@/lib/retreat/store";
 import { emptyDraft, type RetreatDraft } from "@/lib/retreat/schema";
 import { RetreatWizard } from "@/components/retreat/RetreatWizard";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { ownsDraft } from "@/lib/retreat/coHosts";
+import { ownsDraft, loadDraftForUser } from "@/lib/retreat/coHosts";
 
 export const metadata: Metadata = { title: "Build a retreat", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -24,7 +23,7 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
   const id = searchParams.id;
 
   const host = user.hostSlug ? await getHost(user.hostSlug) : undefined;
-  const existing = await getDraft(id);
+  const existing = await loadDraftForUser({ id: user.id, role: user.role }, id);
   // Is this draft already a live listing the host is reopening to edit? If so,
   // be explicit that changes go back for review and the live listing is safe
   // until then.
