@@ -139,6 +139,8 @@ function mapHostRow(row: Record<string, unknown>): Host {
     socials: Array.isArray(row.socials) ? (row.socials as { label: string; href: string }[]) : (seed?.socials ?? []),
     verified: Boolean(row.verified),
     brandColor: (row.brand_color as string) || undefined,
+    logoUrl: (row.logo_url as string) || undefined,
+    tagline: (row.tagline as string) || undefined,
     // The Host type routes images through img(seed); reuse the seed host's
     // curated seed when known, else a deterministic per-slug placeholder.
     imageSeed: seed?.imageSeed ?? `host-${row.slug as string}`,
@@ -154,7 +156,7 @@ export async function getAllHosts(): Promise<Host[]> {
   // the anon role (migration 0016), and `select *` would fail on them.
   const { data, error } = await createAnonClient()
     .from("hosts")
-    .select("slug, name, headline, bio, qualifications, specialisms, socials, verified, brand_color, created_at")
+    .select("slug, name, headline, bio, qualifications, specialisms, socials, verified, brand_color, logo_url, tagline, created_at")
     .order("name");
   if (error || !data) return HOSTS; // fail safe to seed
   const hosts = data.map(mapHostRow);

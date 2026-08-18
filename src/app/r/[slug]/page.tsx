@@ -47,6 +47,8 @@ export default async function MicrositePage({ params }: { params: { slug: string
 
   const hosts = (await Promise.all(e.hostSlugs.map((s) => getHost(s)))).filter(Boolean) as Host[];
   const brand = hosts[0]?.brandColor || DEFAULT_BRAND;
+  const logoUrl = hosts[0]?.logoUrl;
+  const tagline = hosts[0]?.tagline;
   const category = getCategory(e.categorySlugs[0]);
   const reviews = await getExperienceReviews(e.slug);
 
@@ -54,8 +56,13 @@ export default async function MicrositePage({ params }: { params: { slug: string
     <div className="min-h-screen bg-sand-50 text-ink">
       {/* Minimal branded top bar (no marketplace nav). */}
       <header className="sticky top-0 z-30 border-b border-ink/10 bg-sand-50/90 backdrop-blur">
-        <div className="container-editorial flex items-center justify-between py-3">
-          <span className="truncate font-display text-lg font-semibold text-ink">{e.name}</span>
+        <div className="container-editorial flex items-center justify-between gap-3 py-3">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={e.name} className="h-8 w-auto max-w-[180px] object-contain" />
+          ) : (
+            <span className="truncate font-display text-lg font-semibold text-ink">{e.name}</span>
+          )}
           <a href="#reserve" style={{ backgroundColor: brand }} className="flex-none rounded-full px-4 py-2 text-[0.62rem] uppercase tracking-eyebrow text-sand-50">
             Reserve
           </a>
@@ -70,6 +77,7 @@ export default async function MicrositePage({ params }: { params: { slug: string
           <p className="eyebrow text-sand-100/90">{category ? categoryLabel(category) : "Retreat"} · {e.location}</p>
           <h1 className="mt-3 max-w-3xl text-display-lg font-semibold">{e.name}</h1>
           <p className="mt-3 max-w-xl text-lg text-sand-100/90">{e.strapline}</p>
+          {tagline && <p className="mt-1 max-w-xl italic text-sand-100/80">{tagline}</p>}
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <a href="#reserve" style={{ backgroundColor: brand }} className="rounded-full px-7 py-3.5 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft">
               Reserve your place

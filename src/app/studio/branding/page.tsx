@@ -45,6 +45,8 @@ export default async function BrandingPage() {
         <BrandingForm
           initialColor={host?.brandColor ?? ""}
           initialSocials={host?.socials ?? []}
+          initialTagline={host?.tagline ?? ""}
+          initialLogoUrl={host?.logoUrl ?? ""}
         />
       </div>
 

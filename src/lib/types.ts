@@ -56,6 +56,10 @@ export interface Host {
   since: number;
   /** Optional brand accent colour (hex) for the host's microsite/pages. */
   brandColor?: string;
+  /** Optional logo image URL shown on the host's microsite/pages. */
+  logoUrl?: string;
+  /** Optional short tagline shown under the retreat name on the microsite. */
+  tagline?: string;
 }
 
 export interface ItineraryItem {
