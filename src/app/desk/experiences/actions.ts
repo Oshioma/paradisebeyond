@@ -48,6 +48,18 @@ export async function startDraftFromSample(slug: string): Promise<{ ok: false; e
   const { draftFromExperience } = await import("@/lib/retreat/fromExperience");
   const draft = draftFromExperience(exp, id);
   draft.hostName = user.name;
+
+  // Carry the photos across. Each image is a seed: if a real photo was uploaded
+  // for it, use that file's URL directly (so the copy is decoupled from the
+  // sample); otherwise carry the seed's generated image URL. Publish then writes
+  // these as this experience's own photo overrides.
+  const { getOverride } = await import("@/lib/media/store");
+  const { slotKey, img } = await import("@/lib/images");
+  const resolveImage = async (seed: string, w: number, h: number): Promise<string> =>
+    (await getOverride(slotKey(seed))) ?? img(seed, w, h);
+  if (exp.heroImageSeed) draft.heroImageUrl = await resolveImage(exp.heroImageSeed, 2000, 1200);
+  const gallerySeeds = exp.gallerySeeds?.length ? exp.gallerySeeds : exp.stay?.imageSeeds ?? [];
+  draft.galleryUrls = await Promise.all(gallerySeeds.map((s) => resolveImage(s, 1600, 1200)));
   // Own it — attach the admin's host row so the copy is theirs on publish.
   const hostId = await ensureHostForOwner(user.id, user.name);
   if (hostId) draft.hostId = hostId;

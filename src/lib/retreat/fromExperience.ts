@@ -8,9 +8,9 @@ import { emptyDraft, DEFAULT_EXCLUSIONS, type RetreatDraft } from "./schema";
  * sample" shortcut so a good-looking sample can be turned into a real retreat by
  * editing rather than typing from a blank wizard.
  *
- * Photos are the one thing that can't carry over: samples use deterministic
- * image *seeds*, not uploaded files, so we leave the photo step empty for the
- * host to add their own. Money comes back from minor units to whole units.
+ * Photos are resolved and filled in by the caller (it needs DB access to look up
+ * any real uploaded override per seed), so this leaves the URL fields blank.
+ * Money comes back from minor units to whole units.
  */
 const minorToUsd = (m: number) => Math.round(Number(m) || 0) / 100;
 
@@ -75,7 +75,7 @@ export function draftFromExperience(e: Experience, id: string): RetreatDraft {
     maxGroupSize: e.maxGroupSize || base.maxGroupSize,
     depositUsd: minorToUsd(firstDep?.depositMinor ?? 0),
     balanceDueDays: firstDep?.balanceDueDays ?? base.balanceDueDays,
-    // Photos don't carry (seed-based, not uploads) — host adds their own.
+    // Photos are populated by the caller (see startDraftFromSample).
     heroImageUrl: "",
     galleryUrls: [],
   };
