@@ -9,6 +9,7 @@ import { getDraft } from "@/lib/retreat/store";
 import { emptyDraft, type RetreatDraft } from "@/lib/retreat/schema";
 import { RetreatWizard } from "@/components/retreat/RetreatWizard";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { ownsDraft } from "@/lib/retreat/coHosts";
 
 export const metadata: Metadata = { title: "Build a retreat", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -30,6 +31,8 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
   const isLiveListing = user.hostSlug
     ? (await getExperiencesByHost(user.hostSlug)).some((e) => e.retreatDraftId === id)
     : false;
+  // The main host (owner) or an admin manages co-hosts; co-hosts can edit only.
+  const isOwner = user.role === "admin" || !existing || (await ownsDraft(user.id, id));
   // For a brand-new draft, carry over what the host already told us in their
   // approved application — the retreat idea (used to prefill the AI draft) plus
   // destination and duration — so they don't retype it.
@@ -98,6 +101,8 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
         destinations={DESTINATIONS.map((d) => ({ slug: d.slug, name: d.name, country: d.country }))}
         isLiveListing={isLiveListing}
         applicationBrief={applicationBrief}
+        draftId={id}
+        isOwner={isOwner}
       />
     </div>
   );

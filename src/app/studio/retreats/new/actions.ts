@@ -22,7 +22,9 @@ const ensureOwnedHostId = ensureHostForOwner;
 /** Persist the current draft (autosave / "Save draft"). */
 export async function saveRetreatDraft(draft: RetreatDraft) {
   const user = await requireRole("host");
-  if (user.role === "host") {
+  // Only stamp ownership when the draft has none yet (a brand-new build). A
+  // co-host saving an existing draft must NOT reassign it to themselves.
+  if (user.role === "host" && !draft.hostId) {
     const hostId = await ensureOwnedHostId(user.id, user.name);
     if (hostId) draft.hostId = hostId; // hostId is a hosts.id in live mode
   }
