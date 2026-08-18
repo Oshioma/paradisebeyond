@@ -31,9 +31,9 @@ export async function getAllExperiences(): Promise<Experience[]> {
 
   const { data: exps, error } = (await supabase
     .from("experiences")
-    .select("id, content, retreat_draft_id")
+    .select("id, content, retreat_draft_id, subdomain")
     .eq("status", "published")) as {
-    data: { id: string; content: Experience; retreat_draft_id: string | null }[] | null;
+    data: { id: string; content: Experience; retreat_draft_id: string | null; subdomain: string | null }[] | null;
     error: unknown;
   };
   if (error || !exps) return [];
@@ -61,6 +61,7 @@ export async function getAllExperiences(): Promise<Experience[]> {
     const expId = e.id as string;
     // Carry the draft link so hosts can reopen a published listing to edit it.
     if (e.retreat_draft_id) experience.retreatDraftId = e.retreat_draft_id;
+    if (e.subdomain) experience.subdomain = e.subdomain;
     // Live departures (real UUIDs + current availability), soonest first.
     const live = (depsByExp.get(expId) ?? []).sort((a, b) => a.startDate.localeCompare(b.startDate));
     if (live.length) experience.departures = live;

@@ -52,6 +52,55 @@ export async function updateHostBranding(
   return { ok: true };
 }
 
+const RESERVED = new Set([
+  "www", "api", "app", "admin", "mail", "ftp", "blog", "help", "support",
+  "staging", "dev", "test", "cdn", "assets", "static", "book", "studio",
+  "desk", "experiences", "hosts", "r", "account", "login", "signup",
+]);
+
+/**
+ * Set (or clear) an experience's custom vanity subdomain. Host may only set it
+ * for their own retreat. Lowercase letters/digits, 3–30 chars, not reserved,
+ * unique across experiences. Pass "" to clear (back to the slug default).
+ */
+export async function setExperienceSubdomain(slug: string, labelRaw: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireRole("host");
+  if (!isSupabaseConfigured()) return { ok: false, error: "Needs the live database." };
+
+  const label = labelRaw.trim().toLowerCase();
+  if (label) {
+    if (!/^[a-z0-9]{3,30}$/.test(label)) return { ok: false, error: "Use 3–30 letters or numbers, no spaces or symbols." };
+    if (RESERVED.has(label)) return { ok: false, error: "That address is reserved — try another." };
+  }
+
+  const { getExperienceBySlug } = await import("@/lib/data/repository");
+  const exp = await getExperienceBySlug(slug);
+  if (!exp) return { ok: false, error: "Experience not found." };
+  if (!user.hostSlug || !exp.hostSlugs.includes(user.hostSlug)) {
+    return { ok: false, error: "That's not your retreat to rename." };
+  }
+
+  try {
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { error } = await createServiceRoleClient()
+      .from("experiences")
+      .update({ subdomain: label || null })
+      .eq("slug", slug);
+    if (error) {
+      if (/duplicate|unique/i.test(error.message)) return { ok: false, error: "That address is already taken — try another." };
+      return { ok: false, error: `Couldn't save: ${error.message}` };
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "Couldn't save the address." };
+  }
+
+  const { invalidateExperiences } = await import("@/lib/data/repository");
+  invalidateExperiences();
+  revalidatePath("/studio/branding");
+  revalidatePath(`/experiences/${slug}`);
+  return { ok: true };
+}
+
 /** Upload a logo image and return its URL (the form persists it on Save). */
 export async function uploadHostLogo(formData: FormData): Promise<{ ok: boolean; url?: string; error?: string }> {
   const user = await requireRole("host");

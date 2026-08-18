@@ -140,4 +140,6 @@ export interface Experience {
    * Lets a host reopen their published experience in the builder to edit it.
    */
   retreatDraftId?: string;
+  /** Custom vanity subdomain label for the microsite (else derived from slug). */
+  subdomain?: string;
 }

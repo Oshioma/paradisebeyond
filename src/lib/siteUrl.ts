@@ -18,19 +18,20 @@ export function siteUrl(): string {
  * wildcard subdomain isn't available (localhost, Vercel preview URLs) — which
  * also serves the same page, so links always work.
  */
-export function micrositeUrl(slug: string): string {
+export function micrositeUrl(slug: string, customLabel?: string): string {
   const base = siteUrl();
+  const label = customLabel?.trim() ? subdomainLabel(customLabel) : subdomainLabel(slug);
   try {
     const u = new URL(base);
     const host = u.host.replace(/^www\./, "");
     const registrable = host.split(".").length >= 2 && !host.endsWith("vercel.app") && !host.startsWith("localhost");
     // Hyphen-free subdomain label — cleaner as a domain; the microsite resolves
-    // it back to the hyphenated slug.
-    if (registrable) return `${u.protocol}//${subdomainLabel(slug)}.${host}`;
+    // it back to the experience.
+    if (registrable) return `${u.protocol}//${label}.${host}`;
   } catch {
     /* fall through to path form */
   }
-  return `${base}/r/${slug}`;
+  return `${base}/r/${label}`;
 }
 
 /** The subdomain label for an experience slug — lowercased, letters/digits only
