@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireRole } from "@/lib/auth/session";
-import { getHost, getExperiencesByHost } from "@/lib/data/repository";
+import { getHost, getManagedExperiences } from "@/lib/data/repository";
 import { siteUrl, subdomainLabel } from "@/lib/siteUrl";
 import { BrandingForm } from "@/components/dashboard/BrandingForm";
 import { SubdomainEditor } from "@/components/dashboard/SubdomainEditor";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function BrandingPage() {
   const user = await requireRole("host", "/studio/branding");
   const host = user.hostSlug ? await getHost(user.hostSlug) : undefined;
-  const experiences = user.hostSlug ? await getExperiencesByHost(user.hostSlug) : [];
+  const experiences = await getManagedExperiences(user);
 
   // The registrable domain suffix (e.g. paradisebeyond.com) for the address UI.
   let hostSuffix = "paradisebeyond.com";

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/session";
 import { CATEGORIES, categoryLabel } from "@/lib/data/categories";
 import { DESTINATIONS } from "@/lib/data/destinations";
-import { getHost, getExperiencesByHost } from "@/lib/data/repository";
+import { getHost, getManagedExperiences } from "@/lib/data/repository";
 import { emptyDraft, type RetreatDraft } from "@/lib/retreat/schema";
 import { RetreatWizard } from "@/components/retreat/RetreatWizard";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -27,9 +27,7 @@ export default async function NewRetreatPage({ searchParams }: { searchParams: {
   // Is this draft already a live listing the host is reopening to edit? If so,
   // be explicit that changes go back for review and the live listing is safe
   // until then.
-  const isLiveListing = user.hostSlug
-    ? (await getExperiencesByHost(user.hostSlug)).some((e) => e.retreatDraftId === id)
-    : false;
+  const isLiveListing = (await getManagedExperiences(user)).some((e) => e.retreatDraftId === id);
   // The main host (owner) or an admin manages co-hosts; co-hosts can edit only.
   const isOwner = user.role === "admin" || !existing || (await ownsDraft(user.id, id));
   // For a brand-new draft, carry over what the host already told us in their

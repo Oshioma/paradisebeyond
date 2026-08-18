@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getExperiencesByHost } from "@/lib/data/repository";
+import { getManagedExperiences } from "@/lib/data/repository";
 import { getHostBookings } from "@/lib/data/bookings";
 import { getDraft, listDraftsForHost } from "@/lib/retreat/store";
 import type { RetreatDraft } from "@/lib/retreat/schema";
@@ -18,7 +18,7 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
   const user = await requireRole("host", "/studio/retreats");
   const hostSlug = user.hostSlug ?? "";
   const [experiences, bookings, drafts] = await Promise.all([
-    getExperiencesByHost(hostSlug),
+    getManagedExperiences(user),
     getHostBookings(hostSlug),
     listDraftsForHost(user.hostSlug ? "" : user.id),
   ]);
