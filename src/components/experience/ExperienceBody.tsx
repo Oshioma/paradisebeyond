@@ -200,6 +200,21 @@ export function ExperienceBody({
         <ReviewList reviews={reviews} />
       </Section>
 
+      {e.communityGuidelines?.trim() && (
+        <details className="group mt-14 rounded-xl2 border border-ink/10 bg-sand-100 reveal">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
+            <span>
+              <span className="block text-[0.66rem] uppercase tracking-eyebrow" style={eyebrowStyle}>Good to know</span>
+              <span className="mt-0.5 block font-display text-xl font-semibold text-ink">Community guidelines</span>
+            </span>
+            <svg viewBox="0 0 24 24" className="h-5 w-5 flex-none text-ink-muted transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </summary>
+          <div className="whitespace-pre-line px-5 pb-5 leading-relaxed text-ink-soft">{e.communityGuidelines.trim()}</div>
+        </details>
+      )}
+
       <div className="mt-12 flex flex-wrap items-center gap-3 border-t border-ink/10 pt-8">
         <ShareButton title={e.name} text={e.strapline} label="Share this experience" />
         <WishlistButton slug={e.slug} variant="inline" />

@@ -65,6 +65,7 @@ export function draftFromExperience(e: Experience, id: string): RetreatDraft {
     hotels,
     inclusions: e.inclusions?.length ? [...e.inclusions] : base.inclusions,
     exclusions: e.exclusions?.length ? [...e.exclusions] : [...DEFAULT_EXCLUSIONS],
+    communityGuidelines: e.communityGuidelines?.trim() || base.communityGuidelines,
     highlights: e.highlights?.length
       ? e.highlights.map((h) => ({ title: h.title, description: h.description }))
       : base.highlights,

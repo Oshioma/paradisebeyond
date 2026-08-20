@@ -92,6 +92,7 @@ export interface RetreatDraft {
   allowFull: boolean;
   // 12 Cancellation
   cancellationPolicy: string;
+  communityGuidelines: string;
   // 13 Photos
   heroImageUrl: string;
   galleryUrls: string[];
@@ -140,6 +141,8 @@ export function emptyDraft(id: string): RetreatDraft {
     allowFull: true,
     cancellationPolicy:
       "Deposits are non-refundable. The balance is refundable up to 45 days before departure; within 45 days the booking is non-refundable. We recommend comprehensive travel insurance.",
+    communityGuidelines:
+      "We want everyone to feel safe, welcome and at ease.\n\n• Treat fellow guests, your hosts and the local community with respect and kindness.\n• Be mindful of shared spaces, agreed schedules and quiet hours.\n• Look after the environment and follow local customs and guidance.\n• Harassment, discrimination or unsafe behaviour of any kind isn't tolerated.\n• If something doesn't feel right, tell your host — we're here to help.",
     heroImageUrl: "",
     galleryUrls: [],
     hostName: "",

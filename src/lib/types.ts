@@ -132,6 +132,8 @@ export interface Experience {
   };
   inclusions: string[];
   exclusions: string[];
+  /** Host-authored community guidelines for this retreat (shown on its page). */
+  communityGuidelines?: string;
   itinerary: ItineraryDay[];
   departures: Departure[];
   featured: boolean;
