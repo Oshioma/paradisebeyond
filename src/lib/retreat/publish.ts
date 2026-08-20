@@ -118,6 +118,7 @@ export function buildContent(draft: RetreatDraft, slug: string, hostSlugs: strin
     },
     inclusions: (draft.inclusions ?? []).filter(Boolean),
     exclusions: (draft.exclusions ?? []).filter(Boolean),
+    communityGuidelines: draft.communityGuidelines?.trim() || undefined,
     itinerary,
     departures,
     featured: false,

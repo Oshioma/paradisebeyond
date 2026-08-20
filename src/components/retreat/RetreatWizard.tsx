@@ -477,9 +477,14 @@ function StepContent({
       );
     case 11:
       return (
-        <Field label="Cancellation policy" hint="Be clear and fair. Guests read this before booking.">
-          <textarea rows={5} className={inp} value={draft.cancellationPolicy} onChange={(e) => set("cancellationPolicy", e.target.value)} />
-        </Field>
+        <div className="space-y-6">
+          <Field label="Cancellation policy" hint="Be clear and fair. Guests read this before booking.">
+            <textarea rows={5} className={inp} value={draft.cancellationPolicy} onChange={(e) => set("cancellationPolicy", e.target.value)} />
+          </Field>
+          <Field label="Community guidelines" hint="How guests are expected to treat each other, your hosts and the place. Shown on your retreat page — edit the starter text or write your own.">
+            <textarea rows={7} className={inp} value={draft.communityGuidelines} onChange={(e) => set("communityGuidelines", e.target.value)} placeholder="We want everyone to feel safe and welcome…" />
+          </Field>
+        </div>
       );
     case 12:
       return (
