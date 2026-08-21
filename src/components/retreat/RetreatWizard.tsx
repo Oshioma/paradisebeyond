@@ -171,8 +171,8 @@ export function RetreatWizard({
               <path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <p className="text-sm text-ink-soft">
-              <span className="font-medium text-ink">This retreat is already live.</span> Your edits — including new
-              photos — <span className="font-medium text-ink">won&apos;t appear on the site until you reach the last step and press “Submit”.</span> Saving a draft alone doesn&apos;t publish them.
+              <span className="font-medium text-ink">This retreat is already live.</span> Your changes — including new
+              photos — <span className="font-medium text-ink">go live as soon as you reach the last step and press “Submit”</span> — no waiting for approval. (Saving a draft alone doesn&apos;t publish them.)
             </p>
           </div>
         )}
@@ -183,7 +183,7 @@ export function RetreatWizard({
         </div>
 
         <div className="min-h-[340px]">
-          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} draftId={draftId} isOwner={isOwner} />
+          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} draftId={draftId} isOwner={isOwner} isLiveListing={isLiveListing} />
         </div>
 
         {/* Nav */}
@@ -262,7 +262,7 @@ function addNights(iso: string, n: number): string {
 type SetFn = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) => void;
 
 function StepContent({
-  step, draft, set, setDraft, categories, destinations, validation, router, go, applicationBrief, draftId, isOwner,
+  step, draft, set, setDraft, categories, destinations, validation, router, go, applicationBrief, draftId, isOwner, isLiveListing,
 }: {
   step: number;
   draft: RetreatDraft;
@@ -276,6 +276,7 @@ function StepContent({
   applicationBrief?: string;
   draftId: string;
   isOwner: boolean;
+  isLiveListing: boolean;
 }) {
   switch (step) {
     case 0:
@@ -528,14 +529,14 @@ function StepContent({
     case 14:
       return <Preview draft={draft} />;
     case 15:
-      return <SubmitStep draft={draft} validation={validation} router={router} go={go} />;
+      return <SubmitStep draft={draft} validation={validation} router={router} go={go} isLiveListing={isLiveListing} />;
     default:
       return null;
   }
 }
 
 // ---- Submit step -----------------------------------------------------------
-function SubmitStep({ draft, validation, router, go }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter>; go: (i: number) => void }) {
+function SubmitStep({ draft, validation, router, go, isLiveListing }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter>; go: (i: number) => void; isLiveListing: boolean }) {
   const [pending, start] = useTransition();
   const [serverErrors, setServerErrors] = useState<{ message: string; step: number }[] | null>(null);
   // Live client validation until the server rejects (which shouldn't happen
@@ -564,9 +565,15 @@ function SubmitStep({ draft, validation, router, go }: { draft: RetreatDraft; va
   return (
     <div className="max-w-xl">
       <p className="text-ink-muted">
-        When you submit, the Paradise Beyond team reviews your retreat by hand.
-        Nothing goes live automatically — you&apos;ll hear back by email, and we
-        may suggest a few refinements first.
+        {isLiveListing ? (
+          <>Because this retreat is already live, your changes publish as soon as
+          you submit — no waiting for approval. The Paradise Beyond team is
+          notified of what changed.</>
+        ) : (
+          <>When you submit, the Paradise Beyond team reviews your retreat by hand.
+          Nothing goes live automatically — you&apos;ll hear back by email, and we
+          may suggest a few refinements first.</>
+        )}
       </p>
       {errors.length > 0 ? (
         <div className="mt-6 rounded-xl2 border border-clay-500/40 bg-clay-500/5 p-5">
@@ -598,7 +605,7 @@ function SubmitStep({ draft, validation, router, go }: { draft: RetreatDraft; va
         disabled={pending || !validation.ok}
         className="mt-6 rounded-full bg-clay-500 px-8 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-all hover:bg-clay-600 disabled:opacity-50"
       >
-        {pending ? "Submitting…" : "Submit for approval"}
+        {pending ? "Submitting…" : isLiveListing ? "Publish changes" : "Submit for approval"}
       </button>
     </div>
   );
