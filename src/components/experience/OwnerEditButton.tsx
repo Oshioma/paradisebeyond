@@ -3,40 +3,40 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-type Me = { role: string | null; hostSlug: string | null };
+type Perm = { canEdit: boolean; admin?: boolean };
 
 /**
- * Owner-only "Edit this retreat" affordance on the public experience page.
- * Checks the viewer client-side via /api/me so the page stays static — it
- * renders nothing for guests. Navigates via a transition so the button shows an
- * "Opening editor…" state while the (heavy, dynamic) builder page loads, rather
- * than looking dead for a second or two.
+ * Owner-only "Edit this retreat" affordance on the public experience page and
+ * microsite. Asks the server the authoritative question — can THIS viewer edit
+ * this draft (admin / owning host / co-host)? — via /api/can-edit-draft, so the
+ * page stays static, guests see nothing, and co-hosts always get the button
+ * (the old client-side host-slug guess missed co-hosts with multiple host rows).
+ * Navigates via a transition so the button shows an "Opening editor…" state
+ * while the (heavy, dynamic) builder page loads.
  */
 export function OwnerEditButton({
-  hostSlugs,
   retreatDraftId,
 }: {
-  hostSlugs: string[];
+  /** Kept for callers that still pass it; not used for the permission check. */
+  hostSlugs?: string[];
   retreatDraftId?: string;
 }) {
   const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
+  const [perm, setPerm] = useState<Perm | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (!retreatDraftId) return;
     let alive = true;
-    fetch("/api/me")
+    fetch(`/api/can-edit-draft?id=${encodeURIComponent(retreatDraftId)}`)
       .then((r) => r.json())
-      .then((d) => { if (alive) setMe(d); })
+      .then((d) => { if (alive) setPerm(d); })
       .catch(() => {});
     return () => { alive = false; };
-  }, []);
+  }, [retreatDraftId]);
 
-  if (!retreatDraftId || !me) return null;
-  const canEdit =
-    me.role === "admin" ||
-    (me.role === "host" && me.hostSlug != null && hostSlugs.includes(me.hostSlug));
-  if (!canEdit) return null;
+  if (!retreatDraftId || !perm?.canEdit) return null;
+  const me = { role: perm.admin ? "admin" : "host" };
 
   return (
     <div className="mb-4">

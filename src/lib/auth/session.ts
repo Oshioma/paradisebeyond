@@ -31,12 +31,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   let hostSlug: string | undefined;
   if (profile?.role === "host") {
-    const { data: host } = await supabase
+    // limit(1) rather than maybeSingle: a user who owns more than one host row
+    // would make maybeSingle error and drop hostSlug entirely.
+    const { data: hosts } = await supabase
       .from("hosts")
       .select("slug")
       .eq("owner_id", user.id)
-      .maybeSingle();
-    hostSlug = host?.slug ?? undefined;
+      .limit(1);
+    hostSlug = (hosts?.[0]?.slug as string | undefined) ?? undefined;
   }
 
   return {
