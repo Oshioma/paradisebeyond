@@ -101,7 +101,9 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
       const { publishDraft } = await import("@/lib/retreat/publish");
       const res = await publishDraft(draft, user.id);
       if (!res.ok) return { ok: false, errors: [res.error] };
-      await notifyAdminOfLiveEdit(draft, { name: user.name }, priorExp.content, res.slug);
+      // Changes are already live — no admin approval. Let the retreat's OTHER
+      // hosts/co-hosts know what changed (never the person who made the edit).
+      await notifyCoHostsOfLiveEdit(draft, { id: user.id, name: user.name }, priorExp.content, res.slug);
       revalidatePath("/studio/retreats");
       revalidatePath("/desk/experiences");
       revalidatePath("/experiences");
@@ -161,28 +163,56 @@ function summarizeChanges(oldExp: Experience, draft: RetreatDraft): string[] {
 
 /**
  * A host/co-host edited an already-live retreat and it published straight away.
- * Email the admin a summary so they stay in the loop (no approval required).
+ * Email the retreat's OTHER hosts/co-hosts a summary of what changed — never the
+ * person who made the edit. No admin approval and no admin email: the change is
+ * already live.
  */
-async function notifyAdminOfLiveEdit(draft: RetreatDraft, actor: { name: string }, oldExp: Experience, slug: string): Promise<void> {
+async function notifyCoHostsOfLiveEdit(
+  draft: RetreatDraft,
+  actor: { id: string; name: string },
+  oldExp: Experience,
+  slug: string,
+): Promise<void> {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    if (!adminEmail) return;
-    const { sendEmail } = await import("@/lib/email");
-    const { siteUrl } = await import("@/lib/siteUrl");
-    const base = siteUrl();
-    const title = draft.name?.trim() || oldExp.name || "a retreat";
+    if (!isSupabaseConfigured()) return;
+    const { createServiceRoleClient } = await import("@/lib/supabase/server");
+    const { editorHostIds } = await import("@/lib/retreat/coHosts");
+    const db = createServiceRoleClient();
+
+    const hostIds = [draft.hostId, ...(await editorHostIds(draft.id))].filter(Boolean) as string[];
+    if (!hostIds.length) return;
+
+    const { data: hostRows } = await db.from("hosts").select("owner_id, name").in("id", hostIds);
+    // owner_id → display name, excluding the editor themselves and de-duped.
+    const recipients = new Map<string, string>();
+    for (const h of (hostRows ?? []) as { owner_id: string | null; name: string | null }[]) {
+      if (h.owner_id && h.owner_id !== actor.id) recipients.set(h.owner_id, h.name ?? "there");
+    }
+    if (!recipients.size) return;
+
     const changes = summarizeChanges(oldExp, draft);
     const list = changes.length
       ? `<ul>${changes.map((c) => `<li>${c}</li>`).join("")}</ul>`
       : "<p>Minor edits (no key fields changed).</p>";
-    await sendEmail({
-      to: adminEmail,
-      subject: `Retreat updated & now live — ${title}`,
-      html: `<p><strong>${actor.name}</strong> edited <strong>${title}</strong>, and the changes are now live on the site.</p>
+    const { sendEmail } = await import("@/lib/email");
+    const { siteUrl } = await import("@/lib/siteUrl");
+    const base = siteUrl();
+    const title = draft.name?.trim() || oldExp.name || "your retreat";
+
+    for (const [ownerId, name] of recipients) {
+      const { data: u } = await db.auth.admin.getUserById(ownerId);
+      const email = u?.user?.email;
+      if (!email) continue;
+      await sendEmail({
+        to: email,
+        subject: `“${title}” was updated`,
+        html: `<p>Hi ${(name || "there").split(" ")[0]},</p>
+<p><strong>${actor.name}</strong> updated <strong>${title}</strong>, and the changes are now live.</p>
 <p><strong>What changed:</strong></p>
 ${list}
-<p><a href="${base}/experiences/${slug}">View the live retreat →</a> &nbsp;·&nbsp; <a href="${base}/desk/experiences">Manage in the admin desk →</a></p>`,
-    });
+<p><a href="${base}/experiences/${slug}">View the retreat →</a> &nbsp;·&nbsp; <a href="${base}/studio/retreats">Open it in your Studio →</a></p>`,
+      });
+    }
   } catch {
     /* non-fatal — the edit is already live regardless */
   }
