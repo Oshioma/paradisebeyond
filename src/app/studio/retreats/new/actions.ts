@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/session";
 import { saveDraft } from "@/lib/retreat/store";
 import { validateForSubmit, type RetreatDraft } from "@/lib/retreat/schema";
+import type { Experience } from "@/lib/types";
 import { saveUpload } from "@/lib/media/store";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { callClaude, isAiEnabled, parseJsonObject } from "@/lib/ai/anthropic";
@@ -74,11 +75,41 @@ export async function submitRetreat(draft: RetreatDraft): Promise<{ ok: boolean;
       return { ok: true, slug: res.slug };
     }
 
-    // Host → queue for review.
+    // Host / co-host.
     if (!draft.hostId) {
       const hostId = await ensureOwnedHostId(user.id, user.name);
       if (hostId) draft.hostId = hostId;
     }
+
+    // Is this an EDIT to an already-live retreat? If so, the host/co-host can
+    // publish their changes straight away (no approval) — the admin is emailed a
+    // summary. A brand-new retreat's first submission still goes to review.
+    let priorExp: { slug: string; content: Experience } | null = null;
+    if (isSupabaseConfigured()) {
+      const { createServiceRoleClient } = await import("@/lib/supabase/server");
+      const { data } = await createServiceRoleClient()
+        .from("experiences")
+        .select("slug, content")
+        .eq("retreat_draft_id", draft.id)
+        .maybeSingle();
+      if (data?.slug) priorExp = { slug: data.slug as string, content: data.content as Experience };
+    }
+
+    if (priorExp) {
+      draft.status = "approved";
+      await saveDraftAsAdmin(draft); // service role — reliable for host + co-host
+      const { publishDraft } = await import("@/lib/retreat/publish");
+      const res = await publishDraft(draft, user.id);
+      if (!res.ok) return { ok: false, errors: [res.error] };
+      await notifyAdminOfLiveEdit(draft, { name: user.name }, priorExp.content, res.slug);
+      revalidatePath("/studio/retreats");
+      revalidatePath("/desk/experiences");
+      revalidatePath("/experiences");
+      revalidatePath(`/experiences/${res.slug}`);
+      return { ok: true, slug: res.slug };
+    }
+
+    // Brand-new retreat → queue for review.
     draft.status = "submitted";
     await saveDraft(draft);
     await notifyOnSubmission(draft, { name: user.name, email: user.email });
@@ -102,6 +133,59 @@ async function saveDraftAsAdmin(draft: RetreatDraft): Promise<void> {
     { onConflict: "id" },
   );
   if (error) throw new Error(`Could not save the retreat: ${error.message}`);
+}
+
+/** Human summary of what a host changed vs the currently-live listing. */
+function summarizeChanges(oldExp: Experience, draft: RetreatDraft): string[] {
+  const out: string[] = [];
+  const j = (a: unknown) => JSON.stringify(a);
+  if ((oldExp.name ?? "") !== (draft.name ?? "")) out.push(`Name: “${oldExp.name}” → “${draft.name}”`);
+  if ((oldExp.strapline ?? "") !== (draft.strapline ?? "")) out.push("Strapline changed");
+  const newPriceMinor = Math.round((draft.priceFromUsd || 0) * 100);
+  if (Math.round(oldExp.priceFromMinor) !== newPriceMinor) {
+    out.push(`Price from: ${oldExp.currency} ${(oldExp.priceFromMinor / 100).toFixed(0)} → ${draft.currency} ${draft.priceFromUsd}`);
+  }
+  if (oldExp.duration !== draft.duration) out.push(`Duration: ${oldExp.duration} → ${draft.duration} days`);
+  if ((oldExp.location ?? "") !== (draft.locationLabel ?? "")) out.push(`Location: ${oldExp.location} → ${draft.locationLabel}`);
+  const oldDates = (oldExp.departures ?? []).map((d) => d.startDate).sort().join(", ");
+  const newDates = (draft.departures ?? []).filter((d) => d.startDate).map((d) => d.startDate).sort().join(", ");
+  if (oldDates !== newDates) out.push("Departure dates updated");
+  if (j((oldExp.inclusions ?? []).filter(Boolean)) !== j((draft.inclusions ?? []).filter(Boolean))) out.push("What's included updated");
+  if (j(oldExp.story ?? []) !== j((draft.story ?? []).filter(Boolean))) out.push("Story updated");
+  if (j((oldExp.itinerary ?? []).map((d) => ({ t: d.title, i: d.items?.map((x) => x.title) }))) !==
+      j((draft.itinerary ?? []).map((d) => ({ t: d.title, i: (d.items ?? []).filter(Boolean) })))) out.push("Itinerary updated");
+  if ((oldExp.communityGuidelines ?? "").trim() !== (draft.communityGuidelines ?? "").trim()) out.push("Community guidelines updated");
+  if ((oldExp.stay?.roomTypes?.length ?? 0) !== (draft.rooms ?? []).filter((r) => r.name?.trim()).length) out.push("Accommodation options changed");
+  return out;
+}
+
+/**
+ * A host/co-host edited an already-live retreat and it published straight away.
+ * Email the admin a summary so they stay in the loop (no approval required).
+ */
+async function notifyAdminOfLiveEdit(draft: RetreatDraft, actor: { name: string }, oldExp: Experience, slug: string): Promise<void> {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail) return;
+    const { sendEmail } = await import("@/lib/email");
+    const { siteUrl } = await import("@/lib/siteUrl");
+    const base = siteUrl();
+    const title = draft.name?.trim() || oldExp.name || "a retreat";
+    const changes = summarizeChanges(oldExp, draft);
+    const list = changes.length
+      ? `<ul>${changes.map((c) => `<li>${c}</li>`).join("")}</ul>`
+      : "<p>Minor edits (no key fields changed).</p>";
+    await sendEmail({
+      to: adminEmail,
+      subject: `Retreat updated & now live — ${title}`,
+      html: `<p><strong>${actor.name}</strong> edited <strong>${title}</strong>, and the changes are now live on the site.</p>
+<p><strong>What changed:</strong></p>
+${list}
+<p><a href="${base}/experiences/${slug}">View the live retreat →</a> &nbsp;·&nbsp; <a href="${base}/desk/experiences">Manage in the admin desk →</a></p>`,
+    });
+  } catch {
+    /* non-fatal — the edit is already live regardless */
+  }
 }
 
 /**
