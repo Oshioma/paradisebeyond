@@ -32,6 +32,26 @@ export async function loadDraftForUser(
   return null;
 }
 
+/**
+ * Authoritative "can this user edit this retreat draft?" — admin, the owning
+ * host, or a co-host editor. Handles a user who owns more than one host row
+ * (checks all of them), so it doesn't depend on the fragile single-slug match
+ * the UI used before.
+ */
+export async function canEditDraft(user: { id: string; role: string }, draftId: string): Promise<boolean> {
+  if (user.role === "admin") return true;
+  if (!isSupabaseConfigured()) return true;
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const db = createServiceRoleClient();
+  const { data: draft } = await db.from("retreat_drafts").select("host_id").eq("id", draftId).maybeSingle();
+  if (!draft) return false;
+  const { data: myHosts } = await db.from("hosts").select("id").eq("owner_id", user.id);
+  const myHostIds = new Set(((myHosts ?? []) as { id: string }[]).map((h) => h.id));
+  if (draft.host_id && myHostIds.has(draft.host_id as string)) return true; // owner
+  const editors = await editorHostIds(draftId);
+  return editors.some((hid) => myHostIds.has(hid)); // co-host
+}
+
 /** True if the user owns the draft (its host row is owned by them). */
 export async function ownsDraft(userId: string, draftId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) return true;
