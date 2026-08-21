@@ -201,7 +201,7 @@ export function ExperienceBody({
       </Section>
 
       {e.communityGuidelines?.trim() && (
-        <details className="group mt-14 rounded-xl2 border border-ink/10 bg-sand-100 reveal">
+        <details open className="group mt-14 rounded-xl2 border border-ink/10 bg-sand-100 reveal">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
             <span>
               <span className="block text-[0.66rem] uppercase tracking-eyebrow" style={eyebrowStyle}>Good to know</span>
