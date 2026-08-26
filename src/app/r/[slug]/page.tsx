@@ -12,6 +12,7 @@ import { OwnerEditButton } from "@/components/experience/OwnerEditButton";
 import { ReservePanel } from "@/components/experience/ReservePanel";
 import { ExperienceBody } from "@/components/experience/ExperienceBody";
 import { getExperienceReviews } from "@/lib/data/reviews";
+import { getPublishedPhotos } from "@/lib/memories/store";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,7 @@ export default async function MicrositePage({ params }: { params: { slug: string
   const tagline = hosts[0]?.tagline;
   const category = getCategory(e.categorySlugs[0]);
   const reviews = await getExperienceReviews(e.slug);
+  const guestPhotos = await getPublishedPhotos(e.slug);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -124,7 +126,7 @@ export default async function MicrositePage({ params }: { params: { slug: string
       {/* Full experience content (identical to the main site) + branded reserve. */}
       <div className="container-editorial grid gap-12 py-16 lg:grid-cols-[1fr_360px]">
         <div className="max-w-2xl">
-          <ExperienceBody e={e} hosts={hosts} reviews={reviews} accent={brand} />
+          <ExperienceBody e={e} hosts={hosts} reviews={reviews} accent={brand} guestPhotos={guestPhotos} />
         </div>
         <aside id="reserve" className="scroll-mt-24 lg:sticky lg:top-20 lg:self-start">
           <ReservePanel departures={e.departures} currency={e.currency} accent={brand} />

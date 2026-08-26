@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "gen:seed": "node --experimental-strip-types scripts/gen-seed.ts",
-    "bootstrap:auth": "node scripts/bootstrap-auth.mjs"
+    "bootstrap:auth": "node scripts/bootstrap-auth.mjs",
+    "import:event-photos": "node scripts/import-event-photos.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.5.1",

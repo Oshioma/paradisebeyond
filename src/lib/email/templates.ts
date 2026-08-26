@@ -100,6 +100,64 @@ export function testEmail(name: string) {
   };
 }
 
+function escapeHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * A host's message to a past guest, dressed in that host's own branding (accent
+ * colour + logo) rather than the Paradise Beyond house style — with magic-link
+ * buttons to add photos and review the retreat (no sign-in needed).
+ */
+export function guestMemoriesEmail(p: {
+  guestName: string;
+  hostName: string;
+  experienceName: string;
+  subject?: string;
+  /** Host-authored plain text; escaped and rendered with line breaks. */
+  message: string;
+  /** Magic link to /memories/<token>. */
+  link: string;
+  brandColor?: string;
+  logoUrl?: string;
+  tagline?: string;
+}) {
+  const brand = p.brandColor || "#1b4242";
+  const subject = p.subject?.trim() || `${p.experienceName} — share your photos & memories`;
+  const messageHtml = escapeHtml(p.message.trim()).replace(/\n/g, "<br/>");
+  const button = (href: string, label: string, solid: boolean) =>
+    `<a href="${escapeHtml(href)}" style="${
+      solid
+        ? `background:${brand};color:#faf7f2;`
+        : `background:#fff;color:${brand};border:1px solid ${brand};`
+    }text-decoration:none;padding:13px 24px;border-radius:999px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;display:inline-block;margin:4px 6px">${label}</a>`;
+  const html = `
+  <div style="font-family:Georgia,serif;background:#faf7f2;padding:32px;color:#1c1a16">
+    <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #eee">
+      <div style="background:${brand};color:#faf7f2;padding:26px">
+        ${p.logoUrl ? `<img src="${escapeHtml(p.logoUrl)}" alt="${escapeHtml(p.hostName)}" style="max-height:40px;max-width:200px;display:block;margin-bottom:12px"/>` : ""}
+        <div style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85">${escapeHtml(p.hostName)}</div>
+        <div style="font-size:24px;margin-top:8px">${escapeHtml(p.experienceName)}</div>
+        ${p.tagline ? `<div style="font-size:13px;margin-top:6px;opacity:.85;font-style:italic">${escapeHtml(p.tagline)}</div>` : ""}
+      </div>
+      <div style="padding:26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#3a352c">
+        <p>Dear ${escapeHtml(p.guestName)},</p>
+        <p>${messageHtml}</p>
+        <p style="background:#f4efe6;border-radius:10px;padding:14px">We'd love your photos from the retreat — and a few words about your experience. Your pictures can appear on the retreat's page for future guests.</p>
+        <p style="text-align:center;margin:26px 0">
+          ${button(`${p.link}#photos`, "Add your photos", true)}
+          ${button(`${p.link}#review`, "Review your retreat", false)}
+        </p>
+        <p style="color:#6b6357;font-size:13px">With warmth,<br/>${escapeHtml(p.hostName)}</p>
+      </div>
+      <div style="padding:14px;border-top:1px solid #eee;text-align:center;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#9a9184">
+        Sent via Paradise Beyond on behalf of ${escapeHtml(p.hostName)}
+      </div>
+    </div>
+  </div>`;
+  return { subject, html };
+}
+
 export function bookingConfirmationFromHydrated(b: HydratedBooking, guestEmail: string) {
   return {
     to: guestEmail,
