@@ -53,27 +53,53 @@ async function discoverSourceConfig() {
   const guess = process.env.SOURCE_EVENT ? [`/events/${process.env.SOURCE_EVENT}`] : [];
   const pages = [...extra, ...guess, "/", "/login", "/events", "/eternal", "/private-login"];
   const UA = { "user-agent": "Mozilla/5.0 (compatible; ParadiseBeyondImport/1.0)" };
+  const MAX_CHUNKS = Number(process.env.MAX_CHUNKS || 400);
   let blob = "";
   const chunkPaths = new Set();
+  const buildIds = new Set();
+  const addChunks = (text) => {
+    for (const m of text.match(/\/_next\/static\/[^"'`\s\\)]+\.js/g) ?? []) chunkPaths.add(m);
+    // Chunks are often listed by bare filename in the webpack/build manifests.
+    for (const m of text.match(/"static\/chunks\/[^"'`\s\\]+\.js"/g) ?? []) chunkPaths.add("/_next/" + m.slice(1, -1));
+    for (const m of text.match(/"buildId":"([^"]+)"/g) ?? []) buildIds.add(m.slice(11, -1));
+    for (const m of text.match(/\/_next\/static\/([^/]+)\/_(?:buildManifest|ssgManifest)\.js/g) ?? []) {
+      buildIds.add(m.split("/")[3]);
+    }
+  };
   for (const page of pages) {
     try {
       const res = await fetch(SOURCE_SITE + page, { headers: UA });
       const html = await res.text();
       log(`  ${page} → ${res.status}, ${html.length} bytes`);
       blob += html;
-      for (const m of html.match(/\/_next\/static\/[^"'\s\\]+\.js/g) ?? []) chunkPaths.add(m);
+      addChunks(html);
     } catch (e) {
       log(`  ${page} → failed (${e instanceof Error ? e.message : e})`);
     }
   }
-  log(`  scanning ${chunkPaths.size} JS chunk(s)`);
-  for (const p of [...chunkPaths].slice(0, 80)) {
+  // Next.js links most route chunks lazily via the build manifest rather than
+  // in the initial HTML — fetch the manifests so their chunk lists surface.
+  for (const id of buildIds) {
+    for (const name of ["_buildManifest.js", "_ssgManifest.js", "_app-build-manifest.js"]) {
+      try {
+        addChunks(await (await fetch(`${SOURCE_SITE}/_next/static/${id}/${name}`, { headers: UA })).text());
+      } catch {
+        /* manifest may not exist */
+      }
+    }
+  }
+  log(`  scanning ${chunkPaths.size} JS chunk(s) (buildIds: ${[...buildIds].join(", ") || "none"})`);
+  let found = 0;
+  for (const p of [...chunkPaths].slice(0, MAX_CHUNKS)) {
     try {
       blob += await (await fetch(p.startsWith("http") ? p : SOURCE_SITE + p, { headers: UA })).text();
+      found++;
+      if (blob.includes(".supabase.co") && /sb_publishable_|eyJ[A-Za-z0-9_-]{20,}\./.test(blob)) break; // early exit once both are present
     } catch {
       /* skip unfetchable chunk */
     }
   }
+  log(`  fetched ${found} chunk(s)`);
   const url = (blob.match(/https:\/\/[a-z0-9]+\.supabase\.co/g) ?? [])[0];
   if (!url) die("Couldn't find a supabase.co URL in the site's frontend.");
   // New-style publishable key, else a legacy anon JWT (payload role must be "anon").
