@@ -1,0 +1,43 @@
+name: Import event photos
+
+# One-shot import of visitor photos from the Oshioma events app into a
+# retreat's guest gallery. Runs once automatically when this file lands on
+# main, and can be re-run anytime from the Actions tab (re-runs are safe —
+# already-imported URLs are skipped). Uses the same SUPABASE_DB_URL secret as
+# the migration workflow; the source side is the events app's public gallery,
+# read with the public key its own frontend ships.
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/import-event-photos.yml"]
+  workflow_dispatch:
+    inputs:
+      retreat:
+        description: "Target retreat (slug, subdomain label, or microsite host)"
+        default: zanzibargeminibirthdaycelebration
+      source_site:
+        description: "Events app URL"
+        default: https://www.oshioma.com
+      source_event:
+        description: "Source event slug/id (blank = auto-match the retreat)"
+        default: ""
+
+concurrency:
+  group: import-event-photos
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate import SQL from the events app's public gallery
+        env:
+          RETREAT: ${{ inputs.retreat || 'zanzibargeminibirthdaycelebration' }}
+          SOURCE_SITE: ${{ inputs.source_site || 'https://www.oshioma.com' }}
+          SOURCE_EVENT: ${{ inputs.source_event }}
+        run: node scripts/gen-import-photos-sql.mjs > import.sql
+      - name: Apply to the Paradise Beyond database
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f import.sql
