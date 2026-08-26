@@ -31,7 +31,7 @@ function baseDomain(): string | null {
 }
 
 // Paths that must keep working ON a retreat subdomain (booking flow + system).
-const ALLOW_ON_SUBDOMAIN = ["/api", "/book", "/_next", "/uploads", "/favicon", "/icon", "/robots", "/sitemap", "/manifest"];
+const ALLOW_ON_SUBDOMAIN = ["/api", "/book", "/memories", "/_next", "/uploads", "/favicon", "/icon", "/robots", "/sitemap", "/manifest"];
 
 export function middleware(req: NextRequest) {
   const base = baseDomain();

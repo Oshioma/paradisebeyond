@@ -9,7 +9,20 @@ import type { ItineraryDay } from "@/lib/types";
  * (14-day) itineraries condense to the first few days behind a "show all"
  * toggle so the section doesn't run on forever.
  */
-export function Itinerary({ days }: { days: ItineraryDay[] }) {
+interface DayPhoto {
+  id: string;
+  url: string;
+  uploaderName: string | null;
+}
+
+export function Itinerary({
+  days,
+  photosByDay = {},
+}: {
+  days: ItineraryDay[];
+  /** Published guest photos allocated to each day (day number → photos). */
+  photosByDay?: Record<number, DayPhoto[]>;
+}) {
   const isLong = days.length > 7;
   const [expanded, setExpanded] = useState(!isLong);
   const visible = expanded ? days : days.slice(0, 4);
@@ -31,6 +44,21 @@ export function Itinerary({ days }: { days: ItineraryDay[] }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {(photosByDay[d.day]?.length ?? 0) > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {photosByDay[d.day].map((p) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={p.id}
+                    src={p.url}
+                    alt={p.uploaderName ? `Guest photo by ${p.uploaderName}` : "Guest photo"}
+                    title={p.uploaderName ? `By ${p.uploaderName}` : undefined}
+                    loading="lazy"
+                    className="h-20 w-20 rounded-lg object-cover sm:h-24 sm:w-24"
+                  />
+                ))}
+              </div>
             )}
           </li>
         ))}

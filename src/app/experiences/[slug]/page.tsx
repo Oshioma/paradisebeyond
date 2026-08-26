@@ -19,6 +19,7 @@ import { OwnerEditButton } from "@/components/experience/OwnerEditButton";
 import { ReservePanel } from "@/components/experience/ReservePanel";
 import { ExperienceBody } from "@/components/experience/ExperienceBody";
 import { getExperienceReviews } from "@/lib/data/reviews";
+import { getPublishedPhotos } from "@/lib/memories/store";
 import { summarize } from "@/lib/reviews/types";
 import { Stars } from "@/components/reviews/Stars";
 
@@ -67,6 +68,7 @@ export default async function ExperiencePage({
   const hosts = (await Promise.all(e.hostSlugs.map((s) => getHost(s)))).filter(Boolean);
   const categories = e.categorySlugs.map(getCategory).filter(Boolean);
   const reviews = await getExperienceReviews(params.slug);
+  const guestPhotos = await getPublishedPhotos(e.slug);
   const rsum = summarize(reviews);
 
   const jsonLd = {
@@ -137,7 +139,7 @@ export default async function ExperiencePage({
       <div className="container-editorial py-14 lg:py-20">
         <div className="grid gap-12 lg:grid-cols-[1fr_380px]">
           <div className="max-w-2xl">
-            <ExperienceBody e={e} hosts={hosts as Host[]} reviews={reviews} />
+            <ExperienceBody e={e} hosts={hosts as Host[]} reviews={reviews} guestPhotos={guestPhotos} />
           </div>
 
           {/* Sticky reserve */}

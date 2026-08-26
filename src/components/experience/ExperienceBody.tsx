@@ -19,18 +19,33 @@ import { WishlistButton } from "@/components/wishlist/WishlistButton";
  * can never drift. Pass `accent` (a brand colour) to tint the section eyebrows
  * and accents on a host microsite; omit it for the default marketplace look.
  */
+/** A published guest/imported photo, serialisable for display. */
+export interface GuestPhoto {
+  id: string;
+  url: string;
+  dayNumber: number | null;
+  uploaderName: string | null;
+  caption: string | null;
+}
+
 export function ExperienceBody({
   e,
   hosts,
   reviews,
   accent,
+  guestPhotos = [],
 }: {
   e: Experience;
   hosts: Host[];
   reviews: Review[];
   accent?: string;
+  guestPhotos?: GuestPhoto[];
 }) {
   const rsum = summarize(reviews);
+  const photosByDay: Record<number, GuestPhoto[]> = {};
+  for (const p of guestPhotos) {
+    if (p.dayNumber != null) (photosByDay[p.dayNumber] ??= []).push(p);
+  }
   const eyebrowClass = accent ? "eyebrow" : "eyebrow text-ocean-700";
   const eyebrowStyle = accent ? { color: accent } : undefined;
   const dotStyle = accent ? { backgroundColor: accent } : undefined;
@@ -98,6 +113,27 @@ export function ExperienceBody({
         </Section>
       )}
 
+      {guestPhotos.length > 0 && (
+        <Section eyebrow="Guest memories" title="Through our guests' eyes">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {guestPhotos.map((p) => (
+              <figure key={p.id} className="relative aspect-square overflow-hidden rounded-xl bg-sand-200">
+                {/* Arbitrary guest-hosted URLs, so plain img rather than next/image domains config. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt={p.caption ?? `Guest photo of ${e.name}`} loading="lazy" className="h-full w-full object-cover" />
+                {(p.uploaderName || p.dayNumber != null) && (
+                  <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 to-transparent px-2.5 pb-2 pt-6 text-[0.65rem] text-sand-50">
+                    {p.uploaderName ? `By ${p.uploaderName}` : ""}
+                    {p.uploaderName && p.dayNumber != null ? " · " : ""}
+                    {p.dayNumber != null ? `Day ${p.dayNumber}` : ""}
+                  </figcaption>
+                )}
+              </figure>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section eyebrow="Your stay" title={e.stay.hotels && e.stay.hotels.length > 1 ? "Where you'll stay" : e.stay.property}>
         {e.stay.hotels && e.stay.hotels.length > 1 ? (
           <div className="space-y-4">
@@ -160,7 +196,7 @@ export function ExperienceBody({
       </Section>
 
       <Section eyebrow="Day by day" title={`Your ${e.duration} days`}>
-        <Itinerary days={e.itinerary} />
+        <Itinerary days={e.itinerary} photosByDay={photosByDay} />
       </Section>
 
       {hosts.length > 0 && (
