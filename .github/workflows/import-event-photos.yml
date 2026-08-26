@@ -21,6 +21,9 @@ on:
       source_event:
         description: "Source event slug/id (blank = auto-match the retreat)"
         default: ""
+      source_pages:
+        description: "Extra site paths to scan for the public Supabase config"
+        default: "/events/zanzibar-gemini-birthday-celebration"
 
 concurrency:
   group: import-event-photos
@@ -36,6 +39,7 @@ jobs:
           RETREAT: ${{ inputs.retreat || 'zanzibargeminibirthdaycelebration' }}
           SOURCE_SITE: ${{ inputs.source_site || 'https://www.oshioma.com' }}
           SOURCE_EVENT: ${{ inputs.source_event }}
+          SOURCE_PAGES: ${{ inputs.source_pages || '/events/zanzibar-gemini-birthday-celebration' }}
         run: node scripts/gen-import-photos-sql.mjs > import.sql
       - name: Apply to the Paradise Beyond database
         env:
