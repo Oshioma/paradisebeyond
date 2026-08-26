@@ -9,7 +9,9 @@ name: Import event photos
 on:
   push:
     branches: [main]
-    paths: [".github/workflows/import-event-photos.yml"]
+    paths:
+      - ".github/workflows/import-event-photos.yml"
+      - "scripts/gen-import-photos-sql.mjs"
   workflow_dispatch:
     inputs:
       retreat:
