@@ -77,13 +77,22 @@ async function main() {
   const photos = Array.isArray(data.photos) ? data.photos : [];
   log(`Source event: "${event.name || event.slug || SOURCE_EVENT}" — ${photos.length} photo(s).`);
   if (!photos.length) die("The endpoint returned no photos.");
+  // Diagnostic: which fields the endpoint actually returns, and how many
+  // photos carry a daily-event label (so we can see whether day allocation
+  // is coming through).
+  log(`  photo fields: ${Object.keys(photos[0] || {}).join(", ")}`);
+  const dayField = (p) => p.day_label ?? p.dayLabel ?? p.day ?? null;
+  const titleField = (p) => p.item_title ?? p.itemTitle ?? p.title ?? null;
+  const withDay = photos.filter((p) => dayField(p)).length;
+  const labels = [...new Set(photos.map(dayField).filter(Boolean))];
+  log(`  photos with a day label: ${withDay}/${photos.length}${labels.length ? ` (${labels.join(", ")})` : ""}`);
 
   const rows = [];
   for (const p of photos) {
     const imageUrl = p.image_url ?? p.url;
     if (typeof imageUrl !== "string" || !/^https:\/\//.test(imageUrl)) continue;
-    const day = dayNumberFor(p.day_label, event.start_date);
-    const caption = [p.day_label, p.item_title].filter(Boolean).join(" · ").slice(0, 300) || null;
+    const day = dayNumberFor(dayField(p), event.start_date);
+    const caption = [dayField(p), titleField(p)].filter(Boolean).join(" · ").slice(0, 300) || null;
     rows.push(`(${q(imageUrl.slice(0, 2000))}, ${day ?? "null"}::int, ${q(caption)})`);
   }
   if (!rows.length) die("No importable photo URLs (expected https image_url values).");
@@ -107,6 +116,11 @@ begin
     raise exception 'No retreat matches "${key}"';
   end if;
 
+  create temporary table _incoming (url text, day int, caption text) on commit drop;
+  insert into _incoming (url, day, caption) values
+    ${rows.join(",\n    ")};
+
+  -- Insert photos this retreat doesn't have yet.
   insert into retreat_photos (experience_id, url, day_number, caption, source, published)
   select exp,
          v.url,
@@ -114,14 +128,25 @@ begin
          v.caption,
          'import',
          true
-  from (values
-    ${rows.join(",\n    ")}
-  ) as v(url, day, caption)
+  from _incoming v
   where not exists (
     select 1 from retreat_photos rp where rp.experience_id = exp and rp.url = v.url
   );
 
-  raise notice 'Imported photos into retreat %', exp;
+  -- Backfill day allocation onto import rows added by an earlier run before the
+  -- day mapping was available. Guarded to source='import' AND day_number IS NULL
+  -- so a host's own manual allocation is never overwritten.
+  update retreat_photos rp
+     set day_number = case when v.day is not null and v.day <= dur then v.day end,
+         caption    = coalesce(rp.caption, v.caption)
+    from _incoming v
+   where rp.experience_id = exp
+     and rp.url = v.url
+     and rp.source = 'import'
+     and rp.day_number is null
+     and v.day is not null;
+
+  raise notice 'Imported/updated photos for retreat %', exp;
 end $$;`);
 }
 
