@@ -47,18 +47,36 @@ const ENDPOINT =
 const label = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const q = (s) => (s == null ? "null" : `'${String(s).replace(/'/g, "''")}'`);
 
-/** Best-effort day number from a photo's day_label ("Day 3", a date, etc.). */
-function dayNumberFor(dayLabel, eventStartDate) {
-  if (!dayLabel) return null;
-  const fromLabel = /(\d+)/.exec(dayLabel);
-  if (/day/i.test(dayLabel) && fromLabel) return Number(fromLabel[1]);
-  const asDate = Date.parse(dayLabel);
-  const start = Date.parse(eventStartDate ?? "");
-  if (!Number.isNaN(asDate) && !Number.isNaN(start)) {
-    const diff = Math.round((asDate - start) / 86_400_000) + 1;
-    if (diff >= 1) return diff;
-  }
-  return fromLabel ? Number(fromLabel[1]) : null;
+/**
+ * Map each distinct day label to a retreat day number by ordering the labels
+ * chronologically and numbering them 1, 2, 3, … — so the trip's first day of
+ * photos becomes retreat Day 1, regardless of the source event's absolute
+ * dates or gaps. Handles date labels ("15 June 26") and "Day N" labels; any
+ * label that sorts is ranked, unrecognised ones fall to the end.
+ *
+ * (A retreat and the source event don't share a calendar, so a sequential
+ * mapping is the predictable choice; the host can fine-tune any photo in
+ * Studio → Guest photos afterwards.)
+ */
+function buildDayMap(labels) {
+  const sortKey = (l) => {
+    // Explicit "Day 3" wins first — Date.parse is lenient enough to mis-read it.
+    const dayN = /\bday\s*(\d+)/i.exec(l);
+    if (dayN) return { a: 0, b: Number(dayN[1]) };
+    const t = Date.parse(l);
+    if (!Number.isNaN(t)) return { a: 1, b: t };
+    const m = /(\d+)/.exec(l);
+    if (m) return { a: 2, b: Number(m[1]) };
+    return { a: 3, b: 0, s: l };
+  };
+  const distinct = [...new Set(labels.filter(Boolean).map(String))];
+  distinct.sort((x, y) => {
+    const kx = sortKey(x), ky = sortKey(y);
+    return kx.a - ky.a || kx.b - ky.b || String(kx.s ?? "").localeCompare(String(ky.s ?? ""));
+  });
+  const map = new Map();
+  distinct.forEach((l, i) => map.set(l, i + 1));
+  return map;
 }
 
 async function main() {
@@ -84,14 +102,15 @@ async function main() {
   const dayField = (p) => p.day_label ?? p.dayLabel ?? p.day ?? null;
   const titleField = (p) => p.item_title ?? p.itemTitle ?? p.title ?? null;
   const withDay = photos.filter((p) => dayField(p)).length;
-  const labels = [...new Set(photos.map(dayField).filter(Boolean))];
-  log(`  photos with a day label: ${withDay}/${photos.length}${labels.length ? ` (${labels.join(", ")})` : ""}`);
+  const dayMap = buildDayMap(photos.map(dayField));
+  log(`  photos with a day label: ${withDay}/${photos.length}`);
+  log(`  day mapping: ${[...dayMap].map(([l, n]) => `${l}→${n}`).join(", ") || "none"}`);
 
   const rows = [];
   for (const p of photos) {
     const imageUrl = p.image_url ?? p.url;
     if (typeof imageUrl !== "string" || !/^https:\/\//.test(imageUrl)) continue;
-    const day = dayNumberFor(dayField(p), event.start_date);
+    const day = dayField(p) ? dayMap.get(String(dayField(p))) ?? null : null;
     const caption = [dayField(p), titleField(p)].filter(Boolean).join(" · ").slice(0, 300) || null;
     rows.push(`(${q(imageUrl.slice(0, 2000))}, ${day ?? "null"}::int, ${q(caption)})`);
   }
@@ -133,18 +152,20 @@ begin
     select 1 from retreat_photos rp where rp.experience_id = exp and rp.url = v.url
   );
 
-  -- Backfill day allocation onto import rows added by an earlier run before the
-  -- day mapping was available. Guarded to source='import' AND day_number IS NULL
-  -- so a host's own manual allocation is never overwritten.
+  -- (Re-)sync day allocation onto import rows from the current mapping. Scoped
+  -- to source='import' so host/guest photos are never touched, and only when a
+  -- day is now known (v.day not null) so a gallery photo is never disturbed.
+  -- A re-run therefore re-syncs imported photos to the latest mapping; manual
+  -- fine-tuning of imported photos should be done after the final import.
   update retreat_photos rp
-     set day_number = case when v.day is not null and v.day <= dur then v.day end,
+     set day_number = case when v.day <= dur then v.day end,
          caption    = coalesce(rp.caption, v.caption)
     from _incoming v
    where rp.experience_id = exp
      and rp.url = v.url
      and rp.source = 'import'
-     and rp.day_number is null
-     and v.day is not null;
+     and v.day is not null
+     and rp.day_number is distinct from (case when v.day <= dur then v.day end);
 
   raise notice 'Imported/updated photos for retreat %', exp;
 end $$;`);
