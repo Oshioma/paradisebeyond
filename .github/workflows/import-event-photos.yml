@@ -1,11 +1,11 @@
 name: Import event photos
 
-# One-shot import of visitor photos from the Oshioma events app into a
-# retreat's guest gallery. Runs once automatically when this file lands on
-# main, and can be re-run anytime from the Actions tab (re-runs are safe —
-# already-imported URLs are skipped). Uses the same SUPABASE_DB_URL secret as
-# the migration workflow; the source side is the events app's public gallery,
-# read with the public key its own frontend ships.
+# Import visitor photos from the Oshioma events app into a retreat's guest
+# gallery. Reads the app's public JSON endpoint
+# (/api/public/event-photos?eventId=...), maps each photo's daily event to a
+# retreat day, and inserts them with psql using the existing SUPABASE_DB_URL
+# secret. Runs when this file or the generator changes; re-runnable from the
+# Actions tab. Idempotent — already-imported URLs are skipped.
 on:
   push:
     branches: [main]
@@ -18,14 +18,11 @@ on:
         description: "Target retreat (slug, subdomain label, or microsite host)"
         default: zanzibargeminibirthdaycelebration
       source_site:
-        description: "Events app URL"
+        description: "Events app origin"
         default: https://www.oshioma.com
       source_event:
-        description: "Source event slug/id (blank = auto-match the retreat)"
+        description: "Source event UUID"
         default: "a6746c4d-8a6d-4d6f-ac1c-0447c602701c"
-      source_pages:
-        description: "Extra site paths to scan for the public Supabase config"
-        default: "/eternal/events,/eternal/events/event-detail?eventId=a6746c4d-8a6d-4d6f-ac1c-0447c602701c,/eternal/events/mobile,/eternal/events/create,/eternal/events/overview"
 
 concurrency:
   group: import-event-photos
@@ -36,13 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Generate import SQL from the events app's public gallery
+      - name: Generate import SQL from the events app's public endpoint
         env:
           RETREAT: ${{ inputs.retreat || 'zanzibargeminibirthdaycelebration' }}
           SOURCE_SITE: ${{ inputs.source_site || 'https://www.oshioma.com' }}
           SOURCE_EVENT: ${{ inputs.source_event || 'a6746c4d-8a6d-4d6f-ac1c-0447c602701c' }}
-          SOURCE_PAGES: ${{ inputs.source_pages || '/eternal/events,/eternal/events/event-detail?eventId=a6746c4d-8a6d-4d6f-ac1c-0447c602701c,/eternal/events/mobile,/eternal/events/create,/eternal/events/overview' }}
         run: node scripts/gen-import-photos-sql.mjs > import.sql
+      - name: Show generated SQL (diagnostic)
+        run: cat import.sql
       - name: Apply to the Paradise Beyond database
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
