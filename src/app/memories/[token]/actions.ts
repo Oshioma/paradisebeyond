@@ -65,7 +65,8 @@ export async function uploadGuestPhotos(formData: FormData): Promise<GuestAction
     dayNumber,
     source: "guest",
     uploaderName: invite.guestName ?? undefined,
-    bookingId: invite.bookingId,
+    bookingId: invite.bookingId ?? undefined,
+    contactId: invite.contactId ?? undefined,
   });
 
   const slug = await getExperienceSlugById(invite.experienceId);
@@ -87,22 +88,11 @@ export async function submitGuestReview(formData: FormData): Promise<GuestAction
     return n >= 1 && n <= 5 ? n : null;
   };
 
-  // The service role bypasses RLS, so re-apply its rules here: the trip must
-  // have ended, the booking must be active, and one review per booking.
-  const meta = await getBookingMeta(invite.bookingId);
-  if (!meta) return { ok: false, error: "We couldn't find your booking." };
-  if (!["reserved", "confirmed", "completed"].includes(meta.status)) {
-    return { ok: false, error: "This booking can't be reviewed." };
-  }
-  if (!meta.endDate || meta.endDate >= new Date().toISOString().slice(0, 10)) {
-    return { ok: false, error: "Reviews open once your trip has ended." };
-  }
-
-  const { createServiceRoleClient } = await import("@/lib/supabase/server");
-  const { error } = await createServiceRoleClient().from("reviews").insert({
-    booking_id: invite.bookingId,
+  // The service role bypasses RLS, so re-apply the rules here. A booking-backed
+  // invite must be for an ended, active booking; a contact-backed invite (an
+  // imported past attendee) has no booking to gate on.
+  const row: Record<string, unknown> = {
     experience_id: invite.experienceId,
-    guest_id: meta.guestId,
     guest_name: invite.guestName,
     rating_overall: overall,
     rating_host: sub("ratingHost"),
@@ -112,11 +102,28 @@ export async function submitGuestReview(formData: FormData): Promise<GuestAction
     rating_value: sub("ratingValue"),
     body: body || null,
     published: false, // moderated at /desk/reviews like every review
-  });
+  };
+  if (invite.bookingId) {
+    const meta = await getBookingMeta(invite.bookingId);
+    if (!meta) return { ok: false, error: "We couldn't find your booking." };
+    if (!["reserved", "confirmed", "completed"].includes(meta.status)) {
+      return { ok: false, error: "This booking can't be reviewed." };
+    }
+    if (!meta.endDate || meta.endDate >= new Date().toISOString().slice(0, 10)) {
+      return { ok: false, error: "Reviews open once your trip has ended." };
+    }
+    row.booking_id = invite.bookingId;
+    row.guest_id = meta.guestId;
+  } else {
+    row.contact_id = invite.contactId;
+  }
+
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { error } = await createServiceRoleClient().from("reviews").insert(row);
   if (error) {
     return {
       ok: false,
-      error: error.message.includes("duplicate") ? "You've already reviewed this trip — thank you!" : error.message,
+      error: error.message.includes("duplicate") ? "You've already reviewed this — thank you!" : error.message,
     };
   }
 
