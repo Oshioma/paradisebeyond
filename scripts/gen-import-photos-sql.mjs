@@ -45,23 +45,31 @@ async function discoverSourceConfig() {
     return { url: process.env.SOURCE_SUPABASE_URL, key: process.env.SOURCE_SUPABASE_KEY };
   }
   log(`Discovering Supabase config from ${SOURCE_SITE} …`);
-  // Each page only lists its own JS chunks, and the Supabase client may not
-  // load on the homepage — so sweep a few likely pages for chunk URLs.
-  const pages = ["/", "/login", "/events", "/eternal", "/private-login"];
+  // Each page only lists its own JS chunks, and the Supabase client only
+  // loads on pages that use it in the browser — the public event gallery
+  // (/events/<slug>) being the reliable one. Sweep it plus a few fallbacks;
+  // SOURCE_PAGES adds more (comma-separated paths).
+  const extra = (process.env.SOURCE_PAGES ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  const guess = process.env.SOURCE_EVENT ? [`/events/${process.env.SOURCE_EVENT}`] : [];
+  const pages = [...extra, ...guess, "/", "/login", "/events", "/eternal", "/private-login"];
+  const UA = { "user-agent": "Mozilla/5.0 (compatible; ParadiseBeyondImport/1.0)" };
   let blob = "";
   const chunkPaths = new Set();
   for (const page of pages) {
     try {
-      const html = await (await fetch(SOURCE_SITE + page)).text();
+      const res = await fetch(SOURCE_SITE + page, { headers: UA });
+      const html = await res.text();
+      log(`  ${page} → ${res.status}, ${html.length} bytes`);
       blob += html;
       for (const m of html.match(/\/_next\/static\/[^"'\s\\]+\.js/g) ?? []) chunkPaths.add(m);
-    } catch {
-      /* page may not exist */
+    } catch (e) {
+      log(`  ${page} → failed (${e instanceof Error ? e.message : e})`);
     }
   }
+  log(`  scanning ${chunkPaths.size} JS chunk(s)`);
   for (const p of [...chunkPaths].slice(0, 80)) {
     try {
-      blob += await (await fetch(p.startsWith("http") ? p : SOURCE_SITE + p)).text();
+      blob += await (await fetch(p.startsWith("http") ? p : SOURCE_SITE + p, { headers: UA })).text();
     } catch {
       /* skip unfetchable chunk */
     }
