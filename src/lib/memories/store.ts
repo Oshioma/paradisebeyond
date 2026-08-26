@@ -29,10 +29,22 @@ export interface RetreatPhoto {
 
 export interface GuestInvite {
   token: string;
-  bookingId: string;
+  /** Set for a booking-backed invite; null for a contact-backed one. */
+  bookingId: string | null;
+  /** Set for a contact-backed invite (imported attendee); null otherwise. */
+  contactId: string | null;
   experienceId: string;
   email: string;
   guestName: string | null;
+}
+
+export interface RetreatContact {
+  id: string;
+  experienceId: string;
+  name: string | null;
+  email: string | null;
+  status: string | null;
+  invitedAt: string | null;
 }
 
 const BUCKET = "media";
@@ -122,7 +134,7 @@ export function photosByDay(photos: RetreatPhoto[]): Record<number, RetreatPhoto
 export async function addPhotoUrls(
   experienceId: string,
   urls: string[],
-  opts: { dayNumber?: number | null; source: PhotoSource; uploaderName?: string; bookingId?: string; caption?: string },
+  opts: { dayNumber?: number | null; source: PhotoSource; uploaderName?: string; bookingId?: string; contactId?: string; caption?: string },
 ): Promise<number> {
   const clean = [...new Set(urls.map((u) => u.trim()).filter((u) => /^https?:\/\//i.test(u) || u.startsWith("/")))];
   if (!clean.length) return 0;
@@ -144,6 +156,7 @@ export async function addPhotoUrls(
       source: opts.source,
       uploader_name: opts.uploaderName ?? null,
       booking_id: opts.bookingId ?? null,
+      contact_id: opts.contactId ?? null,
       caption: opts.caption ?? null,
     }));
   if (!rows.length) return 0;
@@ -230,11 +243,98 @@ export async function getInvite(token: string): Promise<GuestInvite | null> {
   if (!data) return null;
   return {
     token: data.id as string,
-    bookingId: data.booking_id as string,
+    bookingId: (data.booking_id as string | null) ?? null,
+    contactId: (data.contact_id as string | null) ?? null,
     experienceId: data.experience_id as string,
     email: data.email as string,
     guestName: (data.guest_name as string | null) ?? null,
   };
+}
+
+// ---- contacts (imported past attendees; service-role only) ------------------
+
+/** Every imported contact for a set of experiences — host studio view. */
+export async function getContactsForExperienceIds(ids: string[]): Promise<RetreatContact[]> {
+  if (!isSupabaseConfigured() || ids.length === 0) return [];
+  noStore();
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const supabase = createServiceRoleClient();
+  const [{ data: contacts }, { data: invites }] = await Promise.all([
+    supabase.from("retreat_contacts").select("id, experience_id, name, email, status").in("experience_id", ids).order("name", { ascending: true }),
+    supabase.from("guest_invites").select("contact_id, last_sent_at").not("contact_id", "is", null),
+  ]);
+  const sentByContact = new Map<string, string>();
+  for (const r of invites ?? []) if (r.last_sent_at) sentByContact.set(r.contact_id as string, r.last_sent_at as string);
+  return (contacts ?? []).map((c: Record<string, unknown>) => ({
+    id: c.id as string,
+    experienceId: c.experience_id as string,
+    name: (c.name as string | null) ?? null,
+    email: (c.email as string | null) ?? null,
+    status: (c.status as string | null) ?? null,
+    invitedAt: sentByContact.get(c.id as string)?.slice(0, 10) ?? null,
+  }));
+}
+
+export async function getContactsByIds(contactIds: string[]): Promise<RetreatContact[]> {
+  if (!isSupabaseConfigured() || contactIds.length === 0) return [];
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data } = await createServiceRoleClient()
+    .from("retreat_contacts")
+    .select("id, experience_id, name, email, status")
+    .in("id", contactIds);
+  return (data ?? []).map((c: Record<string, unknown>) => ({
+    id: c.id as string,
+    experienceId: c.experience_id as string,
+    name: (c.name as string | null) ?? null,
+    email: (c.email as string | null) ?? null,
+    status: (c.status as string | null) ?? null,
+    invitedAt: null,
+  }));
+}
+
+/** One token per contact: create on first send, reuse (and refresh) after. */
+export async function upsertContactInvite(i: {
+  contactId: string;
+  experienceId: string;
+  email: string;
+  guestName?: string;
+}): Promise<string> {
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data, error } = await createServiceRoleClient()
+    .from("guest_invites")
+    .upsert(
+      {
+        contact_id: i.contactId,
+        experience_id: i.experienceId,
+        email: i.email,
+        guest_name: i.guestName ?? null,
+        last_sent_at: new Date().toISOString(),
+      },
+      { onConflict: "contact_id" },
+    )
+    .select("id")
+    .single();
+  if (error || !data?.id) throw new Error(`Couldn't create the invite: ${error?.message ?? "no id"}`);
+  return data.id as string;
+}
+
+export async function hasContactReview(contactId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data } = await createServiceRoleClient().from("reviews").select("id").eq("contact_id", contactId).maybeSingle();
+  return Boolean(data);
+}
+
+export async function getPhotosForContact(contactId: string): Promise<RetreatPhoto[]> {
+  if (!isSupabaseConfigured()) return [];
+  noStore();
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data } = await createServiceRoleClient()
+    .from("retreat_photos")
+    .select("*")
+    .eq("contact_id", contactId)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map(mapPhoto);
 }
 
 /** slug → id for a set of experiences, in one query. */

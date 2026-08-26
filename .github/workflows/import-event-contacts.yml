@@ -1,0 +1,56 @@
+name: Import event attendees
+
+# Import a source event's attendees into a retreat's contacts, so a host can
+# email them the photos/review invite. Attendee data is private, so this reads
+# a TOKEN-PROTECTED endpoint on the events app (Authorization: Bearer
+# <OSHIOMA_IMPORT_TOKEN>) — nothing about attendees is ever public. Applies via
+# psql with the existing SUPABASE_DB_URL secret. Idempotent (updates by source
+# id). Runs when this file or the generator changes; re-runnable from the
+# Actions tab.
+#
+# Requires two repo secrets:
+#   SUPABASE_DB_URL       — Postgres connection string (already used elsewhere)
+#   OSHIOMA_IMPORT_TOKEN  — shared secret; must match the events app's env
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/import-event-contacts.yml"
+      - "scripts/gen-import-contacts-sql.mjs"
+  workflow_dispatch:
+    inputs:
+      retreat:
+        description: "Target retreat (slug, subdomain label, or microsite host)"
+        default: zanzibargeminibirthdaycelebration
+      source_site:
+        description: "Events app origin"
+        default: https://www.oshioma.com
+      source_event:
+        description: "Source event UUID"
+        default: "a6746c4d-8a6d-4d6f-ac1c-0447c602701c"
+
+concurrency:
+  group: import-event-contacts
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate contacts SQL from the token-protected endpoint
+        env:
+          RETREAT: ${{ inputs.retreat || 'zanzibargeminibirthdaycelebration' }}
+          SOURCE_SITE: ${{ inputs.source_site || 'https://www.oshioma.com' }}
+          SOURCE_EVENT: ${{ inputs.source_event || 'a6746c4d-8a6d-4d6f-ac1c-0447c602701c' }}
+          SOURCE_TOKEN: ${{ secrets.OSHIOMA_IMPORT_TOKEN }}
+        run: |
+          if [ -z "$SOURCE_TOKEN" ]; then
+            echo "✖ Repo secret OSHIOMA_IMPORT_TOKEN is not set — add it (and the same value in the events app's env) first." >&2
+            exit 1
+          fi
+          node scripts/gen-import-contacts-sql.mjs > contacts.sql
+      - name: Apply to the Paradise Beyond database
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f contacts.sql

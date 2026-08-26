@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { getInvite, getExperienceSlugById, getPhotosForBooking, hasReview } from "@/lib/memories/store";
+import {
+  getInvite,
+  getExperienceSlugById,
+  getPhotosForBooking,
+  getPhotosForContact,
+  hasReview,
+  hasContactReview,
+} from "@/lib/memories/store";
 import { getExperienceBySlug, getHost } from "@/lib/data/repository";
 import { hero } from "@/lib/images";
 import { siteUrl } from "@/lib/siteUrl";
@@ -37,7 +44,9 @@ export default async function MemoriesPage({ params }: { params: { token: string
 
   const host = await getHost(e.hostSlugs[0]);
   const brand = host?.brandColor || DEFAULT_BRAND;
-  const [myPhotos, reviewed] = await Promise.all([getPhotosForBooking(invite.bookingId), hasReview(invite.bookingId)]);
+  const [myPhotos, reviewed] = invite.bookingId
+    ? await Promise.all([getPhotosForBooking(invite.bookingId), hasReview(invite.bookingId)])
+    : await Promise.all([getPhotosForContact(invite.contactId as string), hasContactReview(invite.contactId as string)]);
   const firstName = (invite.guestName ?? "").split(" ")[0] || "there";
 
   return (
