@@ -275,6 +275,41 @@ export async function getContactsForExperienceIds(ids: string[]): Promise<Retrea
   }));
 }
 
+/**
+ * Insert manually-added contacts (name + email), skipping any whose email the
+ * retreat already has. Returns how many were added and how many were dupes.
+ */
+export async function addManualContacts(
+  experienceId: string,
+  rows: { name: string | null; email: string }[],
+): Promise<{ added: number; duplicates: number }> {
+  if (!isSupabaseConfigured() || rows.length === 0) return { added: 0, duplicates: 0 };
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const supabase = createServiceRoleClient();
+  // Dedupe within the batch by email, then against what the retreat already has.
+  const byEmail = new Map<string, { name: string | null; email: string }>();
+  for (const r of rows) {
+    const email = r.email.trim().toLowerCase();
+    if (email && !byEmail.has(email)) byEmail.set(email, { name: r.name, email });
+  }
+  const emails = [...byEmail.keys()];
+  const { data: existing } = await supabase
+    .from("retreat_contacts")
+    .select("email")
+    .eq("experience_id", experienceId)
+    .in("email", emails);
+  const have = new Set((existing ?? []).map((e: { email: string | null }) => (e.email ?? "").toLowerCase()));
+  const toInsert = [...byEmail.values()].filter((r) => !have.has(r.email));
+  const duplicates = byEmail.size - toInsert.length;
+  if (toInsert.length) {
+    const { error } = await supabase.from("retreat_contacts").insert(
+      toInsert.map((r) => ({ experience_id: experienceId, name: r.name, email: r.email, source: "manual" })),
+    );
+    if (error) throw new Error(`Saving contacts failed: ${error.message}`);
+  }
+  return { added: toInsert.length, duplicates };
+}
+
 export async function getContactsByIds(contactIds: string[]): Promise<RetreatContact[]> {
   if (!isSupabaseConfigured() || contactIds.length === 0) return [];
   const { createServiceRoleClient } = await import("@/lib/supabase/server");

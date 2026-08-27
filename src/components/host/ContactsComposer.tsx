@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { messageContacts, type SendResult } from "@/app/studio/contacts/actions";
+import { useRouter } from "next/navigation";
+import { messageContacts, addPastedContacts, type SendResult, type AddResult } from "@/app/studio/contacts/actions";
 
 export interface ContactGroup {
   experienceSlug: string;
@@ -28,6 +29,25 @@ export function ContactsComposer({ group }: { group: ContactGroup }) {
   );
   const [result, setResult] = useState<SendResult | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const [paste, setPaste] = useState("");
+  const [addResult, setAddResult] = useState<AddResult | null>(null);
+  const [adding, startAdding] = useTransition();
+
+  function addContacts() {
+    const fd = new FormData();
+    fd.set("experienceSlug", group.experienceSlug);
+    fd.set("text", paste);
+    setAddResult(null);
+    startAdding(async () => {
+      const res = await addPastedContacts(fd);
+      setAddResult(res);
+      if (res.ok && res.added > 0) {
+        setPaste("");
+        router.refresh();
+      }
+    });
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -51,10 +71,43 @@ export function ContactsComposer({ group }: { group: ContactGroup }) {
     <section className="rounded-xl2 border border-ink/10 bg-sand-50 p-6">
       <h2 className="font-display text-xl font-semibold text-ink">{group.experienceName}</h2>
       <p className="mt-1 text-sm text-ink-muted">
-        {emailable.length} contact{emailable.length === 1 ? "" : "s"} with an email
-        {group.contacts.length > emailable.length ? ` · ${group.contacts.length - emailable.length} without` : ""}
+        {group.contacts.length === 0
+          ? "No contacts yet — paste some below."
+          : `${emailable.length} contact${emailable.length === 1 ? "" : "s"} with an email${group.contacts.length > emailable.length ? ` · ${group.contacts.length - emailable.length} without` : ""}`}
       </p>
 
+      {/* Add contacts by pasting names + emails. */}
+      <div className="mt-4 rounded-xl border border-ink/10 bg-white p-4">
+        <p className="text-xs uppercase tracking-eyebrow text-ink-muted">Add contacts</p>
+        <textarea
+          value={paste}
+          onChange={(e) => setPaste(e.target.value)}
+          rows={3}
+          placeholder={"Ada Lovelace, ada@example.com\nAlan Turing <alan@example.com>\ngrace@example.com"}
+          className="mt-2 w-full rounded-xl border border-ink/15 bg-sand-50 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:border-ink/40 focus:outline-none"
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button
+            onClick={addContacts}
+            disabled={adding || !paste.trim()}
+            className="rounded-full bg-ink px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 disabled:opacity-50"
+          >
+            {adding ? "Adding…" : "Add contacts"}
+          </button>
+          <span className="text-xs text-ink-muted">One per line — “Name, email”, “Name &lt;email&gt;”, or just an email.</span>
+          {addResult && addResult.ok && (
+            <span className="text-sm text-palm-600">
+              Added {addResult.added}
+              {addResult.duplicates ? ` · ${addResult.duplicates} already here` : ""}
+              {addResult.invalid ? ` · ${addResult.invalid} skipped` : ""}.
+            </span>
+          )}
+          {addResult && !addResult.ok && <span className="text-sm text-clay-600">{addResult.error}</span>}
+        </div>
+      </div>
+
+      {group.contacts.length > 0 && (
+      <>
       <div className="mt-4 max-h-72 space-y-1.5 overflow-y-auto">
         {group.contacts.map((c) => (
           <label
@@ -120,6 +173,8 @@ export function ContactsComposer({ group }: { group: ContactGroup }) {
           {result && !result.ok && <span className="text-sm text-clay-600">{result.error}</span>}
         </div>
       </div>
+      </>
+      )}
     </section>
   );
 }
