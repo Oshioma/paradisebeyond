@@ -17,18 +17,18 @@ export default async function StudioContactsPage() {
   const idsBySlug = await getExperienceIdsBySlugs(experiences.map((e) => e.slug));
   const contacts = await getContactsForExperienceIds(Object.values(idsBySlug));
 
-  const groups: ContactGroup[] = experiences
-    .map((e) => {
-      const id = idsBySlug[e.slug];
-      return {
-        experienceSlug: e.slug,
-        experienceName: e.name,
-        contacts: contacts
-          .filter((c) => c.experienceId === id)
-          .map((c) => ({ id: c.id, name: c.name, email: c.email, status: c.status, invitedAt: c.invitedAt })),
-      };
-    })
-    .filter((g) => g.contacts.length > 0);
+  // Every managed retreat gets a section — so there's always somewhere to paste
+  // contacts in, even before any have been added.
+  const groups: ContactGroup[] = experiences.map((e) => {
+    const id = idsBySlug[e.slug];
+    return {
+      experienceSlug: e.slug,
+      experienceName: e.name,
+      contacts: contacts
+        .filter((c) => c.experienceId === id)
+        .map((c) => ({ id: c.id, name: c.name, email: c.email, status: c.status, invitedAt: c.invitedAt })),
+    };
+  });
 
   return (
     <div className="container-editorial py-12">
@@ -43,7 +43,7 @@ export default async function StudioContactsPage() {
 
       {groups.length === 0 ? (
         <p className="mt-10 rounded-xl2 border border-dashed border-ink/20 py-16 text-center text-ink-muted">
-          No contacts yet. Once a guest list is imported, everyone appears here.
+          No live retreats yet — publish a retreat and you can add contacts to it here.
         </p>
       ) : (
         <div className="mt-10 space-y-10">
