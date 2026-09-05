@@ -8,8 +8,12 @@
  * The events app exposes a small public JSON endpoint,
  *   /api/public/event-photos?eventId=<uuid>
  * returning the event plus every photo with its daily-event label. This
- * script reads that, maps the daily events to retreat day numbers, and prints
- * SQL on stdout. Pipe it to psql:
+ * script reads that and prints SQL on stdout that adds every photo to the
+ * retreat's general "Guest memories" gallery. Photos are NOT allocated to
+ * itinerary days by the import: a retreat and the source event don't share a
+ * calendar, so day allocation is done by hand in Studio → Guest photos, and
+ * a re-run never touches the day of a photo the retreat already has. The
+ * source's day label is kept in the caption as a hint. Pipe it to psql:
  *
  *   RETREAT=zanzibargeminibirthdaycelebration \
  *   SOURCE_SITE=https://www.oshioma.com \
@@ -22,6 +26,10 @@
  *   SOURCE_EVENT   (required) source event UUID
  *   SOURCE_SITE    events app origin (default https://www.oshioma.com)
  *   SOURCE_ENDPOINT  full endpoint URL, overrides SOURCE_SITE/SOURCE_EVENT
+ *   CLEAR_IMPORTED_DAYS=1  one-off: also reset day_number to null on every
+ *                  imported photo of this retreat (undoes an earlier automatic
+ *                  day mapping). Manual allocations made afterwards are kept
+ *                  on later runs because the flag is off by default.
  *
  * This links the source image URLs (SQL can't copy storage objects). For a
  * full file copy into this project's own bucket, run
@@ -44,40 +52,10 @@ const ENDPOINT =
     ? `${SOURCE_SITE}/api/public/event-photos?eventId=${encodeURIComponent(SOURCE_EVENT)}`
     : die("Set SOURCE_EVENT (the source event UUID) or SOURCE_ENDPOINT."));
 
+const CLEAR_IMPORTED_DAYS = process.env.CLEAR_IMPORTED_DAYS === "1";
+
 const label = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const q = (s) => (s == null ? "null" : `'${String(s).replace(/'/g, "''")}'`);
-
-/**
- * Map each distinct day label to a retreat day number by ordering the labels
- * chronologically and numbering them 1, 2, 3, … — so the trip's first day of
- * photos becomes retreat Day 1, regardless of the source event's absolute
- * dates or gaps. Handles date labels ("15 June 26") and "Day N" labels; any
- * label that sorts is ranked, unrecognised ones fall to the end.
- *
- * (A retreat and the source event don't share a calendar, so a sequential
- * mapping is the predictable choice; the host can fine-tune any photo in
- * Studio → Guest photos afterwards.)
- */
-function buildDayMap(labels) {
-  const sortKey = (l) => {
-    // Explicit "Day 3" wins first — Date.parse is lenient enough to mis-read it.
-    const dayN = /\bday\s*(\d+)/i.exec(l);
-    if (dayN) return { a: 0, b: Number(dayN[1]) };
-    const t = Date.parse(l);
-    if (!Number.isNaN(t)) return { a: 1, b: t };
-    const m = /(\d+)/.exec(l);
-    if (m) return { a: 2, b: Number(m[1]) };
-    return { a: 3, b: 0, s: l };
-  };
-  const distinct = [...new Set(labels.filter(Boolean).map(String))];
-  distinct.sort((x, y) => {
-    const kx = sortKey(x), ky = sortKey(y);
-    return kx.a - ky.a || kx.b - ky.b || String(kx.s ?? "").localeCompare(String(ky.s ?? ""));
-  });
-  const map = new Map();
-  distinct.forEach((l, i) => map.set(l, i + 1));
-  return map;
-}
 
 async function main() {
   log(`Fetching ${ENDPOINT}`);
@@ -102,31 +80,32 @@ async function main() {
   const dayField = (p) => p.day_label ?? p.dayLabel ?? p.day ?? null;
   const titleField = (p) => p.item_title ?? p.itemTitle ?? p.title ?? null;
   const withDay = photos.filter((p) => dayField(p)).length;
-  const dayMap = buildDayMap(photos.map(dayField));
-  log(`  photos with a day label: ${withDay}/${photos.length}`);
-  log(`  day mapping: ${[...dayMap].map(([l, n]) => `${l}→${n}`).join(", ") || "none"}`);
+  const labels = [...new Set(photos.map(dayField).filter(Boolean).map(String))];
+  log(`  photos with a source day label: ${withDay}/${photos.length}${labels.length ? ` (${labels.join(", ")})` : ""}`);
+  log(`  day allocation: none — every photo goes to the gallery; allocate days in Studio → Guest photos.`);
+  if (CLEAR_IMPORTED_DAYS) log(`  CLEAR_IMPORTED_DAYS=1: resetting day_number on this retreat's imported photos.`);
 
   const rows = [];
   for (const p of photos) {
     const imageUrl = p.image_url ?? p.url;
     if (typeof imageUrl !== "string" || !/^https:\/\//.test(imageUrl)) continue;
-    const day = dayField(p) ? dayMap.get(String(dayField(p))) ?? null : null;
+    // Keep the source's day label + item title as a caption hint for whoever
+    // allocates days by hand later.
     const caption = [dayField(p), titleField(p)].filter(Boolean).join(" · ").slice(0, 300) || null;
-    rows.push(`(${q(imageUrl.slice(0, 2000))}, ${day ?? "null"}::int, ${q(caption)})`);
+    rows.push(`(${q(imageUrl.slice(0, 2000))}, ${q(caption)})`);
   }
   if (!rows.length) die("No importable photo URLs (expected https image_url values).");
 
   const key = label(String(RETREAT).replace(/^https?:\/\//, "").split(".")[0]);
   console.log(`-- Import ${rows.length} guest photos from ${ENDPOINT}
--- into retreat "${RETREAT}". Idempotent: re-runs skip URLs the retreat
--- already has. Generated by scripts/gen-import-photos-sql.mjs.
+-- into retreat "${RETREAT}" (gallery only; days are allocated by hand).
+-- Idempotent: re-runs skip URLs the retreat already has and never change the
+-- day of an existing photo. Generated by scripts/gen-import-photos-sql.mjs.
 do $$
 declare
   exp uuid;
-  dur int;
 begin
-  -- duration is an enum ('7' | '14'), so cast via text for the day-cap check.
-  select id, (duration::text)::int into exp, dur from experiences
+  select id into exp from experiences
   where lower(coalesce(subdomain, '')) = '${key}'
      or lower(regexp_replace(slug, '[^a-z0-9]', '', 'g')) = '${key}'
      or slug = ${q(RETREAT)}
@@ -135,39 +114,39 @@ begin
     raise exception 'No retreat matches "${key}"';
   end if;
 
-  create temporary table _incoming (url text, day int, caption text) on commit drop;
-  insert into _incoming (url, day, caption) values
+  create temporary table _incoming (url text, caption text) on commit drop;
+  insert into _incoming (url, caption) values
     ${rows.join(",\n    ")};
 
-  -- Insert photos this retreat doesn't have yet.
+  -- Add photos this retreat doesn't have yet, straight into the gallery.
   insert into retreat_photos (experience_id, url, day_number, caption, source, published)
-  select exp,
-         v.url,
-         case when v.day is not null and v.day <= dur then v.day end,
-         v.caption,
-         'import',
-         true
+  select exp, v.url, null, v.caption, 'import', true
   from _incoming v
   where not exists (
     select 1 from retreat_photos rp where rp.experience_id = exp and rp.url = v.url
   );
 
-  -- (Re-)sync day allocation onto import rows from the current mapping. Scoped
-  -- to source='import' so host/guest photos are never touched, and only when a
-  -- day is now known (v.day not null) so a gallery photo is never disturbed.
-  -- A re-run therefore re-syncs imported photos to the latest mapping; manual
-  -- fine-tuning of imported photos should be done after the final import.
+  -- Fill in a missing caption hint on rows an earlier run added; never touches
+  -- day_number, so hand allocation survives re-runs.
   update retreat_photos rp
-     set day_number = case when v.day <= dur then v.day end,
-         caption    = coalesce(rp.caption, v.caption)
+     set caption = v.caption
     from _incoming v
    where rp.experience_id = exp
      and rp.url = v.url
      and rp.source = 'import'
-     and v.day is not null
-     and rp.day_number is distinct from (case when v.day <= dur then v.day end);
-
-  raise notice 'Imported/updated photos for retreat %', exp;
+     and rp.caption is null
+     and v.caption is not null;
+${CLEAR_IMPORTED_DAYS ? `
+  -- One-off reset (CLEAR_IMPORTED_DAYS=1): undo the automatic day mapping an
+  -- earlier import applied. Scoped to imported photos of this retreat only;
+  -- guest uploads and host-added photos keep their days.
+  update retreat_photos
+     set day_number = null
+   where experience_id = exp
+     and source = 'import'
+     and day_number is not null;
+` : ""}
+  raise notice 'Imported photos for retreat %', exp;
 end $$;`);
 }
 
