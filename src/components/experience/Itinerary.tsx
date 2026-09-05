@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ItineraryDay } from "@/lib/types";
+import { AdminDeletablePhoto } from "@/components/experience/AdminDeletablePhoto";
 
 /**
  * Day-by-day itinerary. Every day shows its activities directly — no per-day
@@ -48,15 +49,16 @@ export function Itinerary({
             {(photosByDay[d.day]?.length ?? 0) > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {photosByDay[d.day].map((p) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={p.id}
-                    src={p.url}
-                    alt={p.uploaderName ? `Guest photo by ${p.uploaderName}` : "Guest photo"}
-                    title={p.uploaderName ? `By ${p.uploaderName}` : undefined}
-                    loading="lazy"
-                    className="h-20 w-20 rounded-lg object-cover sm:h-24 sm:w-24"
-                  />
+                  <AdminDeletablePhoto key={p.id} photoId={p.id} className="relative h-20 w-20 sm:h-24 sm:w-24">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={p.uploaderName ? `Guest photo by ${p.uploaderName}` : "Guest photo"}
+                      title={p.uploaderName ? `By ${p.uploaderName}` : undefined}
+                      loading="lazy"
+                      className="h-full w-full rounded-lg object-cover"
+                    />
+                  </AdminDeletablePhoto>
                 ))}
               </div>
             )}
