@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { allocatePhotoDay, togglePhotoPublished, deletePhoto, addPhotosByUrl, clearImportedDays } from "@/app/studio/photos/actions";
+import { allocatePhotoDay, togglePhotoPublished, deletePhoto, deletePhotos, addPhotosByUrl, clearImportedDays } from "@/app/studio/photos/actions";
 
 interface ManagedPhoto {
   id: string;
@@ -32,7 +32,43 @@ export function PhotoManager({
   const [bulkDay, setBulkDay] = useState("");
   const [added, setAdded] = useState<number | null>(null);
   const [cleared, setCleared] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const importedWithDay = photos.filter((p) => p.source === "import" && p.dayNumber != null).length;
+
+  // Drop selections for photos that no longer exist after a refresh.
+  const present = new Set(photos.map((p) => p.id));
+  const selectedIds = [...selected].filter((id) => present.has(id));
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelected(new Set(photos.map((p) => p.id)));
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  function onDeleteSelected() {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Delete ${selectedIds.length} selected photo${selectedIds.length === 1 ? "" : "s"}? This can't be undone.`)) return;
+    const fd = new FormData();
+    for (const id of selectedIds) fd.append("photoIds", id);
+    setError(null);
+    startTransition(async () => {
+      const res = await deletePhotos(fd);
+      if (!res.ok) setError(res.error ?? "Couldn't delete those photos.");
+      else clearSelection();
+      router.refresh();
+    });
+  }
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -124,17 +160,51 @@ export function PhotoManager({
           image URLs below.
         </p>
       ) : (
+        <>
+        {/* Selection bar: tick photos and act on them together. */}
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-ink/10 bg-white px-4 py-2.5 text-sm">
+          <span className="font-medium text-ink">
+            {selectedIds.length ? `${selectedIds.length} selected` : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}
+          </span>
+          <button onClick={selectAll} disabled={pending} className="text-ink-soft underline-offset-2 hover:underline">
+            Select all
+          </button>
+          {selectedIds.length > 0 && (
+            <button onClick={clearSelection} disabled={pending} className="text-ink-soft underline-offset-2 hover:underline">
+              Clear
+            </button>
+          )}
+          <button
+            onClick={onDeleteSelected}
+            disabled={pending || selectedIds.length === 0}
+            className="ml-auto rounded-full bg-clay-500 px-4 py-1.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600 disabled:opacity-40"
+          >
+            {pending ? "Working…" : `Delete ${selectedIds.length || ""} selected`.trim()}
+          </button>
+        </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {photos.map((p) => (
-            <div key={p.id} className={`overflow-hidden rounded-xl border border-ink/10 bg-white ${p.published ? "" : "opacity-60"}`}>
+          {photos.map((p) => {
+            const isSelected = selected.has(p.id);
+            return (
+            <div key={p.id} className={`overflow-hidden rounded-xl border bg-white ${isSelected ? "border-clay-500 ring-2 ring-clay-500/40" : "border-ink/10"} ${p.published ? "" : "opacity-60"}`}>
               <div className="relative aspect-[4/3] bg-sand-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                <span className="absolute left-2 top-2 rounded-full bg-ink/70 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50">
+                {/* Selection checkbox */}
+                <label className="absolute left-2 top-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-white/90 shadow-sm ring-1 ring-ink/10">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelect(p.id)}
+                    aria-label="Select photo"
+                    className="h-4 w-4 accent-clay-500"
+                  />
+                </label>
+                <span className="absolute right-2 top-2 rounded-full bg-ink/70 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50">
                   {p.source === "guest" ? p.uploaderName || "Guest" : p.source === "import" ? "Imported" : "Host"}
                 </span>
                 {!p.published && (
-                  <span className="absolute right-2 top-2 rounded-full bg-clay-500 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50">
+                  <span className="absolute bottom-2 right-2 rounded-full bg-clay-500 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50">
                     Hidden
                   </span>
                 )}
@@ -170,8 +240,10 @@ export function PhotoManager({
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
+        </>
       )}
 
       <div className="mt-6 rounded-xl border border-ink/10 bg-white p-4">

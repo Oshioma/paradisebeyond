@@ -224,6 +224,23 @@ export async function deletePhotoRow(photoId: string) {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Delete many photos at once, scoped to one experience so a forged id can never
+ * reach another retreat's photos. Returns how many rows were removed.
+ */
+export async function deletePhotoRows(experienceId: string, photoIds: string[]): Promise<number> {
+  if (!photoIds.length) return 0;
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data, error } = await createServiceRoleClient()
+    .from("retreat_photos")
+    .delete()
+    .eq("experience_id", experienceId)
+    .in("id", photoIds)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length;
+}
+
 // ---- guest invites ---------------------------------------------------------
 
 /** One token per booking: create it on first send, reuse (and refresh) after. */

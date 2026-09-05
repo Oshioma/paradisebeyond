@@ -8,6 +8,7 @@ import {
   addPhotoUrls,
   clearImportedPhotoDays,
   deletePhotoRow,
+  deletePhotoRows,
   getExperienceIdsBySlugs,
   getExperienceSlugById,
   getPhotoById,
@@ -90,6 +91,24 @@ export async function deletePhoto(formData: FormData): Promise<PhotoActionResult
   }
   await revalidateForExperience(auth.experienceId);
   return { ok: true };
+}
+
+/** Delete several photos at once — the retreat is derived from the first, and
+ *  the bulk delete is scoped to that experience so a forged id can't reach
+ *  another retreat's photos. */
+export async function deletePhotos(formData: FormData): Promise<PhotoActionResult & { deleted?: number }> {
+  const photoIds = formData.getAll("photoIds").map(String).filter(Boolean);
+  if (!photoIds.length) return { ok: false, error: "No photos selected." };
+  const auth = await authorisePhoto(photoIds[0]);
+  if ("error" in auth) return { ok: false, error: auth.error };
+  let deleted = 0;
+  try {
+    deleted = await deletePhotoRows(auth.experienceId, photoIds);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't delete those photos." };
+  }
+  await revalidateForExperience(auth.experienceId);
+  return { ok: true, deleted };
 }
 
 /**
