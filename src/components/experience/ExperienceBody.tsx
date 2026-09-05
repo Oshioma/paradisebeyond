@@ -12,6 +12,7 @@ import { ReviewList } from "@/components/reviews/ReviewList";
 import { FlightsNote } from "@/components/experience/FlightsNote";
 import { ShareButton } from "@/components/experience/ShareButton";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
+import { AdminDeletablePhoto } from "@/components/experience/AdminDeletablePhoto";
 
 /**
  * The full editorial body of an experience — every section, in one place — so
@@ -126,7 +127,8 @@ export function ExperienceBody({
         <Section eyebrow="Guest memories" title="Through our guests' eyes">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {shownGallery.map((p) => (
-              <figure key={p.id} className="relative aspect-square overflow-hidden rounded-xl bg-sand-200">
+              // Admins get a one-click "×" on each photo; everyone else sees a plain figure.
+              <AdminDeletablePhoto key={p.id} photoId={p.id} as="figure" className="relative aspect-square overflow-hidden rounded-xl bg-sand-200">
                 {/* Arbitrary guest-hosted URLs, so plain img rather than next/image domains config. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={p.caption ?? `Guest photo of ${e.name}`} loading="lazy" className="h-full w-full object-cover" />
@@ -135,7 +137,7 @@ export function ExperienceBody({
                     By {p.uploaderName}
                   </figcaption>
                 )}
-              </figure>
+              </AdminDeletablePhoto>
             ))}
           </div>
           {moreGallery > 0 && (

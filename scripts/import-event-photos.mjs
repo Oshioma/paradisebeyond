@@ -6,13 +6,15 @@
  * The source app stores visitor uploads in `event_photos` (public URLs into
  * its Supabase storage), optionally linked to a daily itinerary item. This
  * script copies each image into THIS project's `media` bucket (so the photos
- * survive the source project), inserts `retreat_photos` rows, and maps the
- * source's daily events onto the retreat's itinerary day numbers. Re-running
- * is safe: object paths are deterministic and already-imported URLs are
- * skipped.
+ * survive the source project) and inserts `retreat_photos` rows into the
+ * retreat's general gallery. Days are NOT assigned by the import (a retreat
+ * and the source event don't share a calendar); the source's day label is
+ * kept in the caption as a hint and days are allocated by hand in Studio →
+ * Guest photos. Re-running is safe: object paths are deterministic and
+ * already-imported URLs are skipped.
  *
  * Photos land published (visible in the retreat's "Guest memories" gallery
- * immediately); allocate or re-allocate them to days in Studio → Guest photos.
+ * immediately).
  *
  * Usage:
  *   SOURCE_SUPABASE_URL=https://<events-project>.supabase.co \
@@ -82,20 +84,6 @@ async function resolveEvent() {
   die(`Multiple source events found — set SOURCE_EVENT. Known: ${data.map((e) => e.slug || e.id).join(", ")}`);
 }
 
-/** Best-effort day number for an itinerary item ("Day 3", a date, etc.). */
-function dayNumberFor(item, eventStartDate) {
-  if (!item) return null;
-  const fromLabel = /(\d+)/.exec(item.day_label ?? "");
-  if (/day/i.test(item.day_label ?? "") && fromLabel) return Number(fromLabel[1]);
-  const asDate = Date.parse(item.day_label ?? "");
-  const start = Date.parse(eventStartDate ?? "");
-  if (!Number.isNaN(asDate) && !Number.isNaN(start)) {
-    const diff = Math.round((asDate - start) / 86_400_000) + 1;
-    if (diff >= 1) return diff;
-  }
-  return fromLabel ? Number(fromLabel[1]) : null;
-}
-
 async function main() {
   const retreat = await resolveRetreat();
   const event = await resolveEvent();
@@ -107,7 +95,7 @@ async function main() {
   ]);
   if (pErr) die(`Reading event_photos failed: ${pErr.message}`);
   const itemById = new Map((items ?? []).map((i) => [i.id, i]));
-  if (iErr) console.warn(`! Couldn't read itinerary items (${iErr.message}) — photos import without day allocation.`);
+  if (iErr) console.warn(`! Couldn't read itinerary items (${iErr.message}) — photos import without caption hints.`);
   if (!photos?.length) die("The source event has no photos.");
   console.log(`Found ${photos.length} photo(s).`);
 
@@ -118,8 +106,7 @@ async function main() {
   let skipped = 0;
   for (const p of photos) {
     const item = p.event_itinerary_item_id ? itemById.get(p.event_itinerary_item_id) : null;
-    let day = dayNumberFor(item, event.start_date);
-    if (day != null && retreat.duration && day > retreat.duration) day = null; // don't point at a day the retreat doesn't have
+    // Gallery only — day allocation is done by hand afterwards.
     const caption = item ? [item.day_label, item.title].filter(Boolean).join(" · ") : null;
 
     let url = p.image_url;
@@ -154,14 +141,14 @@ async function main() {
     existing.add(url);
 
     if (DRY_RUN) {
-      console.log(`  would import: ${p.image_url} → day ${day ?? "—"}${caption ? ` (${caption})` : ""}`);
+      console.log(`  would import: ${p.image_url}${caption ? ` (${caption})` : ""}`);
       imported++;
       continue;
     }
     const { error: insErr } = await target.from("retreat_photos").insert({
       experience_id: retreat.id,
       url,
-      day_number: day,
+      day_number: null,
       caption,
       source: "import",
       uploader_name: null,
@@ -173,7 +160,7 @@ async function main() {
       continue;
     }
     imported++;
-    console.log(`  ✓ ${url}${day != null ? ` (day ${day})` : ""}`);
+    console.log(`  ✓ ${url}`);
   }
 
   console.log(

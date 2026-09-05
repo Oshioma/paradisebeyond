@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getManagedExperiences } from "@/lib/data/repository";
 import {
   addPhotoUrls,
+  clearImportedPhotoDays,
   deletePhotoRow,
   getExperienceIdsBySlugs,
   getExperienceSlugById,
@@ -89,6 +90,31 @@ export async function deletePhoto(formData: FormData): Promise<PhotoActionResult
   }
   await revalidateForExperience(auth.experienceId);
   return { ok: true };
+}
+
+/**
+ * One click: put every imported photo of a retreat back in the gallery (no
+ * day). Used to undo an automatic day mapping; days are then set by hand.
+ */
+export async function clearImportedDays(formData: FormData): Promise<PhotoActionResult & { cleared?: number }> {
+  const user = await requireRole("host");
+  if (!isSupabaseConfigured()) return { ok: false, error: "Photo management needs the live database." };
+  const experienceSlug = String(formData.get("experienceSlug") ?? "");
+  const managed = await getManagedExperiences(user);
+  if (!managed.some((e) => e.slug === experienceSlug)) {
+    return { ok: false, error: "You don't manage this retreat." };
+  }
+  const ids = await getExperienceIdsBySlugs([experienceSlug]);
+  const experienceId = ids[experienceSlug];
+  if (!experienceId) return { ok: false, error: "Retreat not found." };
+  let cleared = 0;
+  try {
+    cleared = await clearImportedPhotoDays(experienceId);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't update those photos." };
+  }
+  await revalidateForExperience(experienceId);
+  return { ok: true, cleared };
 }
 
 /** Bulk-add photos by pasting image URLs (one per line) — e.g. from another gallery. */

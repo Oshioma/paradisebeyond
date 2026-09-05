@@ -2,10 +2,12 @@ name: Import event photos
 
 # Import visitor photos from the Oshioma events app into a retreat's guest
 # gallery. Reads the app's public JSON endpoint
-# (/api/public/event-photos?eventId=...), maps each photo's daily event to a
-# retreat day, and inserts them with psql using the existing SUPABASE_DB_URL
-# secret. Runs when this file or the generator changes; re-runnable from the
-# Actions tab. Idempotent — already-imported URLs are skipped.
+# (/api/public/event-photos?eventId=...) and inserts every photo into the
+# retreat's general gallery with psql using the existing SUPABASE_DB_URL
+# secret. Days are NOT assigned by the import — allocate them by hand in
+# Studio → Guest photos; re-runs never change an existing photo's day.
+# Runs when this file or the generator changes; re-runnable from the Actions
+# tab. Idempotent — already-imported URLs are skipped.
 on:
   push:
     branches: [main]
@@ -23,6 +25,10 @@ on:
       source_event:
         description: "Source event UUID"
         default: "a6746c4d-8a6d-4d6f-ac1c-0447c602701c"
+      clear_imported_days:
+        description: "One-off: reset day_number on this retreat's imported photos (undo an old automatic day mapping)"
+        type: boolean
+        default: false
 
 concurrency:
   group: import-event-photos
@@ -38,6 +44,7 @@ jobs:
           RETREAT: ${{ inputs.retreat || 'zanzibargeminibirthdaycelebration' }}
           SOURCE_SITE: ${{ inputs.source_site || 'https://www.oshioma.com' }}
           SOURCE_EVENT: ${{ inputs.source_event || 'a6746c4d-8a6d-4d6f-ac1c-0447c602701c' }}
+          CLEAR_IMPORTED_DAYS: ${{ inputs.clear_imported_days == true && '1' || '0' }}
         run: node scripts/gen-import-photos-sql.mjs > import.sql
       - name: Show generated SQL (diagnostic)
         run: cat import.sql
