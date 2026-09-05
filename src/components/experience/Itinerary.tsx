@@ -16,6 +16,10 @@ interface DayPhoto {
   uploaderName: string | null;
 }
 
+// Cap thumbnails shown under a single day so a big import can't blow the
+// itinerary up; the host manages the full set in Studio → Guest photos.
+const DAY_PHOTO_MAX = 8;
+
 export function Itinerary({
   days,
   photosByDay = {},
@@ -47,8 +51,8 @@ export function Itinerary({
               </ul>
             )}
             {(photosByDay[d.day]?.length ?? 0) > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {photosByDay[d.day].map((p) => (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {photosByDay[d.day].slice(0, DAY_PHOTO_MAX).map((p) => (
                   <AdminDeletablePhoto key={p.id} photoId={p.id} className="relative h-20 w-20 sm:h-24 sm:w-24">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -60,6 +64,9 @@ export function Itinerary({
                     />
                   </AdminDeletablePhoto>
                 ))}
+                {photosByDay[d.day].length > DAY_PHOTO_MAX && (
+                  <span className="text-xs text-ink-muted">+{photosByDay[d.day].length - DAY_PHOTO_MAX} more</span>
+                )}
               </div>
             )}
           </li>

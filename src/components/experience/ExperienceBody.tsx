@@ -43,10 +43,19 @@ export function ExperienceBody({
   guestPhotos?: GuestPhoto[];
 }) {
   const rsum = summarize(reviews);
+  // Day-tagged photos show under their itinerary day; the rest form the
+  // "Guest memories" gallery. Bound both so a large import (hundreds of photos)
+  // can't turn the page into an endless wall of tiles — the host sees/curates
+  // everything in Studio → Guest photos.
+  const GALLERY_MAX = 12;
   const photosByDay: Record<number, GuestPhoto[]> = {};
+  const galleryPhotos: GuestPhoto[] = [];
   for (const p of guestPhotos) {
     if (p.dayNumber != null) (photosByDay[p.dayNumber] ??= []).push(p);
+    else galleryPhotos.push(p);
   }
+  const shownGallery = galleryPhotos.slice(0, GALLERY_MAX);
+  const moreGallery = galleryPhotos.length - shownGallery.length;
   const eyebrowClass = accent ? "eyebrow" : "eyebrow text-ocean-700";
   const eyebrowStyle = accent ? { color: accent } : undefined;
   const dotStyle = accent ? { backgroundColor: accent } : undefined;
@@ -114,25 +123,26 @@ export function ExperienceBody({
         </Section>
       )}
 
-      {guestPhotos.length > 0 && (
+      {shownGallery.length > 0 && (
         <Section eyebrow="Guest memories" title="Through our guests' eyes">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {guestPhotos.map((p) => (
+            {shownGallery.map((p) => (
               // Admins get a one-click "×" on each photo; everyone else sees a plain figure.
               <AdminDeletablePhoto key={p.id} photoId={p.id} as="figure" className="relative aspect-square overflow-hidden rounded-xl bg-sand-200">
                 {/* Arbitrary guest-hosted URLs, so plain img rather than next/image domains config. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={p.caption ?? `Guest photo of ${e.name}`} loading="lazy" className="h-full w-full object-cover" />
-                {(p.uploaderName || p.dayNumber != null) && (
+                {p.uploaderName && (
                   <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 to-transparent px-2.5 pb-2 pt-6 text-[0.65rem] text-sand-50">
-                    {p.uploaderName ? `By ${p.uploaderName}` : ""}
-                    {p.uploaderName && p.dayNumber != null ? " · " : ""}
-                    {p.dayNumber != null ? `Day ${p.dayNumber}` : ""}
+                    By {p.uploaderName}
                   </figcaption>
                 )}
               </AdminDeletablePhoto>
             ))}
           </div>
+          {moreGallery > 0 && (
+            <p className="mt-3 text-sm text-ink-muted">+{moreGallery} more guest photo{moreGallery === 1 ? "" : "s"}</p>
+          )}
         </Section>
       )}
 
