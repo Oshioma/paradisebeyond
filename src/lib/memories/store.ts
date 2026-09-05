@@ -200,6 +200,24 @@ export async function setPhotoPublished(photoId: string, published: boolean) {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Send every IMPORTED photo of a retreat back to the general gallery
+ * (day_number = null). Guest uploads and host-added photos keep their days.
+ * Returns how many rows changed.
+ */
+export async function clearImportedPhotoDays(experienceId: string): Promise<number> {
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const { data, error } = await createServiceRoleClient()
+    .from("retreat_photos")
+    .update({ day_number: null })
+    .eq("experience_id", experienceId)
+    .eq("source", "import")
+    .not("day_number", "is", null)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return data?.length ?? 0;
+}
+
 export async function deletePhotoRow(photoId: string) {
   const { createServiceRoleClient } = await import("@/lib/supabase/server");
   const { error } = await createServiceRoleClient().from("retreat_photos").delete().eq("id", photoId);

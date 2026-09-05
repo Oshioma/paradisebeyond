@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { allocatePhotoDay, togglePhotoPublished, deletePhoto, addPhotosByUrl } from "@/app/studio/photos/actions";
+import { allocatePhotoDay, togglePhotoPublished, deletePhoto, addPhotosByUrl, clearImportedDays } from "@/app/studio/photos/actions";
 
 interface ManagedPhoto {
   id: string;
@@ -31,6 +31,8 @@ export function PhotoManager({
   const [urls, setUrls] = useState("");
   const [bulkDay, setBulkDay] = useState("");
   const [added, setAdded] = useState<number | null>(null);
+  const [cleared, setCleared] = useState<number | null>(null);
+  const importedWithDay = photos.filter((p) => p.source === "import" && p.dayNumber != null).length;
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -62,6 +64,20 @@ export function PhotoManager({
     run(() => deletePhoto(fd));
   }
 
+  function onClearImportedDays() {
+    if (!window.confirm(`Move all ${importedWithDay} imported photo${importedWithDay === 1 ? "" : "s"} back to the gallery (no day)? You can re-allocate any of them by hand afterwards.`)) return;
+    const fd = new FormData();
+    fd.set("experienceSlug", experienceSlug);
+    setCleared(null);
+    setError(null);
+    startTransition(async () => {
+      const res = await clearImportedDays(fd);
+      if (res.ok) setCleared(res.cleared ?? 0);
+      else setError(res.error ?? "Couldn't update those photos.");
+      router.refresh();
+    });
+  }
+
   function onAddUrls() {
     const fd = new FormData();
     fd.set("experienceSlug", experienceSlug);
@@ -81,7 +97,26 @@ export function PhotoManager({
 
   return (
     <section className="rounded-xl2 border border-ink/10 bg-sand-50 p-6">
-      <h2 className="font-display text-xl font-semibold text-ink">{experienceName}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-xl font-semibold text-ink">{experienceName}</h2>
+        {(importedWithDay > 0 || cleared !== null) && (
+          <div className="flex items-center gap-3">
+            {cleared !== null && (
+              <span className="text-sm text-palm-600">Moved {cleared} photo{cleared === 1 ? "" : "s"} to the gallery.</span>
+            )}
+            {importedWithDay > 0 && (
+              <button
+                onClick={onClearImportedDays}
+                disabled={pending}
+                title="Imported photos were auto-assigned to days; this clears those so you can set days by hand."
+                className="rounded-full border border-ink/20 px-4 py-1.5 text-xs uppercase tracking-eyebrow text-ink hover:border-ink disabled:opacity-50"
+              >
+                {pending ? "Working…" : `Move ${importedWithDay} imported photo${importedWithDay === 1 ? "" : "s"} to gallery`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {photos.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-ink/20 py-10 text-center text-sm text-ink-muted">
