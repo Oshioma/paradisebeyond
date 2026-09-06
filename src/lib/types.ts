@@ -126,7 +126,7 @@ export interface Experience {
     property: string;
     description: string;
     /** All hotels/properties guests can choose from (optional; multi-hotel retreats). */
-    hotels?: { name: string; description: string }[];
+    hotels?: { name: string; description: string; images?: string[] }[];
     roomTypes: RoomType[];
     imageSeeds: string[];
   };

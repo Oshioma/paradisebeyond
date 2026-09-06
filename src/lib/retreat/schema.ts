@@ -35,6 +35,8 @@ export interface RetreatItineraryDay {
 export interface RetreatHotel {
   name: string;
   description: string;
+  /** A few photos of this property, added in the builder (uploaded URLs). */
+  images?: string[];
 }
 export interface RetreatRoom {
   /** Hotel / property this option is at (matches a RetreatHotel name). */

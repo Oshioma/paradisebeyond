@@ -370,9 +370,35 @@ function StepContent({
                   <RemoveBtn onClick={() => set("hotels", (draft.hotels ?? []).filter((_, j) => j !== i))} />
                 </div>
                 <textarea rows={3} className={cn(inp, "ml-8 w-[calc(100%-2rem)]")} placeholder="Describe where guests stay — the feel, the location, why you chose it…" value={h.description} onChange={(e) => updateArr(setDraft, "hotels", i, { description: e.target.value })} />
+                <div className="ml-8">
+                  <p className="mb-2 text-[0.7rem] uppercase tracking-eyebrow text-ink-muted">Photos of this property</p>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {(h.images ?? []).map((u, j) => (
+                      <div key={j} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={u} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                        <button
+                          onClick={() => updateArr(setDraft, "hotels", i, { images: (h.images ?? []).filter((_, k) => k !== j) })}
+                          className="absolute right-1 top-1 rounded-full bg-ink/70 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <PhotoUpload
+                      draftId={draft.id}
+                      slot={`hotel-${i}-${(h.images ?? []).length}`}
+                      url=""
+                      compact
+                      multiple
+                      onUploaded={(u) => updateArr(setDraft, "hotels", i, { images: [...(h.images ?? []), u] })}
+                      onUploadedMany={(urls) => updateArr(setDraft, "hotels", i, { images: [...(h.images ?? []), ...urls] })}
+                    />
+                  </div>
+                </div>
               </div>
             ))}
-            <AddBtn onClick={() => set("hotels", [...(draft.hotels ?? []), { name: "", description: "" }])}>Add a hotel</AddBtn>
+            <AddBtn onClick={() => set("hotels", [...(draft.hotels ?? []), { name: "", description: "", images: [] }])}>Add a hotel</AddBtn>
           </div>
         </Field>
       );

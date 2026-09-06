@@ -19,7 +19,7 @@ export function draftFromExperience(e: Experience, id: string): RetreatDraft {
   const dest = DESTINATIONS.find((d) => d.slug === e.destinationSlug);
 
   const hotels = e.stay?.hotels?.length
-    ? e.stay.hotels.map((h) => ({ name: h.name, description: h.description ?? "" }))
+    ? e.stay.hotels.map((h) => ({ name: h.name, description: h.description ?? "", images: h.images ?? [] }))
     : e.stay?.property
       ? [{ name: e.stay.property, description: e.stay.description ?? "" }]
       : base.hotels;
