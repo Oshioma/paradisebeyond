@@ -39,7 +39,13 @@ const usdToMinor = (v: number) => Math.round((Number.isFinite(v) ? v : 0) * 100)
 /** Build the editorial Experience JSON stored in experiences.content. Exported
  *  for tests — it's a pure function of the draft (no DB access). */
 export function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): Experience {
-  const hotels = (draft.hotels ?? []).filter((h) => h.name?.trim()).map((h) => ({ name: h.name.trim(), description: h.description ?? "" }));
+  const hotels = (draft.hotels ?? [])
+    .filter((h) => h.name?.trim())
+    .map((h) => ({
+      name: h.name.trim(),
+      description: h.description ?? "",
+      images: (h.images ?? []).map((u) => (u ?? "").trim()).filter(Boolean),
+    }));
   const heroSeed = `${slug}-hero`;
   // Only real photos become image slots. A blank gallery entry must not mint a
   // seed — that would render as an empty placeholder tile in the gallery, the

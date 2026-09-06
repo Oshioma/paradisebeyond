@@ -153,11 +153,15 @@ export function ExperienceBody({
               <div key={h.name} className="rounded-xl2 border border-ink/10 bg-sand-100 p-5">
                 <h4 className="font-display text-xl font-semibold text-ink">{h.name}</h4>
                 {h.description && <p className="mt-1 leading-relaxed text-ink-soft">{h.description}</p>}
+                <HotelImages images={h.images} name={h.name} />
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-lg leading-relaxed text-ink-soft">{e.stay.description}</p>
+          <>
+            <p className="text-lg leading-relaxed text-ink-soft">{e.stay.description}</p>
+            <HotelImages images={e.stay.hotels?.[0]?.images} name={e.stay.property} />
+          </>
         )}
         {e.stay.imageSeeds.length > 0 && (
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -269,6 +273,23 @@ export function ExperienceBody({
         <span className="text-sm text-ink-muted">Save it, or send it to whoever you&apos;d bring.</span>
       </div>
     </>
+  );
+}
+
+/** A small photo strip for a hotel/property (host-uploaded URLs). */
+function HotelImages({ images, name }: { images?: string[]; name?: string }) {
+  const shots = (images ?? []).filter(Boolean);
+  if (!shots.length) return null;
+  return (
+    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {shots.map((url, i) => (
+        <div key={`${url}-${i}`} className="relative aspect-square overflow-hidden rounded-lg bg-sand-200">
+          {/* Host-uploaded URLs, so plain img rather than next/image domain config. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={name ? `${name} photo ${i + 1}` : "Accommodation photo"} loading="lazy" className="h-full w-full object-cover" />
+        </div>
+      ))}
+    </div>
   );
 }
 
