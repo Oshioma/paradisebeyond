@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
-import { getEnvHealth, probeSupabase, probeReadiness, type Level } from "@/lib/admin/envHealth";
+import { getEnvHealth, probeSupabase, probeReadiness, type AttentionItem, type Level } from "@/lib/admin/envHealth";
 import { isAiEnabled } from "@/lib/ai/anthropic";
 import { getSelectedModel, getModelSource } from "@/lib/ai/settings";
 import { AI_MODELS } from "@/lib/ai/models";
@@ -10,11 +10,41 @@ import { TestEmailButton } from "@/components/admin/TestEmailButton";
 export const metadata: Metadata = { title: "System", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
+/** Anchor id for a group section, so an attention row can jump straight to it. */
+function groupAnchor(title: string): string {
+  return "sys-" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 export default async function SettingsPage() {
   await requireRole("admin", "/desk/settings");
   const health = getEnvHealth();
   const probe = await probeSupabase();
   const [aiModel, aiSource, readiness] = await Promise.all([getSelectedModel(), getModelSource(), probeReadiness()]);
+
+  // Everything that needs a human, worst first: exposed secrets, a dead
+  // database, misconfigured keys, then failing readiness rows.
+  const attention: AttentionItem[] = [
+    ...health.dangerous.map((name) => ({
+      key: `danger:${name}`,
+      label: "Secret exposed to the browser",
+      group: "Security",
+      detail: `${name} ships a secret to the browser — move it to a non-public variable now`,
+      level: "missing" as Level,
+    })),
+    ...(probe && !probe.ok
+      ? [{ key: "probe", label: "Database unreachable", group: "Supabase", detail: probe.detail, level: "missing" as Level }]
+      : []),
+    ...health.attention,
+    ...(readiness ?? [])
+      .filter((c) => !c.ok)
+      .map((c) => ({
+        key: `readiness:${c.label}`,
+        label: c.label,
+        group: "Live readiness",
+        detail: c.fix ? `${c.detail} — ${c.fix}` : c.detail,
+        level: "missing" as Level,
+      })),
+  ];
 
   return (
     <div className="container-editorial py-12">
@@ -27,8 +57,43 @@ export default async function SettingsPage() {
         </p>
       </header>
 
+      {/* Needs attention — always first on the page */}
+      {attention.length > 0 ? (
+        <section className="mt-8 overflow-hidden rounded-xl2 border border-clay-500/50 bg-clay-500/5">
+          <div className="flex items-baseline justify-between gap-4 px-5 py-4">
+            <h2 className="font-display text-2xl font-semibold text-ink">Needs attention</h2>
+            <span className="rounded-full bg-clay-500/15 px-3 py-1 text-[0.66rem] font-medium uppercase tracking-eyebrow text-clay-600">
+              {attention.length} {attention.length === 1 ? "item" : "items"}
+            </span>
+          </div>
+          <table className="w-full text-left text-sm">
+            <tbody className="divide-y divide-ink/10 border-t border-ink/10">
+              {attention.map((a) => (
+                <tr key={a.key} className="bg-sand-50">
+                  <td className="px-5 py-3">
+                    <p className="font-medium text-ink">{a.label}</p>
+                    <a href={`#${groupAnchor(a.group)}`} className="text-xs text-ink-muted underline-offset-2 hover:underline">
+                      {a.group}
+                    </a>
+                  </td>
+                  <td className="px-4 py-3 text-ink-soft">{a.detail}</td>
+                  <td className="px-5 py-3 text-right">
+                    <Dot level={a.level} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : (
+        <div className="mt-8 rounded-xl2 border border-palm-500/40 bg-palm-500/5 p-5">
+          <p className="font-medium text-ink">✓ Nothing needs attention</p>
+          <p className="mt-1 text-sm text-ink-muted">Every required key is set, Stripe is on live credentials, and the readiness checks pass.</p>
+        </div>
+      )}
+
       {/* Mode banner */}
-      <div className={`mt-8 rounded-xl2 border p-5 ${health.mode === "live" ? "border-palm-500/40 bg-palm-500/5" : "border-clay-500/40 bg-clay-500/5"}`}>
+      <div className={`mt-6 rounded-xl2 border p-5 ${health.mode === "live" ? "border-palm-500/40 bg-palm-500/5" : "border-clay-500/40 bg-clay-500/5"}`}>
         <div className="flex items-center gap-3">
           <span className={`h-2.5 w-2.5 rounded-full ${health.mode === "live" ? "bg-palm-500" : "bg-clay-500"}`} />
           <p className="font-medium text-ink">
@@ -59,7 +124,7 @@ export default async function SettingsPage() {
 
       {/* Live readiness board */}
       {readiness && (
-        <section className="mt-8">
+        <section id={groupAnchor("Live readiness")} className="mt-8 scroll-mt-24">
           <h2 className="font-display text-2xl font-semibold text-ink">Live readiness</h2>
           <p className="mt-1 text-sm text-ink-muted">End-to-end checks for create → publish → book. A red row points at the migration to run.</p>
           <div className="mt-4 overflow-hidden rounded-xl2 border border-ink/10">
@@ -85,10 +150,10 @@ export default async function SettingsPage() {
         </section>
       )}
 
-      {/* Groups */}
+      {/* Groups — ordered worst-first by getEnvHealth() */}
       <div className="mt-8 space-y-8">
         {health.groups.map((g) => (
-          <section key={g.title}>
+          <section key={g.title} id={groupAnchor(g.title)} className="scroll-mt-24">
             <h2 className="font-display text-2xl font-semibold text-ink">{g.title}</h2>
             {g.note && <p className="mt-1 text-sm text-ink-muted">{g.note}</p>}
             <div className="mt-4 overflow-hidden rounded-xl2 border border-ink/10">

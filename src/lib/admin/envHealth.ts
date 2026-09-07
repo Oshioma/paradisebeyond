@@ -20,6 +20,23 @@ export interface Check {
   preview?: string;
   secret: boolean;
   required: boolean;
+  /**
+   * True when an admin has something to do about this row. A required var that
+   * is missing or wrong qualifies; so does an optional var that is set but
+   * wrong (e.g. a Stripe test key). An optional var that is simply not set is
+   * a choice, not a problem, so it stays out of the attention board.
+   */
+  needsAttention: boolean;
+}
+
+/** One row of the "Needs attention" board at the top of the System page. */
+export interface AttentionItem {
+  key: string;
+  label: string;
+  /** Which system it belongs to — matches a group title where there is one. */
+  group: string;
+  detail: string;
+  level: Level;
 }
 
 function maskPublic(v: string): string {
@@ -32,10 +49,23 @@ function keyScheme(v: string): string {
   if (v.startsWith("sb_secret_")) return "secret (new)";
   if (v.startsWith("eyJ")) return "legacy JWT";
   if (v.startsWith("sk-ant-")) return "Anthropic key";
-  if (v.startsWith("sk_")) return "Stripe secret";
+  if (v.startsWith("sk_live_") || v.startsWith("rk_live_")) return "Stripe secret (live)";
+  if (v.startsWith("sk_test_") || v.startsWith("rk_test_")) return "Stripe secret (test)";
+  if (v.startsWith("sk_") || v.startsWith("rk_")) return "Stripe secret";
+  if (v.startsWith("pk_live_")) return "Stripe publishable (live)";
+  if (v.startsWith("pk_test_")) return "Stripe publishable (test)";
   if (v.startsWith("pk_")) return "Stripe publishable";
   if (v.startsWith("whsec_")) return "Stripe webhook";
   return "unrecognised format";
+}
+
+/** Live vs test mode, read off a Stripe key's prefix. */
+export type StripeKeyMode = "live" | "test" | "unknown";
+
+export function stripeKeyMode(v: string): StripeKeyMode {
+  if (/^(sk|rk|pk)_live_/.test(v)) return "live";
+  if (/^(sk|rk|pk)_test_/.test(v)) return "test";
+  return "unknown";
 }
 
 function present(name: string): string | undefined {
@@ -47,7 +77,15 @@ function present(name: string): string | undefined {
 function publicCheck(name: string, label: string, required: boolean, opts: { url?: boolean; expectScheme?: string } = {}): Check {
   const v = present(name);
   if (!v) {
-    return { key: name, label, level: required ? "missing" : "warn", detail: required ? "Not set" : "Optional — not set", secret: false, required };
+    return {
+      key: name,
+      label,
+      level: required ? "missing" : "warn",
+      detail: required ? "Not set" : "Optional — not set",
+      secret: false,
+      required,
+      needsAttention: required,
+    };
   }
   let level: Level = "ok";
   let detail = "Set";
@@ -68,14 +106,22 @@ function publicCheck(name: string, label: string, required: boolean, opts: { url
       detail += ` — expected ${opts.expectScheme}`;
     }
   }
-  return { key: name, label, level, detail, preview: maskPublic(v), secret: false, required };
+  return { key: name, label, level, detail, preview: maskPublic(v), secret: false, required, needsAttention: level !== "ok" };
 }
 
 /** A secret var: presence + scheme + length only. Never previewed. */
 function secretCheck(name: string, label: string, required: boolean, expectScheme?: string): Check {
   const v = present(name);
   if (!v) {
-    return { key: name, label, level: required ? "missing" : "warn", detail: required ? "Not set" : "Optional — not set", secret: true, required };
+    return {
+      key: name,
+      label,
+      level: required ? "missing" : "warn",
+      detail: required ? "Not set" : "Optional — not set",
+      secret: true,
+      required,
+      needsAttention: required,
+    };
   }
   const scheme = keyScheme(v);
   let level: Level = "ok";
@@ -85,17 +131,69 @@ function secretCheck(name: string, label: string, required: boolean, expectSchem
     detail = `${scheme} · expected ${expectScheme}`;
   }
   // Guard: a secret must not be exposed via a NEXT_PUBLIC_ variable.
-  return { key: name, label, level, detail, secret: true, required };
+  return { key: name, label, level, detail, secret: true, required, needsAttention: level !== "ok" };
+}
+
+/**
+ * A Stripe API key. Only a LIVE key reads as "Set" here: a test key still only
+ * takes fake cards, so on a go-live board it is not a configured payment
+ * system — it shows amber until it is swapped for the live key.
+ */
+function stripeKeyCheck(name: string, label: string, required: boolean, kind: "secret" | "publishable"): Check {
+  const isSecret = kind === "secret";
+  const expected = isSecret ? "sk_live_…" : "pk_live_…";
+  const v = present(name);
+  if (!v) {
+    return {
+      key: name,
+      label,
+      level: required ? "missing" : "warn",
+      detail: required ? `Not set — a live ${expected} key is required` : `Optional while the provider isn't Stripe — needs a live ${expected} key`,
+      secret: isSecret,
+      required,
+      needsAttention: required,
+    };
+  }
+  const preview = isSecret ? undefined : maskPublic(v);
+  const mode = stripeKeyMode(v);
+  if (mode === "live") {
+    const detail = isSecret ? `${keyScheme(v)} · ${v.length} chars` : keyScheme(v);
+    return { key: name, label, level: "ok", detail, preview, secret: isSecret, required, needsAttention: false };
+  }
+  const detail = mode === "test"
+    ? `Test key — real payments need a live ${expected} key`
+    : `Unrecognised format — expected a live ${expected} key`;
+  return { key: name, label, level: "warn", detail, preview, secret: isSecret, required, needsAttention: true };
+}
+
+export interface Group {
+  title: string;
+  note?: string;
+  checks: Check[];
 }
 
 export interface EnvHealth {
   mode: "live" | "demo";
-  groups: { title: string; note?: string; checks: Check[] }[];
+  /** Ordered worst-first: the systems that need attention sort to the top. */
+  groups: Group[];
   dangerous: string[];
+  /** Every check with something to fix, worst-first. */
+  attention: AttentionItem[];
+}
+
+/** Sort weight for a check — lower is more urgent. */
+function rank(c: Check): number {
+  if (c.level === "missing") return c.required ? 0 : 1;
+  if (c.level === "warn") return c.needsAttention ? (c.required ? 2 : 3) : 5;
+  return 4;
+}
+
+function worstRank(g: Group): number {
+  return g.checks.reduce((min, c) => Math.min(min, c.needsAttention ? rank(c) : 6), 6);
 }
 
 export function getEnvHealth(): EnvHealth {
-  const supabaseGroup = {
+  const supabaseGroup: Group = {
     title: "Supabase",
     note: "Publishable key → anon slot; secret key → service-role slot (server only).",
     checks: [
@@ -107,18 +205,44 @@ export function getEnvHealth(): EnvHealth {
 
   const paymentsProvider = present("PAYMENTS_PROVIDER") ?? "mock";
   const stripeRequired = paymentsProvider === "stripe";
-  const paymentsGroup = {
+  const secretKey = present("STRIPE_SECRET_KEY");
+  const stripeMode = secretKey ? stripeKeyMode(secretKey) : "unknown";
+  const paymentsGroup: Group = {
     title: "Payments",
-    note: `Active provider: ${paymentsProvider}. Stripe keys are required only when PAYMENTS_PROVIDER=stripe.`,
+    note: `Active provider: ${paymentsProvider}. Only live keys (sk_live_… / pk_live_…) count as set up — a test key takes fake cards, so it stays amber here. Webhook secrets look identical in both modes, so check the endpoint you copied it from is the live one.`,
     checks: [
-      { key: "PAYMENTS_PROVIDER", label: "Provider", level: "ok" as Level, detail: paymentsProvider, secret: false, required: false },
-      secretCheck("STRIPE_SECRET_KEY", "Stripe secret key", stripeRequired, "Stripe secret"),
-      publicCheck("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Stripe publishable key", stripeRequired, { expectScheme: "Stripe publishable" }),
+      {
+        key: "PAYMENTS_PROVIDER",
+        label: "Provider",
+        level: (stripeRequired ? "ok" : "warn") as Level,
+        detail: stripeRequired ? paymentsProvider : `${paymentsProvider} — payments are simulated, no money moves`,
+        secret: false,
+        required: false,
+        needsAttention: !stripeRequired,
+      },
+      stripeKeyCheck("STRIPE_SECRET_KEY", "Stripe secret key", stripeRequired, "secret"),
+      stripeKeyCheck("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "Stripe publishable key", stripeRequired, "publishable"),
       secretCheck("STRIPE_WEBHOOK_SECRET", "Stripe webhook secret", stripeRequired, "Stripe webhook"),
     ],
   };
 
-  const emailGroup = {
+  // A live secret key paired with a test publishable key (or vice versa) fails
+  // at checkout in a way that is hard to read from either row alone.
+  const publishableKey = present("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
+  const publishableMode = publishableKey ? stripeKeyMode(publishableKey) : "unknown";
+  if (secretKey && publishableKey && stripeMode !== publishableMode) {
+    paymentsGroup.checks.push({
+      key: "STRIPE_KEY_PAIR",
+      label: "Stripe key pair",
+      level: "warn",
+      detail: `Mismatched modes — secret key is ${stripeMode}, publishable key is ${publishableMode}`,
+      secret: false,
+      required: false,
+      needsAttention: true,
+    });
+  }
+
+  const emailGroup: Group = {
     title: "Email (Resend)",
     note: "For the app's transactional emails. Supabase auth emails are configured separately (Auth → SMTP Settings → point at Resend).",
     checks: [
@@ -131,20 +255,29 @@ export function getEnvHealth(): EnvHealth {
         detail: present("ADMIN_EMAIL") ? "Set" : "Optional — new host-application alerts won't be emailed",
         secret: false,
         required: false,
+        needsAttention: false,
       },
     ],
   };
 
-  const aiGroup = {
+  const aiGroup: Group = {
     title: "AI (Anthropic)",
     note: `Powers "Draft with AI" in the Retreat Builder. Optional — without a key it falls back to local heuristic copy. Model: ${present("ANTHROPIC_MODEL") ?? "claude-opus-5 (default)"}.`,
     checks: [
       secretCheck("ANTHROPIC_API_KEY", "Anthropic API key", false, "Anthropic key"),
-      { key: "ANTHROPIC_MODEL", label: "Model override", level: "ok" as Level, detail: present("ANTHROPIC_MODEL") ?? "claude-opus-5 (default)", secret: false, required: false },
+      {
+        key: "ANTHROPIC_MODEL",
+        label: "Model override",
+        level: "ok" as Level,
+        detail: present("ANTHROPIC_MODEL") ?? "claude-opus-5 (default)",
+        secret: false,
+        required: false,
+        needsAttention: false,
+      },
     ],
   };
 
-  const siteGroup = {
+  const siteGroup: Group = {
     title: "Site",
     note: "Set the Site URL so auth email links resolve to your deployment, not localhost.",
     checks: [publicCheck("NEXT_PUBLIC_SITE_URL", "Site URL", false, { url: true })],
@@ -160,10 +293,23 @@ export function getEnvHealth(): EnvHealth {
     }
   }
 
+  const groups = [supabaseGroup, paymentsGroup, emailGroup, aiGroup, siteGroup];
+  // Systems with something to fix float to the top; ties keep the source order.
+  const ordered = groups
+    .map((g, i) => ({ g, i, worst: worstRank(g) }))
+    .sort((a, b) => a.worst - b.worst || a.i - b.i)
+    .map((x) => x.g);
+
+  const attention: AttentionItem[] = ordered
+    .flatMap((g) => g.checks.filter((c) => c.needsAttention).map((c) => ({ c, group: g.title })))
+    .sort((a, b) => rank(a.c) - rank(b.c))
+    .map(({ c, group }) => ({ key: c.key, label: c.label, group, detail: c.detail, level: c.level }));
+
   return {
     mode: isSupabaseConfigured() ? "live" : "demo",
-    groups: [supabaseGroup, paymentsGroup, emailGroup, aiGroup, siteGroup],
+    groups: ordered,
     dangerous,
+    attention,
   };
 }
 
@@ -218,7 +364,8 @@ export async function probeReadiness(): Promise<ReadinessCheck[] | null> {
     });
   }
 
-  return checks;
+  // Failing rows first, so what needs attention reads at the top.
+  return checks.sort((a, b) => Number(a.ok) - Number(b.ok));
 }
 
 /**
