@@ -68,7 +68,17 @@ Checkout sessions, and a webhook confirms bookings (never the success redirect).
    ```
 3. **Webhook** — Stripe → Developers → Webhooks → Add endpoint:
    - URL: `https://<your-domain>/api/stripe/webhook`
-   - Events: `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`
+   - Events — all four are handled by the route, and all four matter:
+     | Event | What it does |
+     |---|---|
+     | `checkout.session.completed` | Confirms the booking, records the payment, emails the guest, redeems the promo |
+     | `checkout.session.expired` | Releases the held seat when a guest abandons checkout |
+     | `charge.refunded` | Marks a fully-refunded booking refunded and frees the seat |
+     | `account.updated` | Keeps `hosts.stripe_onboarded` in sync as Stripe enables/disables a host's charges |
+   - `account.updated` is a **Connect** event: on the endpoint, also tick
+     *Listen to events on Connected accounts*. Without it a host's payout status
+     only refreshes when they return from onboarding or press **Refresh status**,
+     so a host Stripe later suspends keeps receiving transfers that will fail.
    - Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. **Run migration** `0006_stripe.sql` (adds `hosts.stripe_account_id` etc.).
 5. **Hosts connect their account**: a host opens **Studio → Payouts → Connect with
