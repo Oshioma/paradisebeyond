@@ -9,7 +9,7 @@
 --
 -- The app also strips these fields when a finished trip is read, but that only
 -- fires if somebody opens the page. This is the sweep that does not depend on
--- anyone looking.
+-- anyone looking; migration 0030 puts it on a nightly Supabase Cron schedule.
 
 create or replace function public.purge_ended_trip_health_data()
 returns integer
@@ -56,23 +56,5 @@ begin
       execute format('revoke all on function public.purge_ended_trip_health_data() from %I', r);
     end if;
   end loop;
-end;
-$$;
-
--- Schedule it daily if pg_cron is installed. Supabase projects without the
--- extension skip this silently — call the function from a scheduled Edge
--- Function or an external cron instead.
-do $$
-begin
-  if exists (select 1 from pg_extension where extname = 'pg_cron') then
-    perform cron.schedule(
-      'purge-ended-trip-health-data',
-      '17 3 * * *',
-      $cron$select public.purge_ended_trip_health_data();$cron$
-    );
-  end if;
-exception
-  when others then
-    raise notice 'pg_cron present but scheduling failed (%): schedule purge_ended_trip_health_data() externally.', sqlerrm;
 end;
 $$;

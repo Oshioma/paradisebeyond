@@ -20,10 +20,10 @@ export async function getTripPrep(bookingId: string): Promise<TripPrep | null> {
  * have a basis to keep them (UK GDPR Art. 5(1)(e)).
  *
  * This purges on read, which means it only fires when someone opens the trip.
- * The guaranteed sweep is `purge_ended_trip_health_data()` in migration 0029,
- * which clears every ended trip whether or not anyone looks; this is the belt
- * to that migration's braces, so a page never *displays* expired health data
- * even if the sweep has not run yet.
+ * The guaranteed sweep is `purge_ended_trip_health_data()` (migration 0029),
+ * which Supabase Cron runs nightly (migration 0030) whether or not anyone
+ * looks. This is the belt to that schedule's braces, so a page never
+ * *displays* expired health data in the hours before the next sweep.
  */
 export async function getTripPrepForTrip(bookingId: string, departureEndDate: string): Promise<TripPrep | null> {
   const prep = await getTripPrep(bookingId);
