@@ -137,10 +137,16 @@ export default function PrivacyPage() {
           </p>
         </Callout>
         <P>
-          Our lawful basis is your <strong>explicit consent</strong>, given when you complete the
-          questionnaire. You do not have to give this information — but a host may not be able to
-          accommodate a need they do not know about. You can withdraw consent or amend what you told
-          us at any time from your trip page, or by emailing <ContactEmail />.
+          Our lawful basis is your <strong>explicit consent</strong>. You give it by ticking a
+          box next to those two questions, and we record when you gave it. The box is never
+          pre-ticked, and if you leave it unticked we do not store the answers at all — you can
+          still complete the rest of the questionnaire.
+        </P>
+        <P>
+          You do not have to give this information, but a host cannot cater for a need they do not
+          know about. To withdraw, untick the box on your trip page — that clears your dietary and
+          medical answers straight away. To have them deleted at any other time, or to ask what we
+          hold, email <ContactEmail />.
         </P>
         <P>
           We share these details only with the host running your retreat, and with emergency
@@ -197,7 +203,12 @@ export default function PrivacyPage() {
           items={[
             "Booking and payment records: 7 years after the trip, to meet UK tax and accounting rules.",
             "Account data: while your account is open, then 12 months after you close it.",
-            "Trip questionnaires, including health and dietary details: deleted 90 days after your trip ends, unless we need them for an open complaint or claim.",
+            <>
+              Trip questionnaires, including health and dietary details: kept while your
+              booking is live and afterwards until you ask us to delete them.{" "}
+              <strong>Deletion is on request</strong> — email us, or untick the consent
+              box on your trip page, which clears your health answers immediately.
+            </>,
             "Messages between you and your host: 3 years after the trip, so we can resolve disputes.",
             "Reviews and trip memories: published until you ask us to remove them.",
             "Host applications that are not approved: 12 months, then deleted.",

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { getTrip } from "@/lib/data/bookings";
-import { saveTripPrep, type TripPrep } from "@/lib/trip/prep";
+import { getTripPrep, saveTripPrep, type TripPrep } from "@/lib/trip/prep";
 
 /** Guest saves their pre-trip questionnaire. Only for their own booking. */
 export async function saveQuestionnaire(formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -16,13 +16,37 @@ export async function saveQuestionnaire(formData: FormData): Promise<{ ok: boole
   if (!trip) return { ok: false, error: "Trip not found." };
 
   const level = String(formData.get("experienceLevel") ?? "");
+  const healthConsent = String(formData.get("healthConsent") ?? "") === "yes";
+
+  const dietary = String(formData.get("dietary") ?? "").trim().slice(0, 2000) || undefined;
+  const medical = String(formData.get("medical") ?? "").trim().slice(0, 2000) || undefined;
+
+  // Dietary and medical answers are special category data (UK GDPR Art. 9).
+  // Explicit consent is the only basis we rely on, so without the tick we
+  // simply don't store them — and because this runs on every save, clearing
+  // the tick erases what was stored before. The client enforces this too, but
+  // the decision has to be made here, where it can't be bypassed.
+  if (!healthConsent && (dietary || medical)) {
+    return { ok: false, error: "Please agree to us sharing your health and dietary details with your host, or clear those two answers." };
+  }
+
+  // Keep the ORIGINAL consent timestamp while consent stands — that is the
+  // moment we have to be able to evidence. A withdrawal followed by a fresh
+  // consent correctly starts a new one.
+  const existing = await getTripPrep(bookingId);
+  const consentAt = healthConsent
+    ? (existing?.healthConsent && existing.healthConsentAt) || new Date().toISOString()
+    : undefined;
+
   const prep: TripPrep = {
-    dietary: String(formData.get("dietary") ?? "").trim().slice(0, 2000) || undefined,
+    dietary: healthConsent ? dietary : undefined,
     experienceLevel: (["first-timer", "some", "experienced"].includes(level) ? level : undefined) as TripPrep["experienceLevel"],
-    medical: String(formData.get("medical") ?? "").trim().slice(0, 2000) || undefined,
+    medical: healthConsent ? medical : undefined,
     emergencyName: String(formData.get("emergencyName") ?? "").trim().slice(0, 200) || undefined,
     emergencyPhone: String(formData.get("emergencyPhone") ?? "").trim().slice(0, 60) || undefined,
     notes: String(formData.get("notes") ?? "").trim().slice(0, 2000) || undefined,
+    healthConsent: healthConsent || undefined,
+    healthConsentAt: consentAt,
   };
 
   await saveTripPrep(bookingId, prep);
