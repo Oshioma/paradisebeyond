@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import type { Departure, Experience } from "@/lib/types";
 import { formatMoney } from "@/lib/money";
 import { formatDateRange } from "@/lib/utils";
@@ -185,6 +186,18 @@ export function BookingFlow({
           )}
           <p className="mt-3 text-center text-xs text-ink-muted">
             Flights not included · secure your dates with {formatMoney(dueNow, c)} now
+          </p>
+          {/* Terms must be linked at the point of purchase to bind the booking. */}
+          <p className="mt-3 text-center text-xs leading-relaxed text-ink-muted">
+            By reserving you accept our{" "}
+            <Link href="/terms" className="link-underline text-ink-soft">
+              Terms &amp; Conditions
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="link-underline text-ink-soft">
+              Privacy Policy
+            </Link>
+            . Your deposit is non-refundable.
           </p>
         </div>
       </aside>
