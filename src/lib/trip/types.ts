@@ -11,6 +11,15 @@ export interface TripPrep {
   emergencyPhone?: string;
   notes?: string;
   updatedAt?: string;
+  /**
+   * Dietary and medical answers are "data concerning health" under UK GDPR
+   * Art. 9, which we may only process on the guest's explicit consent. This
+   * flag records that consent; `healthConsentAt` is when it was given, so we
+   * can demonstrate it. Without consent those two fields are never stored —
+   * see `saveQuestionnaire`, which drops them server-side.
+   */
+  healthConsent?: boolean;
+  healthConsentAt?: string;
 }
 
 export const EXPERIENCE_LEVELS: { value: NonNullable<TripPrep["experienceLevel"]>; label: string }[] = [

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LEGAL } from "@/lib/legal";
 
 export function SiteFooter() {
   return (
@@ -14,6 +15,11 @@ export function SiteFooter() {
             <p className="mt-6 text-sm text-ink-soft">
               Your international flights aren&apos;t included. Get yourself to
               Zanzibar and we&apos;ll take care of the rest.
+            </p>
+            <p className="mt-6 text-sm text-ink-soft">
+              <a href={`mailto:${LEGAL.email}`} className="link-underline">
+                {LEGAL.email}
+              </a>
             </p>
           </div>
 
@@ -46,10 +52,28 @@ export function SiteFooter() {
           />
         </div>
 
-        <div className="mt-14 flex flex-col justify-between gap-4 border-t border-ink/10 pt-8 text-xs text-ink-muted sm:flex-row">
+        <div className="mt-14 flex flex-col gap-5 border-t border-ink/10 pt-8 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
           <p>© {2026} Paradise Beyond. Curated with care.</p>
+
+          <nav aria-label="Legal" className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <Link href="/terms" className="transition-colors hover:text-ink">
+              Terms &amp; Conditions
+            </Link>
+            <Link href="/privacy" className="transition-colors hover:text-ink">
+              Privacy Policy
+            </Link>
+            <a href={`mailto:${LEGAL.email}`} className="transition-colors hover:text-ink">
+              Contact
+            </a>
+          </nav>
+
           <p className="uppercase tracking-eyebrow">Zanzibar · and beyond</p>
         </div>
+
+        <p className="mt-6 text-xs leading-relaxed text-ink-muted">
+          {LEGAL.legalEntity}. We act as agent for the hosts who run the experiences
+          listed here; your international flights are arranged separately by you.
+        </p>
       </div>
     </footer>
   );

@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { saveQuestionnaire } from "@/lib/trip/actions";
 import { EXPERIENCE_LEVELS, type TripPrep } from "@/lib/trip/types";
 import { cn } from "@/lib/utils";
+import { LEGAL } from "@/lib/legal";
+
+const CONTACT_EMAIL = LEGAL.email;
 
 const inp = "w-full rounded-xl border border-ink/15 bg-sand-50 px-4 py-3 text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500";
 
@@ -13,9 +16,27 @@ export function TripQuestionnaire({ bookingId, initial }: { bookingId: string; i
   const [prep, setPrep] = useState<TripPrep>(initial ?? {});
   const [pending, start] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const complete = Boolean(prep.dietary || prep.experienceLevel || prep.emergencyName);
 
+  const consented = Boolean(prep.healthConsent);
+  const hasHealthAnswers = Boolean(prep.dietary?.trim() || prep.medical?.trim());
+
+  /**
+   * Withdrawing consent clears the two health answers in the form as well, so
+   * what you see is what we hold — the server drops them on save either way.
+   */
+  function toggleConsent(next: boolean) {
+    setError(null);
+    setPrep((p) => (next ? { ...p, healthConsent: true } : { ...p, healthConsent: false, dietary: "", medical: "" }));
+  }
+
   function save() {
+    if (hasHealthAnswers && !consented) {
+      setError("Please tick the box below so we can share these details with your host — or clear them.");
+      return;
+    }
+    setError(null);
     start(async () => {
       const fd = new FormData();
       fd.set("bookingId", bookingId);
@@ -25,8 +46,10 @@ export function TripQuestionnaire({ bookingId, initial }: { bookingId: string; i
       fd.set("emergencyName", prep.emergencyName ?? "");
       fd.set("emergencyPhone", prep.emergencyPhone ?? "");
       fd.set("notes", prep.notes ?? "");
+      fd.set("healthConsent", consented ? "yes" : "no");
       const res = await saveQuestionnaire(fd);
       if (res.ok) { setSavedAt(new Date().toLocaleTimeString()); setOpen(false); }
+      else setError(res.error ?? "Something went wrong. Please try again.");
     });
   }
 
@@ -68,6 +91,33 @@ export function TripQuestionnaire({ bookingId, initial }: { bookingId: string; i
           <Field label="Anything we should know? (medical, mobility, etc.)">
             <textarea rows={2} className={inp} value={prep.medical ?? ""} onChange={(e) => setPrep((p) => ({ ...p, medical: e.target.value }))} />
           </Field>
+
+          {/* Explicit consent for the two health fields above (UK GDPR Art. 9). */}
+          <div className="rounded-xl border border-ocean-500/30 bg-ocean-50/60 p-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={consented}
+                onChange={(e) => toggleConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-ocean-500"
+              />
+              <span className="text-sm leading-relaxed text-ink-soft">
+                I agree that Paradise Beyond and the host running my retreat may use my
+                health and dietary information to cater for me safely, adapt activities
+                and respond in an emergency.
+              </span>
+            </label>
+            <p className="mt-2.5 pl-7 text-xs leading-relaxed text-ink-muted">
+              Optional — the rest of the questionnaire works without it. Untick to withdraw
+              and clear your answers, or email{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="underline">{CONTACT_EMAIL}</a>{" "}
+              to have them deleted.
+              {prep.healthConsentAt && (
+                <> Agreed {new Date(prep.healthConsentAt).toLocaleDateString()}.</>
+              )}
+            </p>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Emergency contact name">
               <input className={inp} value={prep.emergencyName ?? ""} onChange={(e) => setPrep((p) => ({ ...p, emergencyName: e.target.value }))} />
@@ -76,6 +126,7 @@ export function TripQuestionnaire({ bookingId, initial }: { bookingId: string; i
               <input className={inp} value={prep.emergencyPhone ?? ""} onChange={(e) => setPrep((p) => ({ ...p, emergencyPhone: e.target.value }))} />
             </Field>
           </div>
+          {error && <p className="text-sm text-clay-600">{error}</p>}
           <div className="flex items-center gap-3">
             <button onClick={save} disabled={pending} className="rounded-full bg-clay-500 px-6 py-2.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600 disabled:opacity-50">
               {pending ? "Saving…" : "Save"}
