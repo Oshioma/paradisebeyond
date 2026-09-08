@@ -19,7 +19,7 @@ import { getBookingReview } from "@/lib/data/reviews";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
 import { Stars } from "@/components/reviews/Stars";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { getTripPrep } from "@/lib/trip/prep";
+import { getTripPrepForTrip } from "@/lib/trip/prep";
 import { packingList } from "@/lib/trip/packing";
 import { supportContacts } from "@/lib/trip/support";
 import { TripQuestionnaire } from "@/components/trip/TripQuestionnaire";
@@ -51,7 +51,8 @@ export default async function TripPage({
   // Reviews open once the trip has ended (or is marked completed). Demo: always.
   const tripEnded = new Date(trip.departure.endDate) < new Date();
   const canReview = trip.status === "completed" || tripEnded || !isSupabaseConfigured();
-  const prep = await getTripPrep(trip.id);
+  // Reads the questionnaire, clearing the health answers if the trip has ended.
+  const prep = await getTripPrepForTrip(trip.id, trip.departure.endDate);
   const packing = packingList(trip.experience);
   const contacts = supportContacts(trip.experience.destinationSlug);
 
