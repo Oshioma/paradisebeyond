@@ -15,10 +15,10 @@ export const LEGAL = {
   legalEntity: "Oshi Okomilo, trading as Paradise Beyond",
   /**
    * Postal address for service and for data-subject correspondence. UK GDPR
-   * expects a controller's address to be reachable — swap the placeholder for
-   * the real trading address before launch.
+   * expects a controller's address to be reachable, and consumer distance-
+   * selling rules require a geographic address on the terms.
    */
-  address: "[Trading address — line 1], [Town], [Postcode], United Kingdom",
+  address: "Lynton Road, London, NW6 6BL, United Kingdom",
   /** The one published contact route for legal, booking and privacy queries. */
   email: "paradisebeyond@guestlist.net",
   jurisdiction: "England and Wales",
