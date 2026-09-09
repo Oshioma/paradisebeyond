@@ -88,3 +88,36 @@ an **in-app refund** button (Admin → Bookings; reverses charge + fee + transfe
 **promo codes** (Admin → Promos; applied at checkout), and **automated emails**
 (booking confirmation, balance receipt, host-application decisions via Resend).
 Run migrations `0006_stripe.sql` and `0007_promos.sql` for these.
+
+---
+
+## Scheduled data cleanup (required)
+
+Guests' dietary and medical answers are special category data, held only while
+the trip needs them. Migration `0029_purge_trip_health_data.sql` adds
+`purge_ended_trip_health_data()`, which clears those answers for departures that
+have ended, and `0030_schedule_health_data_purge.sql` puts it on Supabase Cron
+at 03:17 UTC nightly.
+
+1. **Enable pg_cron** — Dashboard → Database → Extensions → toggle `pg_cron`.
+   Do this *before* running `0030`. The migration will create the extension
+   itself if you skip this, but creating it from a migration doesn't always set
+   the schema grants up correctly ([supabase/cli#1591]); toggling it in the
+   dashboard once fixes that, and re-running `0030` is safe.
+2. **Run migrations** `0029` then `0030`.
+3. **Check it's scheduled**:
+   ```sql
+   select jobname, schedule, active from cron.job
+    where jobname = 'purge-ended-trip-health-data';
+   ```
+4. **Check it's running** (after the first night):
+   ```sql
+   select status, return_message, start_time
+     from cron.job_run_details order by runid desc limit 5;
+   ```
+   `return_message` is the number of rows purged.
+
+Without this the app still hides health answers for finished trips, but the rows
+keep the data — the schedule is what actually deletes it, so don't skip it.
+
+[supabase/cli#1591]: https://github.com/supabase/cli/issues/1591

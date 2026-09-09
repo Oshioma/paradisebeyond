@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/session";
 import { getTrip } from "@/lib/data/bookings";
-import { getTripPrep, saveTripPrep, type TripPrep } from "@/lib/trip/prep";
+import { getTripPrep, saveTripPrep, tripHasEnded, type TripPrep } from "@/lib/trip/prep";
 
 /** Guest saves their pre-trip questionnaire. Only for their own booking. */
 export async function saveQuestionnaire(formData: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -16,7 +16,11 @@ export async function saveQuestionnaire(formData: FormData): Promise<{ ok: boole
   if (!trip) return { ok: false, error: "Trip not found." };
 
   const level = String(formData.get("experienceLevel") ?? "");
-  const healthConsent = String(formData.get("healthConsent") ?? "") === "yes";
+
+  // Once the trip is over the safety purpose has expired, so health answers are
+  // purged and cannot be re-added — a late save keeps the rest of the answers.
+  const ended = tripHasEnded(trip.departure.endDate);
+  const healthConsent = !ended && String(formData.get("healthConsent") ?? "") === "yes";
 
   const dietary = String(formData.get("dietary") ?? "").trim().slice(0, 2000) || undefined;
   const medical = String(formData.get("medical") ?? "").trim().slice(0, 2000) || undefined;
@@ -26,7 +30,7 @@ export async function saveQuestionnaire(formData: FormData): Promise<{ ok: boole
   // simply don't store them — and because this runs on every save, clearing
   // the tick erases what was stored before. The client enforces this too, but
   // the decision has to be made here, where it can't be bypassed.
-  if (!healthConsent && (dietary || medical)) {
+  if (!healthConsent && (dietary || medical) && !ended) {
     return { ok: false, error: "Please agree to us sharing your health and dietary details with your host, or clear those two answers." };
   }
 

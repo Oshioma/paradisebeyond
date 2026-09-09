@@ -149,6 +149,12 @@ export default function PrivacyPage() {
           hold, email <ContactEmail />.
         </P>
         <P>
+          We also clear these two answers by ourselves once your trip has ended, without waiting
+          for you to ask. Keeping them past the trip serves no purpose, so we don&rsquo;t. The rest
+          of your questionnaire — experience level, emergency contact, notes — stays with your
+          booking record.
+        </P>
+        <P>
           We share these details only with the host running your retreat, and with emergency
           services or medical staff if your safety requires it.
         </P>
@@ -204,11 +210,12 @@ export default function PrivacyPage() {
             "Booking and payment records: 7 years after the trip, to meet UK tax and accounting rules.",
             "Account data: while your account is open, then 12 months after you close it.",
             <>
-              Trip questionnaires, including health and dietary details: kept while your
-              booking is live and afterwards until you ask us to delete them.{" "}
-              <strong>Deletion is on request</strong> — email us, or untick the consent
-              box on your trip page, which clears your health answers immediately.
+              Trip questionnaires — health and dietary answers:{" "}
+              <strong>cleared once your trip has ended</strong>, automatically, because the
+              reason we held them has passed. You can also remove them sooner by unticking
+              the consent box on your trip page, or ask us to delete them at any time.
             </>,
+            "Trip questionnaires — the rest (experience level, emergency contact, notes): kept with your booking record, and deleted on request.",
             "Messages between you and your host: 3 years after the trip, so we can resolve disputes.",
             "Reviews and trip memories: published until you ask us to remove them.",
             "Host applications that are not approved: 12 months, then deleted.",

@@ -18,7 +18,7 @@ export const LEGAL = {
    * expects a controller's address to be reachable, and consumer distance-
    * selling rules require a geographic address on the terms.
    */
-  address: "Lynton Road, London, NW6 6BL, United Kingdom",
+  address: "34 Lynton Road, London, NW6 6BL, United Kingdom",
   /** The one published contact route for legal, booking and privacy queries. */
   email: "paradisebeyond@guestlist.net",
   jurisdiction: "England and Wales",
