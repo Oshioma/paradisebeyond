@@ -13,6 +13,7 @@ import { FlightsNote } from "@/components/experience/FlightsNote";
 import { ShareButton } from "@/components/experience/ShareButton";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { AdminDeletablePhoto } from "@/components/experience/AdminDeletablePhoto";
+import { PhotoGallery, type GalleryPhoto } from "@/components/experience/PhotoGallery";
 
 /**
  * The full editorial body of an experience — every section, in one place — so
@@ -164,13 +165,15 @@ export function ExperienceBody({
           </>
         )}
         {e.stay.imageSeeds.length > 0 && (
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {e.stay.imageSeeds.map((s) => (
-              <div key={s} className="relative aspect-square overflow-hidden rounded-xl">
-                <Image src={img(s, 400, 400)} alt="Accommodation" fill sizes="30vw" className="object-cover" />
-              </div>
-            ))}
-          </div>
+          <PhotoGallery
+            layout="grid"
+            label={`${e.stay.property || e.name} photos`}
+            photos={e.stay.imageSeeds.map((s, i) => ({
+              thumb: img(s, 400, 400),
+              full: img(s, 1800, 1350),
+              alt: `${e.stay.property || e.name} — photo ${i + 1}`,
+            }))}
+          />
         )}
         <div className="mt-6 space-y-2">
           <p className={eyebrowClass} style={eyebrowStyle}>Accommodation options · {e.duration} nights</p>
@@ -276,21 +279,18 @@ export function ExperienceBody({
   );
 }
 
-/** A small photo strip for a hotel/property (host-uploaded URLs). */
+/**
+ * A property's photos (host-uploaded URLs) as a swipeable carousel that opens
+ * full screen. One upload is the same file at both sizes.
+ */
 function HotelImages({ images, name }: { images?: string[]; name?: string }) {
-  const shots = (images ?? []).filter(Boolean);
-  if (!shots.length) return null;
-  return (
-    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-      {shots.map((url, i) => (
-        <div key={`${url}-${i}`} className="relative aspect-square overflow-hidden rounded-lg bg-sand-200">
-          {/* Host-uploaded URLs, so plain img rather than next/image domain config. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={name ? `${name} photo ${i + 1}` : "Accommodation photo"} loading="lazy" className="h-full w-full object-cover" />
-        </div>
-      ))}
-    </div>
-  );
+  const photos: GalleryPhoto[] = (images ?? []).filter(Boolean).map((url, i) => ({
+    thumb: url,
+    full: url,
+    alt: name ? `${name} — photo ${i + 1}` : `Accommodation photo ${i + 1}`,
+  }));
+  if (!photos.length) return null;
+  return <PhotoGallery photos={photos} label={name ? `${name} photos` : "Accommodation photos"} />;
 }
 
 function CheckIcon() {
