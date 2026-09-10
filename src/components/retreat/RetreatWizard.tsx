@@ -371,20 +371,58 @@ function StepContent({
                 </div>
                 <textarea rows={3} className={cn(inp, "ml-8 w-[calc(100%-2rem)]")} placeholder="Describe where guests stay — the feel, the location, why you chose it…" value={h.description} onChange={(e) => updateArr(setDraft, "hotels", i, { description: e.target.value })} />
                 <div className="ml-8">
-                  <p className="mb-2 text-[0.7rem] uppercase tracking-eyebrow text-ink-muted">Photos of this property</p>
+                  <p className="mb-1 text-[0.7rem] uppercase tracking-eyebrow text-ink-muted">Photos of this property</p>
+                  <p className="mb-2 text-xs text-ink-muted">
+                    Select several at once to add them together. Use ← → to order them — the first
+                    photo leads the carousel on your listing.
+                  </p>
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {(h.images ?? []).map((u, j) => (
-                      <div key={j} className="relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={u} alt="" className="aspect-square w-full rounded-lg object-cover" />
-                        <button
-                          onClick={() => updateArr(setDraft, "hotels", i, { images: (h.images ?? []).filter((_, k) => k !== j) })}
-                          className="absolute right-1 top-1 rounded-full bg-ink/70 px-2 py-0.5 text-[0.6rem] uppercase tracking-eyebrow text-sand-50"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
+                    {(h.images ?? []).map((u, j) => {
+                      const shots = h.images ?? [];
+                      const reorder = (to: number) =>
+                        updateArr(setDraft, "hotels", i, { images: moveInArray(shots, j, to) });
+                      return (
+                        // The square lives on the wrapper, not the image, so a
+                        // dead link (easy to paste) still holds its tile and
+                        // keeps these controls where they belong.
+                        <div key={`${u}-${j}`} className="relative aspect-square overflow-hidden rounded-lg bg-sand-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={u} alt="" className="h-full w-full object-cover" />
+
+                          {/* Position, so the running order is readable at a glance. */}
+                          <span className="absolute left-1 top-1 rounded-full bg-ink/70 px-1.5 py-0.5 text-[0.55rem] font-semibold text-sand-50">
+                            {j + 1}
+                          </span>
+
+                          <button
+                            type="button"
+                            aria-label={`Remove photo ${j + 1}`}
+                            title="Remove"
+                            onClick={() => updateArr(setDraft, "hotels", i, { images: shots.filter((_, k) => k !== j) })}
+                            className="absolute right-1 top-1 rounded-full bg-ink/70 p-1 text-sand-50 hover:bg-ink"
+                          >
+                            <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M5 5l10 10M15 5L5 15" />
+                            </svg>
+                          </button>
+
+                          <div className="absolute inset-x-1 bottom-1 flex justify-between">
+                            <NudgeBtn
+                              dir="left"
+                              disabled={j === 0}
+                              label={`Move photo ${j + 1} earlier`}
+                              onClick={() => reorder(j - 1)}
+                            />
+                            <NudgeBtn
+                              dir="right"
+                              disabled={j === shots.length - 1}
+                              label={`Move photo ${j + 1} later`}
+                              onClick={() => reorder(j + 1)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                     <PhotoUpload
                       draftId={draft.id}
                       slot={`hotel-${i}-${(h.images ?? []).length}`}
@@ -393,6 +431,13 @@ function StepContent({
                       multiple
                       onUploaded={(u) => updateArr(setDraft, "hotels", i, { images: [...(h.images ?? []), u] })}
                       onUploadedMany={(urls) => updateArr(setDraft, "hotels", i, { images: [...(h.images ?? []), ...urls] })}
+                    />
+                  </div>
+                  {/* The compact tile has no room for the URL fallback, so it sits here. */}
+                  <div className="mt-2">
+                    <UrlPasteRow
+                      label="…or paste an image URL (https://…)"
+                      onAdd={(u) => updateArr(setDraft, "hotels", i, { images: [...(h.images ?? []), u] })}
                     />
                   </div>
                 </div>
@@ -874,7 +919,6 @@ function GalleryUrlAdd({ onAdd }: { onAdd: (u: string) => void }) {
 
 function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, compact, multiple }: { draftId: string; slot: string; url: string; onUploaded: (u: string) => void; onUploadedMany?: (urls: string[]) => void; onClear?: () => void; compact?: boolean; multiple?: boolean }) {
   const [pending, start] = useTransition();
-  const [urlInput, setUrlInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
@@ -914,14 +958,6 @@ function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, 
     });
   }
 
-  function applyUrl() {
-    const v = urlInput.trim();
-    if (!/^https?:\/\/\S+/i.test(v)) { setErr("Enter a link starting with http:// or https://"); return; }
-    setErr(null);
-    onUploaded(v);
-    setUrlInput("");
-  }
-
   if (url && !compact) {
     return (
       <div className="relative inline-block">
@@ -937,25 +973,77 @@ function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, 
         <input ref={ref} type="file" accept="image/*" multiple={multiple} className="hidden" onChange={onFile} />
         {pending ? (progress ?? "Uploading…") : compact ? (multiple ? "+ Add photos" : "+ Add") : "Click to upload a photo"}
       </label>
-      {!compact && (
-        <div className="flex gap-2">
-          <input
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyUrl(); } }}
-            placeholder="…or paste an image URL (https://…)"
-            className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
-          />
-          <button type="button" onClick={applyUrl} className="flex-none rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">Use</button>
-        </div>
-      )}
+      {!compact && <UrlPasteRow onAdd={onUploaded} />}
       {err && <p className="text-xs text-clay-600">{err}</p>}
     </div>
   );
 }
 
+/**
+ * "…or paste an image URL" — the fallback for when an upload won't go through,
+ * or the photo already lives somewhere. Shared so the compact uploaders (which
+ * have no room for it in their tile) can offer it alongside the grid.
+ */
+function UrlPasteRow({ onAdd, label }: { onAdd: (u: string) => void; label?: string }) {
+  const [value, setValue] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  function apply() {
+    const v = value.trim();
+    if (!/^https?:\/\/\S+/i.test(v)) { setErr("Enter a link starting with http:// or https://"); return; }
+    setErr(null);
+    onAdd(v);
+    setValue("");
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); apply(); } }}
+          placeholder={label ?? "…or paste an image URL (https://…)"}
+          className="w-full rounded-lg border border-ink/15 bg-sand-50 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500"
+        />
+        <button type="button" onClick={apply} className="flex-none rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40">Use</button>
+      </div>
+      {err && <p className="mt-1 text-xs text-clay-600">{err}</p>}
+    </div>
+  );
+}
+
+/** A small move-earlier / move-later control for ordering photos. */
+function NudgeBtn({ dir, disabled, label, onClick }: { dir: "left" | "right"; disabled: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "rounded-full bg-ink/70 p-1 text-sand-50 hover:bg-ink",
+        disabled && "pointer-events-none opacity-0",
+      )}
+    >
+      <svg viewBox="0 0 20 20" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d={dir === "left" ? "M12.5 4L6.5 10l6 6" : "M7.5 4l6 6-6 6"} />
+      </svg>
+    </button>
+  );
+}
+
 // ---- helpers ---------------------------------------------------------------
 function toggle(list: string[], v: string) { return list.includes(v) ? list.filter((x) => x !== v) : [...list, v]; }
+/** Move one item within a list, ignoring moves that would fall off either end. */
+function moveInArray<T>(list: T[], from: number, to: number): T[] {
+  if (to < 0 || to >= list.length || from === to) return list;
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
 function updateArr<K extends keyof RetreatDraft>(setDraft: React.Dispatch<React.SetStateAction<RetreatDraft>>, key: K, i: number, patch: object) {
   setDraft((d) => {
     const arr = [...(d[key] as unknown as object[])];
