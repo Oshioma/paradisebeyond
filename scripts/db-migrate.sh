@@ -32,6 +32,14 @@ query() { psql "$DATABASE_URL" -t -A -c "$1"; }
 
 run "create table if not exists public._schema_migrations (name text primary key, applied_at timestamptz not null default now());"
 
+# The ledger lives in `public`, which Supabase exposes through PostgREST, and
+# Supabase's default privileges grant `anon`/`authenticated` everything created
+# there. It is internal bookkeeping, so lock it down the moment it exists rather
+# than waiting for 0031_lock_schema_migrations.sql to be applied below.
+run "revoke all on table public._schema_migrations from public;"
+run "do \$\$ declare r text; begin foreach r in array array['anon','authenticated'] loop if exists (select 1 from pg_roles where rolname = r) then execute format('revoke all on table public._schema_migrations from %I', r); end if; end loop; end \$\$;"
+run "alter table public._schema_migrations enable row level security;"
+
 # First run on an existing DB: record the base migrations as already applied.
 if [ "$(query "select count(*) from public._schema_migrations;")" = "0" ] && [ -n "$BASELINE" ]; then
   for b in $BASELINE; do
