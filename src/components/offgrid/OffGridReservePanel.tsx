@@ -16,10 +16,13 @@ export function OffGridReservePanel({
   offGrid,
   departures,
   currency,
+  sample = false,
 }: {
   offGrid: OffGridDetails;
   departures: Departure[];
   currency: string;
+  /** Sample listings show their dates but can't be booked. */
+  sample?: boolean;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const windows = departures.filter((d) => d.status !== "closed" && d.endDate > today);
@@ -71,7 +74,11 @@ export function OffGridReservePanel({
               );
             })}
           </div>
-          {selected && selected.status !== "sold_out" && selected.spacesRemaining > 0 && (
+          {sample ? (
+            <p className="mt-6 rounded-full bg-ink/10 px-6 py-4 text-center text-sm uppercase tracking-[0.16em] text-ink-muted">
+              Sample listing · not bookable
+            </p>
+          ) : selected && selected.status !== "sold_out" && selected.spacesRemaining > 0 && (
             <Link
               href={`/book/${selected.id}`}
               className="mt-6 flex w-full items-center justify-center rounded-full bg-forest-700 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-colors hover:bg-forest-800"

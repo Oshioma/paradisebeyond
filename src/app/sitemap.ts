@@ -32,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (hostVisibleOn(await getExperiencesByHost(h.slug), brand.id)) visibleHosts.push(h);
   }
 
-  const experienceRoutes: MetadataRoute.Sitemap = experiences.map((e) => ({
+  const experienceRoutes: MetadataRoute.Sitemap = experiences.filter((e) => !e.sample).map((e) => ({
     url: `${base}/experiences/${e.slug}`,
     lastModified: now,
     changeFrequency: "weekly",
