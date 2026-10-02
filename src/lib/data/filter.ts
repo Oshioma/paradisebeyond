@@ -98,3 +98,19 @@ export function hostVisibleOn(hostListings: Experience[], marketplace: Marketpla
   if (hostListings.some((e) => visibleOn(e, marketplace))) return true;
   return hostListings.length === 0 && marketplace === "paradise-beyond";
 }
+
+/**
+ * The categories that have at least one listing, with their counts, in the
+ * categories' own order — so category links never lead to an empty page.
+ */
+export function categoriesWithListings<C extends { slug: string }>(
+  categories: C[],
+  listings: Experience[],
+): { category: C; count: number }[] {
+  return categories
+    .map((category) => ({
+      category,
+      count: listings.filter((e) => e.categorySlugs.includes(category.slug as never)).length,
+    }))
+    .filter((c) => c.count > 0);
+}

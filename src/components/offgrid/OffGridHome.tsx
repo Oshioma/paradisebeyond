@@ -2,7 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Brand } from "@/lib/brand/config";
 import { hero, img } from "@/lib/images";
-import { getAllCategories, getFeaturedExperiences } from "@/lib/data/repository";
+import { getAllCategories, getFeaturedExperiences, getMarketplaceExperiences } from "@/lib/data/repository";
+import { categoriesWithListings } from "@/lib/data/filter";
+import { CategorySlider } from "@/components/offgrid/CategorySlider";
 import { ExperienceGrid } from "@/components/experience/ExperienceGrid";
 import { OffGridSearch } from "@/components/offgrid/OffGridSearch";
 
@@ -13,10 +15,12 @@ import { OffGridSearch } from "@/components/offgrid/OffGridSearch";
  * no placeholder inventory or invented numbers.
  */
 export async function OffGridHome({ brand }: { brand: Brand }) {
-  const [categories, featured] = await Promise.all([
+  const [categories, featured, listings] = await Promise.all([
     getAllCategories(brand.id),
     getFeaturedExperiences(6, brand.id),
+    getMarketplaceExperiences(brand.id),
   ]);
+  const kinds = categoriesWithListings(categories, listings);
 
   return (
     <>
@@ -66,39 +70,28 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
         </div>
       </section>
 
-      {/* Find your kind of off-grid */}
-      <section className="container-editorial py-20 sm:py-28">
-        <div className="max-w-2xl reveal">
-          <p className="eyebrow text-forest-700">Find your kind of off-grid</p>
-          <h2 className="mt-3 text-headline font-semibold text-ink">Places worth getting your hands dirty for</h2>
-          <p className="mt-4 text-lg text-ink-muted">Not a hotel. Not a job listing. A real stay with a real exchange.</p>
-        </div>
-
-        {/* Mobile: a swipeable row; larger screens: an editorial grid. */}
-        <div className="-mx-5 mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-4">
-          {categories.map((c, i) => (
-            <Link
-              key={c.slug}
-              href={`/categories/${c.slug}`}
-              className={`group relative flex aspect-[3/4] w-[44vw] flex-none snap-start flex-col justify-end overflow-hidden rounded-xl2 sm:w-auto reveal ${i === 0 ? "sm:col-span-2 sm:aspect-[2/1] lg:row-span-2 lg:aspect-auto" : ""}`}
-              style={{ transitionDelay: `${(i % 5) * 50}ms` }}
-            >
-              <Image
-                src={img(c.imageSeed, 700, 933)}
-                alt={c.name}
-                fill
-                sizes="(max-width: 640px) 44vw, (max-width: 1024px) 45vw, 25vw"
-                className="object-cover transition-transform duration-[1.4s] ease-out-soft group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-forest-900/80 via-forest-900/10 to-transparent" />
-              <div className="relative p-4 sm:p-5">
-                <h3 className={`font-display font-semibold text-sand-50 ${i === 0 ? "text-xl lg:text-3xl" : "text-lg sm:text-xl"}`}>{c.name}</h3>
-                <p className="mt-1 text-xs leading-relaxed text-sand-100/85">{c.tagline}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* Find your kind of off-grid — only kinds that have stays, so every
+          card leads somewhere; one sideways-scrolling row. */}
+      {kinds.length > 0 && (
+        <section className="container-editorial py-16 sm:py-20">
+          <div className="max-w-2xl reveal">
+            <p className="eyebrow text-forest-700">Find your kind of off-grid</p>
+            <h2 className="mt-3 text-headline font-semibold text-ink">Places worth getting your hands dirty for</h2>
+            <p className="mt-4 text-lg text-ink-muted">Not a hotel. Not a job listing. A real stay with a real exchange.</p>
+          </div>
+          <div className="mt-10">
+            <CategorySlider
+              items={kinds.map(({ category: c, count }) => ({
+                slug: c.slug,
+                name: c.name,
+                tagline: c.tagline,
+                image: img(c.imageSeed, 700, 875),
+                count,
+              }))}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Featured stays */}
       <section className="bg-sand-100 py-20 sm:py-28">

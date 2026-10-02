@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { Experience } from "@/lib/types";
-import { matchesFilter, onlyMarketplace, visibleOn, hostVisibleOn } from "./filter";
+import { matchesFilter, onlyMarketplace, visibleOn, hostVisibleOn, categoriesWithListings } from "./filter";
 import { CATEGORIES, OFF_GRID_CATEGORIES, categoriesFor, categoryMarketplace } from "./categories";
 import { marketplaceOf } from "@/lib/brand/config";
 import { OFFGRID_DEMO_EXPERIENCES } from "@/lib/demo/offgridSamples";
@@ -111,6 +111,25 @@ describe("categories", () => {
   it("slugs don't collide across marketplaces", () => {
     const pb = new Set(CATEGORIES.map((c) => c.slug));
     expect(OFF_GRID_CATEGORIES.some((c) => pb.has(c.slug))).toBe(false);
+  });
+});
+
+describe("categoriesWithListings (homepage 'kinds of place')", () => {
+  it("only includes categories that have at least one listing, with counts, in category order", () => {
+    const kinds = categoriesWithListings(OFF_GRID_CATEGORIES, OFFGRID_DEMO_EXPERIENCES);
+    expect(kinds.map((k) => k.category.slug)).toEqual(["permaculture", "homesteads", "natural-building"]);
+    expect(kinds.every((k) => k.count === 1)).toBe(true);
+  });
+
+  it("is empty when there are no listings", () => {
+    expect(categoriesWithListings(OFF_GRID_CATEGORIES, [])).toEqual([]);
+  });
+
+  it("counts every listing in a category", () => {
+    const two = [OFFGRID_DEMO_EXPERIENCES[0], { ...OFFGRID_DEMO_EXPERIENCES[0], slug: "another" }];
+    expect(categoriesWithListings(OFF_GRID_CATEGORIES, two)).toEqual([
+      { category: OFF_GRID_CATEGORIES.find((c) => c.slug === "permaculture"), count: 2 },
+    ]);
   });
 });
 
