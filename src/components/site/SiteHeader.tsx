@@ -54,22 +54,33 @@ export function SiteHeader({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
       )}
     >
       <div className="container-editorial flex h-[var(--paradise-nav-h)] items-center justify-between">
-        <Link href="/" className="group flex flex-col leading-none">
-          {earth ? (
-            <span className="text-[0.82rem] font-semibold uppercase tracking-[0.24em] text-forest-800 sm:text-sm">
-              {brand.wordmark}
+        {earth ? (
+          <Link href="/" className="group flex items-center gap-2.5 leading-none">
+            {brand.icon && (
+              // eslint-disable-next-line @next/next/no-img-element -- tiny static brand SVG
+              <img src={brand.icon.svg} alt="" width={34} height={34} className="h-8 w-8 flex-none rounded-lg sm:h-[34px] sm:w-[34px]" />
+            )}
+            <span className="flex flex-col">
+              <span className="text-[0.82rem] font-semibold uppercase tracking-[0.24em] text-forest-800 sm:text-sm">
+                {brand.wordmark}
+              </span>
+              <span className="mt-1 text-[0.58rem] uppercase tracking-[0.2em] text-ink-muted">
+                {brand.wordmarkSub}
+              </span>
             </span>
-          ) : (
+          </Link>
+        ) : (
+          <Link href="/" className="group flex flex-col leading-none">
             <span className="font-display text-xl font-semibold tracking-tight text-ink">
               {brand.wordmark}
             </span>
-          )}
-          <span className="mt-0.5 text-[0.6rem] uppercase tracking-eyebrow text-ink-muted">
-            {brand.wordmarkSub}
-          </span>
-        </Link>
+            <span className="mt-0.5 text-[0.6rem] uppercase tracking-eyebrow text-ink-muted">
+              {brand.wordmarkSub}
+            </span>
+          </Link>
+        )}
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className={earth ? "hidden items-center gap-8 lg:flex" : "hidden items-center gap-8 md:flex"}>
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -106,15 +117,16 @@ export function SiteHeader({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
           </Link>
           <Link
             href={brand.headerCta.href}
-            className={cn(
-              "hidden rounded-full px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors md:inline-flex",
-              earth ? "bg-forest-700 hover:bg-forest-800" : "bg-ink hover:bg-ink-soft",
-            )}
+            className={
+              earth
+                ? "hidden whitespace-nowrap rounded-full bg-forest-700 px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-forest-800 lg:inline-flex"
+                : "hidden rounded-full px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors md:inline-flex bg-ink hover:bg-ink-soft"
+            }
           >
             {brand.headerCta.label}
           </Link>
           <button
-            className="md:hidden"
+            className={earth ? "lg:hidden" : "md:hidden"}
             aria-label="Menu"
             onClick={() => setOpen((v) => !v)}
           >
@@ -126,7 +138,7 @@ export function SiteHeader({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
       </div>
 
       {open && (
-        <div className="border-t border-ink/10 bg-sand-50 md:hidden">
+        <div className={earth ? "border-t border-ink/10 bg-sand-50 lg:hidden" : "border-t border-ink/10 bg-sand-50 md:hidden"}>
           <nav className="container-editorial flex flex-col py-4">
             {NAV.concat(
               { label: "Saved", href: "/saved" },

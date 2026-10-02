@@ -18,7 +18,7 @@ export function generateMetadata({ params }: { params: SiteParams }): Metadata {
     return {
       title: "Explore off-grid stays",
       description:
-        "Browse farms, homesteads, eco-villages and off-grid projects. Filter by place, dates, contribution hours and length of stay.",
+        "Browse farms, homesteads, eco-villages and off-grid projects. Filter by place, dates, hours of help and length of stay.",
       alternates: { canonical: "/experiences" },
     };
   }

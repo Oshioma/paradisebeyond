@@ -124,7 +124,7 @@ export const SPEND_TIME_OFF_GRID: Brand = {
   id: "spendtimeoffgrid",
   name: "Spend Time Off Grid",
   wordmark: "Spend Time Off Grid",
-  wordmarkSub: "Stay · Contribute · Learn",
+  wordmarkSub: "Stay · Help · Learn · Live",
   domains: ["spendtimeoffgrid.com", "www.spendtimeoffgrid.com"],
   // www is the primary host (Vercel redirects the apex to it), so canonical
   // URLs, sitemap, Stripe returns and auth links all use it.
@@ -140,11 +140,11 @@ export const SPEND_TIME_OFF_GRID: Brand = {
     { label: "How it works", href: "/#how-it-works" },
     { label: "List your land", href: "/host" },
   ],
-  headerCta: { label: "Explore", href: "/experiences" },
+  headerCta: { label: "List your land", href: "/host" },
   hostCta: { label: "List your land", href: "/host" },
   contactEmail: "offgrid@guestlist.net",
   footerBlurb:
-    "Stays on farms, homesteads and off-grid projects, where food and a place to sleep come with a few hours contributing each day.",
+    "Stays on farms, homesteads and off-grid projects, where food and a place to sleep come with a few hours helping each day.",
   terms: {
     experience: "stay",
     experiences: "stays",

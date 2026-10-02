@@ -35,7 +35,7 @@ export function OffGridReservePanel({
     <div className="rounded-xl2 border border-ink/10 bg-sand-50 p-6 shadow-soft">
       <p className="font-display text-3xl font-semibold text-ink">{priceLine(offGrid, currency)}</p>
       <p className="mt-1 text-sm text-ink-muted">
-        {free ? "No payment — you contribute your time instead." : "Price set by your host. No booking fees added."}
+        {free ? "No payment — you help out instead." : "Price set by your host. No booking fees added."}
       </p>
 
       <ul className="mt-5 space-y-1.5 border-t border-ink/10 pt-5 text-sm text-ink-soft">

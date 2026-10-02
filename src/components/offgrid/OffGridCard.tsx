@@ -5,19 +5,14 @@ import type { OffGridDetails } from "@/lib/offgrid/types";
 import { img } from "@/lib/images";
 import { getCategory } from "@/lib/data/categories";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
-import {
-  accommodationLine,
-  contributionLine,
-  includedLine,
-  mealsLine,
-  minStayLine,
-  priceLine,
-} from "@/lib/offgrid/summary";
+import { BedIcon, MealIcon, SproutIcon } from "@/components/offgrid/icons";
+import { accommodationLine, contributionLine, mealsLine, minStayLine, priceLine } from "@/lib/offgrid/summary";
 
 /**
- * Spend Time Off Grid listing card. Built for scanning on a phone: price,
- * place, contribution, minimum stay, food and bed are all visible without
- * opening the listing.
+ * Spend Time Off Grid listing card. Reads top to bottom like a travel listing:
+ * where, what, then the exchange — help, bed, food — each on its own line with
+ * a small icon, and the price last. Only real listing data is shown (no
+ * ratings unless genuine reviews exist; none are rendered here).
  */
 export function OffGridCard({
   experience: e,
@@ -28,62 +23,69 @@ export function OffGridCard({
 }) {
   const o = e.offGrid;
   const category = getCategory(e.categorySlugs[0]);
+  const free = !o.pricing.amountMinor;
+  const [amount, unit] = free ? [priceLine(o, e.currency), ""] : priceLine(o, e.currency).split("/");
   return (
-    <Link href={`/experiences/${e.slug}`} className="group block focus:outline-none">
-      <article className="flex h-full flex-col">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl2 bg-sand-200 sm:aspect-[4/5]">
+    <Link href={`/experiences/${e.slug}`} className="group block h-full focus:outline-none">
+      <article className="flex h-full flex-col overflow-hidden rounded-xl2 border border-ink/10 bg-sand-50 shadow-[0_10px_30px_-22px_rgba(20,35,25,0.5)] transition-shadow group-hover:shadow-[0_18px_40px_-22px_rgba(20,35,25,0.55)] group-focus-visible:ring-2 group-focus-visible:ring-forest-700">
+        <div className="relative aspect-[3/2] w-full overflow-hidden bg-sand-200">
           <Image
-            src={img(e.heroImageSeed, 900, 1125)}
+            src={img(e.heroImageSeed, 900, 600)}
             alt={e.name}
             fill
-            sizes="(max-width: 640px) 92vw, (max-width: 1200px) 45vw, 30vw"
+            sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 30vw"
             priority={priority}
-            className="object-cover transition-transform duration-[1.2s] ease-out-soft group-hover:scale-[1.05]"
+            className="object-cover transition-transform duration-[1.2s] ease-out-soft group-hover:scale-[1.04]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-forest-900/45 via-transparent to-transparent" />
-          {e.sample && (
-            <span className="absolute left-3 top-11 rounded-full bg-earth-500 px-3 py-1 text-[0.64rem] font-semibold uppercase tracking-eyebrow text-sand-50">
-              Sample listing
-            </span>
-          )}
-          {category && (
-            <span className="absolute left-3 top-3 rounded-full bg-sand-50/90 px-3 py-1 text-[0.64rem] font-medium uppercase tracking-eyebrow text-forest-800 backdrop-blur">
-              {category.name}
-            </span>
+          {(category || e.sample) && (
+            <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+              {category && (
+                <span className="rounded-full bg-sand-50/90 px-2.5 py-1 text-[0.62rem] font-medium uppercase tracking-eyebrow text-forest-800 backdrop-blur">
+                  {category.name}
+                </span>
+              )}
+              {e.sample && (
+                <span className="rounded-full bg-earth-500 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-eyebrow text-sand-50">
+                  Sample listing
+                </span>
+              )}
+            </div>
           )}
           <div className="absolute right-3 top-3">
             <WishlistButton slug={e.slug} />
           </div>
-          <p className="absolute bottom-3 left-3 rounded-full bg-forest-800/90 px-3 py-1 text-sm font-semibold text-sand-50">
-            {priceLine(o, e.currency)}
-          </p>
         </div>
 
-        <div className="flex flex-1 flex-col pt-3.5">
-          <p className="text-sm text-ink-muted">{e.location}</p>
-          <h3 className="mt-0.5 font-display text-xl font-semibold leading-snug text-ink transition-colors group-hover:text-forest-700">
+        <div className="flex flex-1 flex-col p-4 sm:p-5">
+          <p className="text-xs text-ink-muted">{e.location}</p>
+          <h3 className="mt-1 font-display text-lg font-semibold leading-snug text-ink transition-colors group-hover:text-forest-700">
             {e.name}
           </h3>
-          <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[0.8rem] text-ink-soft">
-            <Fact label="Contribution">{contributionLine(o)}</Fact>
-            <Fact label="Stay">{minStayLine(o)}</Fact>
-            <Fact label="Accommodation">{accommodationLine(o)}</Fact>
-            <Fact label="Food">{mealsLine(o)}</Fact>
-          </dl>
-          <p className="mt-3 border-t border-ink/10 pt-3 text-xs font-medium uppercase tracking-eyebrow text-forest-700">
-            {includedLine(o)}
-          </p>
+          <ul className="mt-3 space-y-1.5 text-[0.85rem] text-ink-soft">
+            <Fact icon={<SproutIcon className="h-4 w-4" />} label="Help">{contributionLine(o)}</Fact>
+            <Fact icon={<BedIcon className="h-4 w-4" />} label="Accommodation">{accommodationLine(o)}</Fact>
+            <Fact icon={<MealIcon className="h-4 w-4" />} label="Food">{mealsLine(o)}</Fact>
+          </ul>
+          <div className="flex-1" />
+          <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-ink/10 pt-3.5">
+            <p className="text-ink">
+              <span className="text-lg font-semibold">{amount}</span>
+              {unit && <span className="text-sm text-ink-muted"> / {unit}</span>}
+            </p>
+            <p className="text-xs text-ink-muted">{minStayLine(o)}</p>
+          </div>
         </div>
       </article>
     </Link>
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+function Fact({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0">
-      <dt className="sr-only">{label}</dt>
-      <dd className="truncate">{children}</dd>
-    </div>
+    <li className="flex min-w-0 items-center gap-2.5">
+      <span className="flex-none text-forest-700">{icon}</span>
+      <span className="sr-only">{label}: </span>
+      <span className="truncate">{children}</span>
+    </li>
   );
 }

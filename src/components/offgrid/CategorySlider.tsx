@@ -8,15 +8,14 @@ import { cn } from "@/lib/utils";
 export interface SliderCategory {
   slug: string;
   name: string;
-  tagline: string;
   image: string;
   count: number;
 }
 
 /**
- * One row of category cards that scrolls sideways — swipe on touch, arrow
- * buttons on larger screens. Keeps the section short however many kinds of
- * place there are.
+ * One row of compact category cards that scrolls sideways — swipe on touch,
+ * arrow buttons on larger screens. Small enough that most kinds of place fit
+ * across a desktop screen, so the section stays short.
  */
 export function CategorySlider({ items }: { items: SliderCategory[] }) {
   const track = useRef<HTMLDivElement>(null);
@@ -44,27 +43,26 @@ export function CategorySlider({ items }: { items: SliderCategory[] }) {
       <div
         ref={track}
         onScroll={update}
-        className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto scroll-smooth px-5 pb-2 [scrollbar-width:none] sm:-mx-8 sm:scroll-px-8 sm:gap-4 sm:px-8 [&::-webkit-scrollbar]:hidden"
+        className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-2.5 overflow-x-auto scroll-smooth px-5 pb-2 [scrollbar-width:none] sm:-mx-8 sm:scroll-px-8 sm:gap-3 sm:px-8 [&::-webkit-scrollbar]:hidden"
       >
         {items.map((c) => (
           <Link
             key={c.slug}
             href={`/categories/${c.slug}`}
-            className="group relative flex aspect-[4/5] w-[62vw] max-w-[260px] flex-none snap-start flex-col justify-end overflow-hidden rounded-xl2 sm:w-[240px]"
+            className="group relative flex aspect-[5/6] w-[40vw] max-w-[180px] flex-none snap-start flex-col justify-end overflow-hidden rounded-xl sm:w-[160px] lg:w-[148px]"
           >
             <Image
               src={c.image}
-              alt={c.name}
+              alt=""
               fill
-              sizes="(max-width: 640px) 62vw, 260px"
+              sizes="(max-width: 640px) 40vw, 180px"
               className="object-cover transition-transform duration-[1.4s] ease-out-soft group-hover:scale-105"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-forest-900/85 via-forest-900/15 to-transparent" />
-            <div className="relative p-4 sm:p-5">
-              <h3 className="font-display text-xl font-semibold text-sand-50">{c.name}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-sand-100/85">{c.tagline}</p>
-              <p className="mt-2 text-[0.66rem] font-semibold uppercase tracking-eyebrow text-sand-50">
-                {c.count} {c.count === 1 ? "stay" : "stays"} →
+            <div className="absolute inset-0 bg-gradient-to-t from-forest-900/80 via-forest-900/10 to-transparent" />
+            <div className="relative p-3">
+              <h3 className="text-[0.95rem] font-medium leading-tight text-sand-50">{c.name}</h3>
+              <p className="mt-0.5 text-[0.7rem] text-sand-100/85">
+                {c.count} {c.count === 1 ? "stay" : "stays"}
               </p>
             </div>
           </Link>

@@ -99,7 +99,7 @@ export function OffGridExperience({
 
         {/* The exchange, at a glance */}
         <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl2 border border-ink/10 bg-ink/10 sm:grid-cols-3 lg:grid-cols-6">
-          <Glance label="Contribution" value={o.contribution.hoursPerDay ? `${o.contribution.hoursPerDay} hrs/day` : "No set hours"} />
+          <Glance label="Help" value={o.contribution.hoursPerDay ? `${o.contribution.hoursPerDay} hrs/day` : "No set hours"} />
           <Glance label="Days" value={o.contribution.daysPerWeek ? `${o.contribution.daysPerWeek} days/week` : "Flexible"} />
           <Glance label="Stay" value={minStayLine(o)} />
           <Glance label="Sleep" value={accommodationLine(o)} />
@@ -119,7 +119,7 @@ export function OffGridExperience({
               </Section>
             )}
 
-            <Section eyebrow="What you'll contribute" title={contributionLine(o)}>
+            <Section eyebrow="What you'll help with" title={contributionLine(o)}>
               {o.contribution.description && <p className="text-lg leading-relaxed text-ink-soft">{o.contribution.description}</p>}
               {tasks.length > 0 && (
                 <>

@@ -149,7 +149,7 @@ function OffGridFooter({ brand }: { brand: Brand }) {
             <Link href="/privacy" className="transition-colors hover:text-sand-50">Privacy Policy</Link>
             <a href={`mailto:${brand.contactEmail}`} className="transition-colors hover:text-sand-50">Contact</a>
           </nav>
-          <p className="uppercase tracking-eyebrow">Stay · Contribute · Learn</p>
+          <p className="uppercase tracking-eyebrow">{brand.wordmarkSub}</p>
         </div>
       </div>
     </footer>

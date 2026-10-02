@@ -116,7 +116,7 @@ export function OffGridBookingFlow({
         <section className="rounded-xl2 bg-sand-100 p-5">
           <p className="eyebrow text-forest-700">The exchange</p>
           <ul className="mt-3 space-y-1.5 text-sm text-ink-soft">
-            <li><strong className="font-medium text-ink">You&apos;ll contribute:</strong> {contributionLine(o)}</li>
+            <li><strong className="font-medium text-ink">You&apos;ll help:</strong> {contributionLine(o)}</li>
             <li><strong className="font-medium text-ink">You&apos;ll receive:</strong> {accommodationLine(o)} · {mealsLine(o)}</li>
             <li><strong className="font-medium text-ink">Getting there:</strong> {o.practical.transfersAvailable ? "you arrange travel; your host can help with transfers" : "you arrange and pay for your own travel"}</li>
           </ul>
