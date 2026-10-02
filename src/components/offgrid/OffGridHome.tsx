@@ -113,7 +113,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
             items={kinds.map(({ category: c, count }) => ({
               slug: c.slug,
               name: c.name,
-              image: img(c.imageSeed, 440, 550),
+              image: img(c.imageSeed, kinds.length <= 2 ? 1200 : kinds.length <= 4 ? 800 : 520, 680),
               count,
             }))}
           />

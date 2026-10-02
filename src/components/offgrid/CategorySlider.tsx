@@ -12,10 +12,14 @@ export interface SliderCategory {
   count: number;
 }
 
+/** Most cards shown across a desktop row before it starts to scroll. */
+const FILL_MAX = 6;
+
 /**
- * One row of category cards that scrolls sideways — swipe on touch, arrow
- * buttons beside the section header on larger screens. Keeps the section one
- * row tall however many kinds of place there are.
+ * One row of category cards. On larger screens the cards fill the full width
+ * (wider when there are few, slimmer as more appear); past six they keep a
+ * sixth of the row each and scroll, with arrows beside the header. On phones
+ * it's always a swipeable row.
  */
 export function CategorySlider({ items, header }: { items: SliderCategory[]; header?: React.ReactNode }) {
   const track = useRef<HTMLDivElement>(null);
@@ -32,6 +36,11 @@ export function CategorySlider({ items, header }: { items: SliderCategory[]; hea
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  // On larger screens the cards share the full width while there are few
+  // enough of them; past that they keep a minimum width and the row scrolls.
+  const fillSm = items.length <= 3;
+  const fillLg = items.length <= FILL_MAX;
 
   const scrollBy = (dir: 1 | -1) => {
     const el = track.current;
@@ -60,13 +69,21 @@ export function CategorySlider({ items, header }: { items: SliderCategory[]; hea
           <Link
             key={c.slug}
             href={`/categories/${c.slug}`}
-            className="group relative flex aspect-[4/5] w-[46vw] max-w-[220px] flex-none snap-start flex-col justify-end overflow-hidden rounded-xl2 shadow-[0_10px_30px_-20px_rgba(20,35,25,0.6)] transition-transform duration-500 ease-out-soft hover:-translate-y-1 sm:w-[200px] lg:w-[232px]"
+            className={cn(
+              "group relative flex aspect-[4/5] w-[46vw] max-w-[220px] flex-none snap-start flex-col justify-end overflow-hidden rounded-xl2 shadow-[0_10px_30px_-20px_rgba(20,35,25,0.6)] transition-transform duration-500 ease-out-soft hover:-translate-y-1",
+              // Tablet: share the row when up to three, otherwise fixed cards that scroll.
+              fillSm ? "sm:h-[300px] sm:w-auto sm:min-w-0 sm:max-w-none sm:flex-1 sm:aspect-auto" : "sm:w-[200px]",
+              // Desktop: share the full width when up to six, otherwise a sixth each and scroll.
+              fillLg
+                ? "lg:h-[340px] lg:w-auto lg:min-w-0 lg:max-w-none lg:flex-1 lg:aspect-auto"
+                : "lg:h-[340px] lg:w-[calc((100%-5rem)/6)] lg:max-w-none lg:aspect-auto",
+            )}
           >
             <Image
               src={c.image}
               alt=""
               fill
-              sizes="(max-width: 640px) 46vw, 232px"
+              sizes={`(max-width: 640px) 46vw, (max-width: 1024px) ${fillSm ? Math.ceil(100 / items.length) : 30}vw, ${Math.ceil(100 / Math.min(items.length, FILL_MAX))}vw`}
               className="object-cover transition-transform duration-[1.4s] ease-out-soft group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-forest-900/85 via-forest-900/15 to-transparent" />
