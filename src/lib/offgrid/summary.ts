@@ -1,4 +1,4 @@
-import { formatMoney } from "@/lib/money";
+import { formatMoney, minorUnitFactor } from "@/lib/money";
 import type { OffGridDetails } from "./types";
 import { unitLabel } from "./pricing";
 
@@ -44,6 +44,26 @@ export function includedLine(o: OffGridDetails): string {
 export function priceLine(o: OffGridDetails, currency: string): string {
   if (!o.pricing.amountMinor) return "Free · exchange only";
   return `${formatMoney(o.pricing.amountMinor, currency, { showDecimals: false })}/${unitLabel(o.pricing.unit)}`;
+}
+
+/**
+ * Compact price for listing cards, split so the unit can be styled:
+ * { amount: "$22", unit: "day" } (the currency's short symbol — €, £, $ —
+ * from the listing's own currency), or { amount: "Free · exchange only" }.
+ */
+export function cardPrice(o: OffGridDetails, currency: string): { amount: string; unit?: string } {
+  if (!o.pricing.amountMinor) return { amount: "Free · exchange only" };
+  const factor = minorUnitFactor(currency);
+  const value = o.pricing.amountMinor / factor;
+  const whole = o.pricing.amountMinor % factor === 0;
+  const amount = new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  }).format(value);
+  return { amount, unit: unitLabel(o.pricing.unit) };
 }
 
 function trim(n: number): string {

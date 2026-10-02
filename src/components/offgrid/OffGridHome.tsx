@@ -101,7 +101,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
       {/* Find your kind of off-grid — only kinds that have stays, so every
           card leads somewhere; one sideways-scrolling row. */}
       {kinds.length > 0 && (
-        <section className="container-editorial pt-16 sm:pt-24">
+        <section className="container-editorial pt-14 sm:pt-20">
           <CategorySlider
             header={
               <div className="max-w-3xl reveal">
@@ -113,7 +113,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
             items={kinds.map(({ category: c, count }) => ({
               slug: c.slug,
               name: c.name,
-              image: img(c.imageSeed, 440, 550),
+              image: img(c.imageSeed, kinds.length <= 2 ? 1200 : kinds.length <= 4 ? 800 : 520, 680),
               count,
             }))}
           />
@@ -121,7 +121,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
       )}
 
       {/* Featured stays — same warm background, no hard break. */}
-      <section className="container-editorial py-16 sm:py-24">
+      <section className="container-editorial pb-14 pt-12 sm:pb-20 sm:pt-16">
         <div className="flex flex-wrap items-end justify-between gap-4 reveal">
           <div className="max-w-3xl">
             <p className="eyebrow text-forest-700">Featured stays</p>
@@ -136,7 +136,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
           )}
         </div>
 
-        <div className="mt-10">
+        <div className="mt-8">
           {featured.length > 0 ? (
             <div
               className={cn(
@@ -167,10 +167,10 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
         </div>
       </section>
 
-      {/* What this is (and isn't) — an editorial split on deep forest. */}
+      {/* The experience — an editorial split on deep forest. */}
       <section className="bg-forest-900 text-sand-50">
-        <div className="container-editorial grid items-center gap-10 py-16 sm:py-20 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:py-20">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-xl2 reveal lg:aspect-[5/4]">
+        <div className="container-editorial grid items-center gap-8 py-14 sm:gap-10 sm:py-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:py-20">
+          <div className="relative aspect-[16/9] overflow-hidden rounded-xl2 reveal sm:aspect-[4/3] lg:aspect-[5/4]">
             <Image
               src={img("stog-home-how", 1200, 960)}
               alt="Hands in the soil, planting out seedlings"
@@ -180,28 +180,29 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
             />
           </div>
           <div className="reveal">
-            <p className="eyebrow text-sand-100/60">What this is</p>
+            <p className="eyebrow text-sand-100/60">The experience</p>
             <p className="mt-5 font-display text-[clamp(2.1rem,3.4vw,3rem)] font-semibold leading-[1.06] tracking-[-0.015em]">
-              This isn&apos;t volunteering.
+              Don&apos;t just visit.
               <br />
-              <span className="text-sand-100/70">And it isn&apos;t a hotel.</span>
+              <span className="text-sand-100/70">Live it.</span>
             </p>
             <div className="mt-8 h-px w-16 bg-earth-400" />
-            <p className="mt-8 max-w-md font-display text-2xl italic leading-snug text-sand-100 sm:text-[1.7rem]">
-              You&apos;re temporarily joining someone else&apos;s way of life.
+            <p className="mt-8 max-w-lg font-display text-xl italic leading-snug text-sand-100 sm:text-2xl">
+              Stay with people doing something different. Help out, share meals, learn skills and become part of the
+              place for a while.
             </p>
           </div>
         </div>
       </section>
 
       {/* How it works — four numbered steps, joined on desktop. */}
-      <section id="how-it-works" className="scroll-mt-24 py-16 sm:py-24">
+      <section id="how-it-works" className="scroll-mt-24 py-14 sm:py-20">
         <div className="container-editorial">
           <div className="mx-auto max-w-3xl text-center reveal">
             <p className="eyebrow text-forest-700">How it works</p>
-            <h2 className="mt-3 text-balance text-headline font-semibold text-ink">A simple way to stay, contribute and learn.</h2>
+            <h2 className="mt-3 text-balance text-headline font-semibold text-ink">A simple way to stay, help and learn.</h2>
           </div>
-          <div className="relative mt-12 lg:mt-14">
+          <div className="relative mt-10 lg:mt-12">
             {/* The thread between the steps (desktop). */}
             <div aria-hidden className="absolute left-[12.5%] right-[12.5%] top-7 hidden border-t border-dashed border-forest-700/30 lg:block" />
             <ol className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
@@ -234,7 +235,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
           <Image src={hero("stog-home-host")} alt="A host walking their land at dusk" fill sizes="100vw" className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-forest-900/90 via-forest-900/80 to-forest-900/55" />
         </div>
-        <div className="container-editorial relative grid items-center gap-12 py-20 text-sand-50 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
+        <div className="container-editorial relative grid items-center gap-10 py-16 text-sand-50 sm:py-24 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
           <div>
             <p className="eyebrow text-sand-100/80 reveal">For hosts</p>
             <h2 className="mt-3 text-display font-semibold reveal">Have land worth experiencing?</h2>
@@ -292,12 +293,12 @@ const STEPS = [
   { title: "Book your stay", body: "See exactly what you'll help with and what you'll receive.", Icon: CalendarIcon },
   {
     title: "Get yourself there",
-    body: "Travellers arrange and pay for their own transport unless a host includes transfers.",
+    body: "You arrange your own journey unless your host includes transfers.",
     Icon: PlaneIcon,
   },
   {
     title: "Live it",
-    body: "Stay with your host, help a few hours and become part of the place for a while.",
+    body: "Stay with your host, help out for a few hours and become part of the place for a while.",
     Icon: SproutIcon,
   },
 ];
