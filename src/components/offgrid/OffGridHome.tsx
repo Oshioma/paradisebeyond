@@ -47,10 +47,10 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
             className="object-cover object-[70%_center]"
           />
           {/* Cream wash behind the words: full on phones, from the left on wider screens. */}
-          <div className="absolute inset-0 bg-sand-50/75 sm:bg-transparent sm:bg-gradient-to-r sm:from-sand-50/95 sm:via-sand-50/60 sm:via-40% sm:to-sand-50/0 sm:to-70%" />
+          <div className="absolute inset-0 bg-sand-50/75 sm:bg-transparent sm:bg-gradient-to-r sm:from-sand-50/95 sm:via-sand-50/65 sm:via-40% sm:to-sand-50/0 sm:to-70%" />
         </div>
 
-        <div className="container-editorial relative pb-10 pt-14 sm:pb-14 sm:pt-20 lg:pt-24">
+        <div className="container-editorial relative pb-10 pt-14 sm:pb-12 sm:pt-[4.5rem] lg:pt-[5.5rem]">
           <div className="max-w-xl">
             <h1 className="font-display text-[clamp(2.75rem,6.2vw,5rem)] font-semibold leading-[0.98] tracking-[-0.02em] text-forest-900 animate-fade-up">
               Spend time <br />
@@ -61,18 +61,19 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
               <br />
               Help out a few hours. Live differently.
             </p>
-            <p className="mt-4 max-w-md leading-relaxed text-ink-soft animate-fade-up">
+            <p className="mt-4 max-w-md leading-relaxed text-ink animate-fade-up">
               Stay on farms, homesteads and off-grid projects around the world. Food and accommodation included.
             </p>
           </div>
 
-          <div className="mt-8 max-w-5xl sm:mt-10 animate-fade-up">
+          <div className="mt-8 max-w-5xl sm:mt-12 lg:mt-16 animate-fade-up">
             <OffGridSearch />
             <Link
               href="/experiences"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full text-sm font-medium text-forest-900 underline underline-offset-4 hover:text-forest-700 sm:bg-sand-50/85 sm:px-4 sm:py-2 sm:no-underline sm:backdrop-blur"
+              className="group mt-4 inline-flex items-center gap-1.5 text-sm text-forest-900 decoration-forest-900/30 underline-offset-4 hover:underline"
             >
-              or browse all experiences <ArrowRightIcon className="h-4 w-4" />
+              or browse all experiences
+              <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>
         </div>
@@ -236,7 +237,7 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
 }
 
 const EXCHANGE = [
-  { eyebrow: "You give", lines: ["A few hours each day", "Helping with the project"], Icon: SproutIcon },
+  { eyebrow: "You help", lines: ["A few hours each day", "Helping with the project"], Icon: SproutIcon },
   { eyebrow: "You get", lines: ["Accommodation", "and food included"], Icon: HouseIcon },
   { eyebrow: "You experience", lines: ["A different way of living", "and learn new skills"], Icon: BookIcon },
 ];

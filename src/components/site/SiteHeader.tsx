@@ -55,16 +55,16 @@ export function SiteHeader({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
     >
       <div className="container-editorial flex h-[var(--paradise-nav-h)] items-center justify-between">
         {earth ? (
-          <Link href="/" className="group flex items-center gap-2.5 leading-none">
+          <Link href="/" className="group flex items-center gap-3 leading-none">
             {brand.icon && (
               // eslint-disable-next-line @next/next/no-img-element -- tiny static brand SVG
-              <img src={brand.icon.svg} alt="" width={34} height={34} className="h-8 w-8 flex-none rounded-lg sm:h-[34px] sm:w-[34px]" />
+              <img src={brand.icon.svg} alt="" width={37} height={37} className="h-[35px] w-[35px] flex-none rounded-lg sm:h-[37px] sm:w-[37px]" />
             )}
             <span className="flex flex-col">
-              <span className="text-[0.82rem] font-semibold uppercase tracking-[0.24em] text-forest-800 sm:text-sm">
+              <span className="text-[0.88rem] font-semibold uppercase tracking-[0.24em] text-forest-800 sm:text-[0.95rem]">
                 {brand.wordmark}
               </span>
-              <span className="mt-1 text-[0.58rem] uppercase tracking-[0.2em] text-ink-muted">
+              <span className="mt-1 text-[0.62rem] uppercase tracking-[0.2em] text-ink-muted">
                 {brand.wordmarkSub}
               </span>
             </span>
