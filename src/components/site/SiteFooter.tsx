@@ -119,8 +119,8 @@ function OffGridFooter({ brand }: { brand: Brand }) {
               Travellers arrange their own way there unless a host includes transfers.
             </p>
             <p className="mt-6 text-sm">
-              <a href={`mailto:${LEGAL.email}`} className="link-underline text-sand-50">
-                {LEGAL.email}
+              <a href={`mailto:${brand.contactEmail}`} className="link-underline text-sand-50">
+                {brand.contactEmail}
               </a>
             </p>
           </div>
@@ -147,7 +147,7 @@ function OffGridFooter({ brand }: { brand: Brand }) {
           <nav aria-label="Legal" className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <Link href="/terms" className="transition-colors hover:text-sand-50">Terms &amp; Conditions</Link>
             <Link href="/privacy" className="transition-colors hover:text-sand-50">Privacy Policy</Link>
-            <a href={`mailto:${LEGAL.email}`} className="transition-colors hover:text-sand-50">Contact</a>
+            <a href={`mailto:${brand.contactEmail}`} className="transition-colors hover:text-sand-50">Contact</a>
           </nav>
           <p className="uppercase tracking-eyebrow">Stay · Contribute · Learn</p>
         </div>

@@ -9,6 +9,7 @@ import {
   Callout,
   ContactEmail,
 } from "@/components/legal/LegalPage";
+import { brandFromParams, type SiteParams } from "@/lib/brand/site";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
@@ -17,9 +18,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/terms" },
 };
 
-export default function TermsPage() {
+export default function TermsPage({ params }: { params: SiteParams }) {
+  const email = brandFromParams(params).contactEmail;
   return (
-    <LegalShell
+    <LegalShell email={email}
       eyebrow="Legal"
       title="Terms & Conditions"
       intro="These terms govern your use of Paradise Beyond and any booking you make through us. Please read them before you reserve a place — booking means you accept them."
@@ -31,7 +33,7 @@ export default function TermsPage() {
           (&ldquo;Paradise Beyond&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;). Our trading address is {LEGAL.address}.
         </P>
         <P>
-          The only contact route for legal, booking and account matters is <ContactEmail />. We
+          The only contact route for legal, booking and account matters is <ContactEmail email={email} />. We
           answer everything sent there — there is no separate support desk.
         </P>
         <P>
@@ -178,7 +180,7 @@ export default function TermsPage() {
         <P>
           Cancellation terms are set by the host for each experience and shown on the listing and at
           checkout. Those terms apply to your booking in addition to this section. Cancel by
-          emailing <ContactEmail /> from the address on your booking — a cancellation takes effect
+          emailing <ContactEmail email={email} /> from the address on your booking — a cancellation takes effect
           on the day we receive it.
         </P>
         <Bullets
@@ -310,7 +312,7 @@ export default function TermsPage() {
       <Section n={16} title="If something goes wrong">
         <P>
           Raise it with your host during the retreat if you can — most things can be fixed on the
-          spot. If it cannot be, email <ContactEmail /> with your booking reference. We will
+          spot. If it cannot be, email <ContactEmail email={email} /> with your booking reference. We will
           acknowledge within 5 working days and aim to resolve it within 28 days, working with the
           host on your behalf.
         </P>
@@ -337,7 +339,7 @@ export default function TermsPage() {
           proceedings there.
         </P>
         <P>
-          Write to us at <ContactEmail />, or {LEGAL.address}. For how we handle your personal data,
+          Write to us at <ContactEmail email={email} />, or {LEGAL.address}. For how we handle your personal data,
           see our{" "}
           <Link href="/privacy" className="link-underline text-ink">
             Privacy Policy

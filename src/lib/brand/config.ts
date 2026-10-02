@@ -14,6 +14,7 @@
  * This module is pure (no Next.js request APIs) so it is safe in middleware,
  * client components and tests.
  */
+import { LEGAL } from "@/lib/legal";
 
 export type BrandId = "paradise-beyond" | "spendtimeoffgrid";
 /** The marketplace a listing belongs to. One brand ↔ one marketplace. */
@@ -54,6 +55,8 @@ export interface Brand {
   /** Where "List your land"/"Host a retreat" goes. */
   hostCta: NavLink;
   footerBlurb: string;
+  /** Public contact address shown on this brand's site. */
+  contactEmail: string;
   /** Words that differ between the two marketplaces. */
   terms: {
     experience: string;
@@ -95,6 +98,7 @@ export const PARADISE_BEYOND: Brand = {
   ],
   headerCta: { label: "Explore", href: "/experiences" },
   hostCta: { label: "Host a Retreat", href: "/host" },
+  contactEmail: LEGAL.email,
   footerBlurb:
     "Come for more than a holiday. Curated 7 & 14-day experiences in extraordinary places — starting in Zanzibar.",
   terms: {
@@ -132,6 +136,7 @@ export const SPEND_TIME_OFF_GRID: Brand = {
   ],
   headerCta: { label: "Explore", href: "/experiences" },
   hostCta: { label: "List your land", href: "/host" },
+  contactEmail: "offgrid@guestlist.net",
   footerBlurb:
     "Stays on farms, homesteads and off-grid projects, where food and a place to sleep come with a few hours contributing each day.",
   terms: {
