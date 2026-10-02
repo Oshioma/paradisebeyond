@@ -74,6 +74,9 @@ export interface Brand {
    * use the admin-configurable `commission_rules` (Paradise Beyond).
    */
   fixedCommissionBps: number | null;
+  /** Browser-tab and home-screen icons (public paths). Null = the app's
+   *  default icon (src/app/icon.svg, Paradise Beyond's palm). */
+  icon: { svg: string; apple: string } | null;
   /** Visual theme key used by shared chrome (header/footer/dashboards). */
   theme: "paradise" | "earth";
 }
@@ -113,6 +116,7 @@ export const PARADISE_BEYOND: Brand = {
     newListing: "Build a retreat",
   },
   fixedCommissionBps: null,
+  icon: null,
   theme: "paradise",
 };
 
@@ -155,6 +159,7 @@ export const SPEND_TIME_OFF_GRID: Brand = {
   // SpendTimeOffGrid takes 15% of paid bookings — fixed per marketplace so the
   // Paradise Beyond commission rules (destination overrides etc.) never apply.
   fixedCommissionBps: 1500,
+  icon: { svg: "/brand/spendtimeoffgrid-icon.svg", apple: "/brand/spendtimeoffgrid-apple-icon.png" },
   theme: "earth",
 };
 

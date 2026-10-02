@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs><clipPath id="stog-r"><rect width="32" height="32" rx="7"/></clipPath></defs>
+  <g clip-path="url(#stog-r)">
+    <rect width="32" height="32" fill="#2c4029"/>
+    <circle cx="20.5" cy="13" r="5" fill="#e3c08f"/>
+    <path d="M-1 22 C5 15.5 10 15.5 16 20 C21 23.5 26 18 33 19 V33 H-1 Z" fill="#6f8a5f"/>
+    <path d="M-1 26.5 C6 22 13 23.5 18 25.5 C23 27.5 28 24.5 33 25 V33 H-1 Z" fill="#efe4cf"/>
+  </g>
+</svg>

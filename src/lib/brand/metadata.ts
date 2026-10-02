@@ -24,5 +24,8 @@ export function brandMetadata(brand: Brand, opts: { root?: boolean } = {}): Meta
       description: brand.metadata.description,
     },
     twitter: { card: "summary_large_image" },
+    // Paradise Beyond's icon comes from src/app/icon.svg; other brands set
+    // their own (which replaces it on their pages).
+    ...(brand.icon ? { icons: { icon: brand.icon.svg, apple: brand.icon.apple } } : {}),
   };
 }
