@@ -169,3 +169,8 @@ brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
    - Check it on `/desk/settings` → **Send test emails** (one per site).
    - Replies go to `support@`, `bookings@`, `hosts@` or `safety@`, and check-in
      alerts go to `safety@` — make sure those aliases forward somewhere in ImprovMX.
+9. **Run migration `0035_booking_snapshot_guards.sql`** (already applied on
+   the live database). Off-grid bookings must have `stay_start_date` and
+   `stay_nights`, and a booking's currency, discount and deposit join its
+   frozen financial snapshot. `balance_minor`, `status` and the Stripe ids stay
+   editable.
