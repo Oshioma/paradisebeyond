@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { checkStayRequest, maxNightsFrom, perGuestStayPrice, quoteOffGridStay } from "./pricing";
 import { offGridPaymentRoute, planOffGridBooking } from "./booking";
-import { contributionLine, minStayLine, priceLine, accommodationLine, mealsLine } from "./summary";
+import { cardPrice, contributionLine, minStayLine, priceLine, accommodationLine, mealsLine } from "./summary";
 import { OFFGRID_DEMO_EXPERIENCES } from "@/lib/demo/offgridSamples";
 import { SPEND_TIME_OFF_GRID } from "@/lib/brand/config";
 import type { OffGridDetails } from "./types";
@@ -129,6 +129,14 @@ describe("card / summary lines", () => {
   });
   it("free stays say so", () => {
     expect(priceLine({ ...o, pricing: { unit: "day", amountMinor: 0 } }, "USD")).toBe("Free · exchange only");
+  });
+
+  it("card price: short symbol from the listing's own currency", () => {
+    expect(cardPrice(o, "USD")).toEqual({ amount: "$22", unit: "day" });
+    expect(cardPrice(o, "EUR")).toEqual({ amount: "€22", unit: "day" });
+    expect(cardPrice(o, "GBP")).toEqual({ amount: "£22", unit: "day" });
+    expect(cardPrice({ ...o, pricing: { unit: "week", amountMinor: 12550 } }, "USD")).toEqual({ amount: "$125.50", unit: "week" });
+    expect(cardPrice({ ...o, pricing: { unit: "day", amountMinor: 0 } }, "USD")).toEqual({ amount: "Free · exchange only" });
   });
   it("no contribution hours reads honestly", () => {
     expect(contributionLine({ ...o, contribution: { ...o.contribution, hoursPerDay: 0 } })).toBe("No set hours of help");

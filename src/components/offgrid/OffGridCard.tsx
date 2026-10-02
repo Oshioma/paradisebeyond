@@ -6,7 +6,7 @@ import { img } from "@/lib/images";
 import { getCategory } from "@/lib/data/categories";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { BedIcon, MealIcon, SproutIcon } from "@/components/offgrid/icons";
-import { accommodationLine, contributionLine, mealsLine, minStayLine, priceLine } from "@/lib/offgrid/summary";
+import { accommodationLine, cardPrice, contributionLine, mealsLine, minStayLine } from "@/lib/offgrid/summary";
 
 /**
  * Spend Time Off Grid listing card. Reads top to bottom like a travel listing:
@@ -23,8 +23,7 @@ export function OffGridCard({
 }) {
   const o = e.offGrid;
   const category = getCategory(e.categorySlugs[0]);
-  const free = !o.pricing.amountMinor;
-  const [amount, unit] = free ? [priceLine(o, e.currency), ""] : priceLine(o, e.currency).split("/");
+  const { amount, unit } = cardPrice(o, e.currency);
   return (
     <Link href={`/experiences/${e.slug}`} className="group block h-full focus:outline-none">
       <article className="flex h-full flex-col overflow-hidden rounded-xl2 border border-ink/10 bg-sand-50 shadow-[0_10px_30px_-22px_rgba(20,35,25,0.5)] transition-shadow group-hover:shadow-[0_18px_40px_-22px_rgba(20,35,25,0.55)] group-focus-visible:ring-2 group-focus-visible:ring-forest-700">
@@ -69,13 +68,13 @@ export function OffGridCard({
           </ul>
           <div className="flex-1" />
           <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-ink/10 pt-3.5">
-            {free ? (
-              <p className="font-semibold text-forest-700">{amount}</p>
-            ) : (
+            {unit ? (
               <p className="text-ink">
                 <span className="font-display text-xl font-semibold">{amount}</span>
-                <span className="text-sm text-ink-muted"> / {unit}</span>
+                <span className="text-sm text-ink-muted">/{unit}</span>
               </p>
+            ) : (
+              <p className="font-semibold text-forest-700">{amount}</p>
             )}
             <p className="text-xs text-ink-muted">{minStayLine(o)}</p>
           </div>
