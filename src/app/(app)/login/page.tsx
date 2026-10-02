@@ -6,6 +6,10 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getSessionUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { signInDemo, signInWithPassword } from "./actions";
+import { getBrand } from "@/lib/brand/server";
+import { turnstileSiteKey } from "@/lib/auth/captcha";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { Turnstile } from "@/components/auth/Turnstile";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -40,7 +44,7 @@ export default async function LoginPage({
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm">
-          <p className="eyebrow text-ocean-700">Paradise Beyond</p>
+          <p className="eyebrow text-ocean-700">{getBrand().name}</p>
           <h1 className="mt-3 text-headline font-semibold text-ink">Welcome back</h1>
 
           {searchParams.error && (
@@ -55,7 +59,7 @@ export default async function LoginPage({
           )}
 
           {configured ? (
-            <form action={signInWithPassword} className="mt-8 space-y-4">
+            <AuthForm action={signInWithPassword} draftKey="login" keep={["email"]} className="mt-8 space-y-4">
               <input type="hidden" name="next" value={next} />
               <Labeled label="Email">
                 <input name="email" type="email" required className={inputCls} placeholder="you@email.com" />
@@ -63,6 +67,7 @@ export default async function LoginPage({
               <Labeled label="Password">
                 <input name="password" type="password" required className={inputCls} placeholder="••••••••" />
               </Labeled>
+              <Turnstile siteKey={turnstileSiteKey()} />
               <button className="w-full rounded-full bg-ink px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
                 Sign in
               </button>
@@ -74,7 +79,7 @@ export default async function LoginPage({
                   Create account
                 </Link>
               </div>
-            </form>
+            </AuthForm>
           ) : (
             <div className="mt-8">
               <p className="rounded-xl bg-sand-100 px-4 py-3 text-sm text-ink-muted">

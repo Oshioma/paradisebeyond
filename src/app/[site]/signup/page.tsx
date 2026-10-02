@@ -3,31 +3,36 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signUp } from "@/app/(app)/login/actions";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { brandFromParams, type SiteParams } from "@/lib/brand/site";
+import { turnstileSiteKey } from "@/lib/auth/captcha";
+import { AuthForm } from "@/components/auth/AuthForm";
+import { Turnstile } from "@/components/auth/Turnstile";
 
 export const metadata: Metadata = { title: "Create account", robots: { index: false } };
 
-export default function SignupPage({ searchParams }: { searchParams: { error?: string } }) {
+export default function SignupPage({ params, searchParams }: { params: SiteParams; searchParams: { error?: string } }) {
   // In demo mode there's no real signup — send people to the role picker.
   if (!isSupabaseConfigured()) redirect("/login");
 
   return (
     <div className="container-editorial flex min-h-[70vh] items-center justify-center py-16">
       <div className="w-full max-w-sm">
-        <p className="eyebrow text-ocean-700">Paradise Beyond</p>
+        <p className="eyebrow text-ocean-700">{brandFromParams(params).name}</p>
         <h1 className="mt-3 text-headline font-semibold text-ink">Create your account</h1>
 
         {searchParams.error && (
           <p className="mt-4 rounded-lg bg-clay-500/10 px-4 py-3 text-sm text-clay-600">{searchParams.error}</p>
         )}
 
-        <form action={signUp} className="mt-6 space-y-4">
+        <AuthForm action={signUp} draftKey="signup" keep={["name", "email"]} className="mt-6 space-y-4">
           <Labeled label="Name"><input name="name" className={inp} placeholder="Ava Traveller" /></Labeled>
           <Labeled label="Email"><input name="email" type="email" required className={inp} placeholder="you@email.com" /></Labeled>
           <Labeled label="Password"><input name="password" type="password" required minLength={8} className={inp} placeholder="At least 8 characters" /></Labeled>
+          <Turnstile siteKey={turnstileSiteKey()} />
           <button className="w-full rounded-full bg-ink px-6 py-3.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
             Create account
           </button>
-        </form>
+        </AuthForm>
 
         <p className="mt-6 text-center text-sm text-ink-muted">
           Already have an account?{" "}
