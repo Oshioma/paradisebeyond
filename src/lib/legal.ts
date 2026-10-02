@@ -28,7 +28,7 @@ export const LEGAL = {
     url: "https://ico.org.uk/make-a-complaint/",
   },
   /** Shown on both policies; bump when the wording materially changes. */
-  lastUpdated: "8 September 2026",
+  lastUpdated: "2 October 2026",
   /** Platform commission, mirrored from DEFAULT_COMMISSION_BPS (1500 bps). */
   commissionPercent: 15,
 } as const;

@@ -97,12 +97,12 @@ export function balancePaidEmail(name: string, experienceName: string) {
 }
 
 /** On-demand deliverability check, sent from the admin System page. */
-export function testEmail(name: string) {
+export function testEmail(name: string, brand = "Paradise Beyond") {
   return {
-    subject: "Paradise Beyond — test email ✅",
+    subject: `${brand} — test email ✅`,
     html: shell(
       "Deliverability check",
-      `<p>Hi ${name},</p><p>This is a <strong>test email</strong> from your Paradise Beyond admin desk. If it reached your inbox, Resend is configured correctly and your transactional emails — booking confirmations, balance receipts, host application updates — will deliver.</p><p style="background:#f4efe6;border-radius:10px;padding:14px;color:#3a352c">Sent on demand from <strong>System &amp; environment → Email deliverability</strong>.</p><p style="color:#6b6357;font-size:13px">— Paradise Beyond</p>`,
+      `<p>Hi ${name},</p><p>This is a <strong>test email</strong> from the ${brand} sender, via your admin desk. If it reached your inbox, ImprovMX SMTP is set up correctly for ${brand} and its transactional emails — booking confirmations, check-ins, host application updates — will deliver.</p><p style="background:#f4efe6;border-radius:10px;padding:14px;color:#3a352c">Sent on demand from <strong>System &amp; environment → Email deliverability</strong>.</p><p style="color:#6b6357;font-size:13px">— ${brand}</p>`,
     ),
   };
 }

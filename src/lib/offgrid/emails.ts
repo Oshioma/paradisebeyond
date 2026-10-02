@@ -1,7 +1,8 @@
 import { formatFullDate } from "@/lib/utils";
 
 /**
- * Spend Time Off Grid emails for stay requests and check-ins. Inline styles
+ * Spend Time Off Grid emails for stay requests, check-ins and host
+ * applications. Inline styles
  * for email-client support, in the forest / cream palette. Server-only.
  */
 
@@ -93,6 +94,44 @@ export function supportAlertEmail(p: { origin: string; reason: "help" | "no-repl
        <p style="color:#6b6357">Stay: ${esc(p.listing)} · Ref ${esc(p.reference)}${p.travellerEmail ? ` · ${esc(p.travellerEmail)}` : ""}</p>
        ${p.note ? `<p>They wrote:</p>${quote(p.note)}` : ""}
        <p>Please get in touch with them directly.</p>`,
+    ),
+  };
+}
+
+/** The decision on someone's application to host on Spend Time Off Grid. */
+export function hostApplicationEmail(p: { origin: string; name: string; status: "approved" | "changes_requested" | "rejected"; notes?: string }) {
+  const hi = `<p>Hi ${esc(p.name)},</p>`;
+  if (p.status === "approved") {
+    return {
+      subject: "You're in — welcome to Spend Time Off Grid",
+      html: shell(
+        "You're in.",
+        `${hi}<p>Thanks for applying to host. Your account can now create a listing.</p>
+         <p>The guided builder walks you through your place, the help you're looking for, what travellers get in return and how to get there. It saves as you go, so you can finish it over a few sittings.</p>
+         <p>We read every listing before it goes live, and we'll be in touch if anything needs a tweak.</p>
+         ${p.notes ? `<p>A note from us:</p>${quote(p.notes)}` : ""}`,
+        { href: `${p.origin}/studio/retreats/new`, label: "Start your listing" },
+      ),
+    };
+  }
+  if (p.status === "changes_requested") {
+    return {
+      subject: "A note on your hosting application",
+      html: shell(
+        "Nearly there.",
+        `${hi}<p>Thanks for applying to host on Spend Time Off Grid. Before we can say yes, we'd like to know a little more:</p>
+         ${quote(p.notes || "We'll follow up with the details shortly.")}
+         <p>Just reply to this email and we'll pick it up from there.</p>`,
+      ),
+    };
+  }
+  return {
+    subject: "About your hosting application",
+    html: shell(
+      "Thank you for applying.",
+      `${hi}<p>Thank you for wanting to host on Spend Time Off Grid. We're not able to go ahead with your application this time.</p>
+       ${p.notes ? quote(p.notes) : ""}
+       <p>Places and plans change — you're welcome to apply again in future.</p>`,
     ),
   };
 }
