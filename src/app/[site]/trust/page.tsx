@@ -55,9 +55,9 @@ const STEPS: { title: string; status: Status; label?: string; Icon: (p: { classN
     Icon: WaveIcon,
     body: (
       <p>
-        A traveller shouldn&apos;t simply book and appear at someone&apos;s land. Each stay asks the traveller for a proper
+        A traveller can&apos;t simply book and appear at someone&apos;s land. Every stay starts with a request and a proper
         introduction: who you are, why you&apos;d like to visit, what interests you about the project, any relevant skills,
-        and what you hope to learn. It goes straight to your host&apos;s messages.
+        and what you hope to learn. The host reads it and says yes or no — nothing is booked or charged until they say yes.
       </p>
     ),
   },
@@ -133,12 +133,14 @@ const STEPS: { title: string; status: Status; label?: string; Icon: (p: { classN
   },
   {
     title: "Check in",
-    status: "soon",
+    status: "now",
     Icon: WaveIcon,
     body: (
       <p>
-        We&apos;re planning simple check-ins: &ldquo;Have you arrived safely?&rdquo; on arrival day, and &ldquo;Everything okay
-        with your stay?&rdquo; after the first night — with a clear way to say you need help. They aren&apos;t switched on yet.
+        On arrival day we ask &ldquo;Have you arrived safely?&rdquo;, and the next morning &ldquo;Everything okay with your
+        stay?&rdquo; — by email and on your stay page, with one tap to answer and a clear way to say you need help. A request
+        for help goes straight to the Spend Time Off Grid team, and if an arrival check-in goes unanswered for a day, the team
+        is told so they can follow up.
       </p>
     ),
   },

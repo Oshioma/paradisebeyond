@@ -58,20 +58,43 @@ export async function createBooking(formData: FormData) {
     const { createOffGridBooking } = await import("@/lib/offgrid/booking");
     const { getBrandById, marketplaceOf } = await import("@/lib/brand/config");
     const { brandOrigin } = await import("@/lib/brand/server");
+    const arrival = String(formData.get("arrival") ?? "");
+    const nights = Number(formData.get("nights"));
+
+    // Request-to-book: only an accepted request, for exactly what was asked,
+    // can become a booking. (Samples are already sent back above.)
+    const { listVisibleRequests } = await import("@/lib/offgrid/requestStore");
+    const { bookingAllowed, currentRequest } = await import("@/lib/offgrid/requests");
+    const req = currentRequest(await listVisibleRequests(), departure.id, user.id);
+    const allowed = bookingAllowed(req, { guestId: user.id, departureId: departure.id, arrival, nights, guests });
+    if (!allowed.ok) redirect(`/book/${departure.id}?error=${encodeURIComponent(allowed.error)}`);
+
     let dest: string;
     try {
       dest = await createOffGridBooking({
         user,
         experience: { ...experience, offGrid: experience.offGrid },
         departure,
-        arrival: String(formData.get("arrival") ?? ""),
-        nights: Number(formData.get("nights")),
+        arrival,
+        nights,
         guests,
         origin: brandOrigin(getBrandById(marketplaceOf(experience))),
       });
     } catch (e) {
       console.error("[createBooking:offgrid]", e);
       dest = errorDest;
+    }
+    // Booked without Stripe (free, direct or demo): link the request and carry
+    // the introduction into the stay now. Stripe bookings are created by the
+    // webhook, so the trip page does this when the traveller lands there.
+    const bookedId = dest.match(/^\/account\/trips\/([^/?#]+)/)?.[1];
+    if (bookedId) {
+      try {
+        const { adoptRequestIntoStay } = await import("@/lib/offgrid/requestAdopt");
+        await adoptRequestIntoStay(user, { id: bookedId, guestId: user.id, departureId: departure.id, stayStartDate: arrival, stayNights: nights, marketplace: "spendtimeoffgrid" });
+      } catch (e) {
+        console.warn("[createBooking:offgrid] couldn't link the request", e);
+      }
     }
     redirect(dest);
   }

@@ -76,3 +76,4 @@ create policy stay_checklists_write_update on public.stay_checklists
 
 revoke all on public.stay_checklists from anon;
 grant select, insert, update on public.stay_checklists to authenticated;
+revoke delete, truncate on public.stay_checklists from authenticated;

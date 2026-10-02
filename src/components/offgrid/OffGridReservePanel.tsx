@@ -83,7 +83,7 @@ export function OffGridReservePanel({
               href={`/book/${selected.id}`}
               className="mt-6 flex w-full items-center justify-center rounded-full bg-forest-700 px-6 py-4 text-sm uppercase tracking-[0.16em] text-sand-50 shadow-soft transition-colors hover:bg-forest-800"
             >
-              {free ? "Request to stay" : "Choose your dates"}
+              Request to stay
             </Link>
           )}
         </>

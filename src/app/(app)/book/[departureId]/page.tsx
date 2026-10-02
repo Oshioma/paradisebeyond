@@ -8,6 +8,10 @@ import { getAllExperiences } from "@/lib/data/repository";
 import { findByDeparture } from "@/lib/booking/pricing";
 import { getSessionUser } from "@/lib/auth/session";
 import { BookingFlow } from "@/components/booking/BookingFlow";
+import { RequestStatusCard, WithdrawRequestButton } from "@/components/offgrid/RequestStatusCard";
+import { listVisibleRequests } from "@/lib/offgrid/requestStore";
+import { currentRequest } from "@/lib/offgrid/requests";
+import { getHost } from "@/lib/data/repository";
 
 export const metadata: Metadata = {
   title: "Reserve your place",
@@ -41,19 +45,36 @@ export default async function BookingPage({
 
   if (experience.offGrid) {
     const full = departure.spacesRemaining <= 0 || (departure.status !== "open" && departure.status !== "waitlist");
+    // Request-to-book: what this traveller has asked for these dates, if anything.
+    const req = user ? currentRequest(await listVisibleRequests(), departure.id, user.id) : null;
+    const hostName = (await getHost(experience.hostSlugs[0]))?.name.split(" ")[0] ?? "your host";
+    const accepted = req?.status === "accepted" ? req : null;
+    const header = accepted
+      ? { eyebrow: "Your host said yes", title: "Confirm your stay", body: `${hostName} accepted your request. Confirm to hold your place — you'll see exactly what you pay first.` }
+      : { eyebrow: "Request to stay", title: "Ask to stay", body: `Choose your dates and introduce yourself. ${hostName} reads every request and says yes or no — nothing is reserved or charged until they do.` };
     return (
       <div className="container-editorial py-12 sm:py-16">
         <Link href={`/experiences/${experience.slug}`} className="text-sm text-ink-muted hover:text-ink">
           ← Back to {experience.name}
         </Link>
         <header className="mt-4 max-w-2xl">
-          <p className="eyebrow text-forest-700">Book your stay</p>
-          <h1 className="mt-3 text-display font-semibold text-ink">Choose your dates</h1>
-          <p className="mt-4 text-lg text-ink-muted">
-            Pick when you&apos;ll arrive and how long you&apos;ll stay. You&apos;ll see exactly what you
-            pay before you confirm.
-          </p>
+          <p className="eyebrow text-forest-700">{header.eyebrow}</p>
+          <h1 className="mt-3 text-display font-semibold text-ink">{header.title}</h1>
+          <p className="mt-4 text-lg text-ink-muted">{header.body}</p>
         </header>
+        {accepted?.hostNote && (
+          <div className="mt-8 max-w-2xl rounded-xl2 border border-forest-700/20 bg-sand-50 p-5">
+            <p className="text-[0.66rem] font-semibold uppercase tracking-eyebrow text-forest-700">{hostName} wrote</p>
+            <p className="mt-1.5 whitespace-pre-line text-ink-soft">{accepted.hostNote}</p>
+          </div>
+        )}
+        {req?.status === "declined" && (
+          <div className="mt-8 max-w-2xl rounded-xl2 border border-ink/10 bg-sand-100 p-5">
+            <p className="font-medium text-ink">{hostName} couldn&apos;t host you for those dates.</p>
+            {req.hostNote && <p className="mt-1.5 whitespace-pre-line text-ink-soft">&ldquo;{req.hostNote}&rdquo;</p>}
+            <p className="mt-2 text-sm text-ink-muted">You can send a new request for different dates below, or find another stay.</p>
+          </div>
+        )}
         {searchParams.error && (
           <div className="mt-8 rounded-xl2 border border-clay-500/40 bg-clay-500/5 p-5 text-sm text-clay-600">
             {searchParams.error === "1" ? "Something went wrong taking your booking. No charge was made — please try again." : searchParams.error}
@@ -71,6 +92,15 @@ export default async function BookingPage({
               See other dates
             </Link>
           </div>
+        ) : req?.status === "pending" ? (
+          <div className="mt-10 max-w-3xl">
+            <RequestStatusCard
+              request={req}
+              hostName={hostName}
+              title={`Waiting for ${hostName}`}
+              intro="Your request has been sent. You'll get an email as soon as they reply — usually within a few days."
+            />
+          </div>
         ) : (
           <div className="mt-10">
             <OffGridBookingFlow
@@ -80,7 +110,15 @@ export default async function BookingPage({
               brandName={owner.name}
               isAuthed={Boolean(user)}
               loginHref={loginHref}
+              mode={accepted ? "confirm" : "request"}
+              locked={accepted ? { arrival: accepted.arrival, nights: accepted.nights, guests: accepted.guests } : undefined}
+              hostName={hostName}
             />
+            {accepted && (
+              <div className="mt-6">
+                <WithdrawRequestButton requestId={accepted.id} label="Withdraw and choose different dates" />
+              </div>
+            )}
           </div>
         )}
       </div>

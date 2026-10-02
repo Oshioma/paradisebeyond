@@ -146,3 +146,13 @@ brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
    traveller, its host and admins can read; off-grid bookings only). Until it's
    run, the checklist shows but confirmations can't be saved. Emergency
    contacts reuse `trip_prep` (migration 0011) — no change there.
+7. **Run migration `0034_stay_requests_and_checkins.sql`** for request-to-book
+   and arrival check-ins. It adds `stay_requests` and `stay_checkins` (both
+   with row-level security; status changes only through checked functions),
+   enables `pg_net`, and schedules the hourly `stay-checkins` cron job.
+   Then set up the check-in mailer (one shared secret):
+   - Supabase SQL: `select vault.create_secret('https://www.spendtimeoffgrid.com/api/cron/checkins', 'checkins_mailer_url');`
+     and `select vault.create_secret('<random secret>', 'checkins_mailer_secret');`
+   - Vercel env: `CHECKINS_CRON_SECRET=<the same secret>` (Production).
+   Until both are set the cron still queues check-ins (shown on the stay page)
+   but no emails go out. Emails need `RESEND_API_KEY` as usual.
