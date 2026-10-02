@@ -297,7 +297,11 @@ function hostPoints(brand: Brand) {
 
 const STEPS = [
   { title: "Find somewhere", body: "Discover farms, homesteads and off-grid projects around the world.", Icon: SearchIcon },
-  { title: "Book your stay", body: "See exactly what you'll help with and what you'll receive.", Icon: CalendarIcon },
+  {
+    title: "Request your stay",
+    body: "Introduce yourself and see exactly what you'll help with. Nothing is charged until your host says yes.",
+    Icon: CalendarIcon,
+  },
   {
     title: "Get yourself there",
     body: "You arrange your own journey unless your host includes transfers.",
