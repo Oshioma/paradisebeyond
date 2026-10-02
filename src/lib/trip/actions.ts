@@ -48,6 +48,9 @@ export async function saveQuestionnaire(formData: FormData): Promise<{ ok: boole
     medical: healthConsent ? medical : undefined,
     emergencyName: String(formData.get("emergencyName") ?? "").trim().slice(0, 200) || undefined,
     emergencyPhone: String(formData.get("emergencyPhone") ?? "").trim().slice(0, 60) || undefined,
+    // Kept from the stay checklist's emergency-contact form (not on this one).
+    emergencyRelationship: existing?.emergencyRelationship,
+    emergencyEmail: existing?.emergencyEmail,
     notes: String(formData.get("notes") ?? "").trim().slice(0, 2000) || undefined,
     healthConsent: healthConsent || undefined,
     healthConsentAt: consentAt,

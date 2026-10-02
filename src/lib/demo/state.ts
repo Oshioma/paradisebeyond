@@ -39,6 +39,8 @@ export interface DemoState {
   featuredSlugs?: string[];
   /** Admin-selected AI model (demo mode; per-browser). */
   aiModelId?: string;
+  /** Spend Time Off Grid pre-arrival checklists (demo), by booking id. */
+  stayChecklists?: Record<string, { guest?: import("@/lib/offgrid/checklist").ChecklistData; host?: import("@/lib/offgrid/checklist").ChecklistData }>;
 }
 
 const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [], messages: [], reviews: [], tripPrep: {} };

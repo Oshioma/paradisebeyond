@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
 import { getHostBookings } from "@/lib/data/bookings";
@@ -34,7 +35,14 @@ export default async function StudioBookingsPage() {
             <tbody className="divide-y divide-ink/10">
               {bookings.map((b) => (
                 <tr key={b.id} className="bg-sand-50">
-                  <Td className="font-medium text-ink">{b.guestName}</Td>
+                  <Td className="font-medium text-ink">
+                    {b.guestName}
+                    {b.marketplace === "spendtimeoffgrid" && (
+                      <Link href={`/studio/messages/${b.id}`} className="mt-0.5 block text-xs font-normal text-forest-700 hover:underline">
+                        Before they arrive →
+                      </Link>
+                    )}
+                  </Td>
                   <Td>{b.experience.name}</Td>
                   <Td>{formatDateRange(b.departure.startDate, b.departure.endDate)}</Td>
                   <Td>{b.guestCount}</Td>

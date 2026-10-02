@@ -40,6 +40,7 @@ const SITE_SLOTS: Slot[] = [
 const OFF_GRID_SITE_SLOTS: Slot[] = [
   slot("stog-home-hero", "Homepage hero", 2000, 1200),
   slot("stog-home-how", "Homepage statement image", 1000, 1250),
+  slot("stog-home-try", "Homepage \"Try the life\" image", 1100, 1300),
   slot("stog-home-host", "List your land banner", 2000, 1200),
   slot("stog-host-landing", "Host page hero", 2000, 1200),
 ];

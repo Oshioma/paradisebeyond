@@ -136,6 +136,7 @@ function OffGridFooter({ brand }: { brand: Brand }) {
               { label: "All stays", href: "/experiences" },
               { label: "How it works", href: "/#how-it-works" },
               { label: "Saved", href: "/saved" },
+              { label: "Trust & safety", href: "/trust" },
             ]}
           />
           <OffGridCol title="Kinds of place" links={cats.map((c) => ({ label: c.name, href: `/categories/${c.slug}` }))} />
