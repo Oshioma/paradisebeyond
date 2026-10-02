@@ -56,9 +56,9 @@ beforeEach(() => {
 
 describe("Stripe return URLs", () => {
   it("off-grid bookings return to spendtimeoffgrid.com", async () => {
-    await startStripeCheckout({ ...base, origin: "https://spendtimeoffgrid.com", extraBookingFields: { marketplace: "spendtimeoffgrid" } });
-    expect(created[0].success_url).toBe("https://spendtimeoffgrid.com/account/trips/bk-1?paid=1");
-    expect(created[0].cancel_url).toBe("https://spendtimeoffgrid.com/book/dep-1?canceled=1");
+    await startStripeCheckout({ ...base, origin: "https://www.spendtimeoffgrid.com", extraBookingFields: { marketplace: "spendtimeoffgrid" } });
+    expect(created[0].success_url).toBe("https://www.spendtimeoffgrid.com/account/trips/bk-1?paid=1");
+    expect(created[0].cancel_url).toBe("https://www.spendtimeoffgrid.com/book/dep-1?canceled=1");
   });
 
   it("Paradise Beyond bookings keep the original siteUrl() behaviour", async () => {
@@ -70,7 +70,7 @@ describe("Stripe return URLs", () => {
 
 describe("booking row snapshot", () => {
   it("off-grid rows snapshot marketplace + commission", async () => {
-    await startStripeCheckout({ ...base, origin: "https://spendtimeoffgrid.com", extraBookingFields: { marketplace: "spendtimeoffgrid", stay_start_date: "2026-11-10", stay_nights: 7 } });
+    await startStripeCheckout({ ...base, origin: "https://www.spendtimeoffgrid.com", extraBookingFields: { marketplace: "spendtimeoffgrid", stay_start_date: "2026-11-10", stay_nights: 7 } });
     expect(inserts[0]).toMatchObject({
       marketplace: "spendtimeoffgrid",
       stay_start_date: "2026-11-10",

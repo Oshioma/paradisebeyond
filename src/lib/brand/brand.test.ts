@@ -68,7 +68,7 @@ describe("brand configuration", () => {
   });
 
   it("Spend Time Off Grid's canonical origin is its own domain", () => {
-    expect(SPEND_TIME_OFF_GRID.canonicalOrigin).toBe("https://spendtimeoffgrid.com");
+    expect(SPEND_TIME_OFF_GRID.canonicalOrigin).toBe("https://www.spendtimeoffgrid.com");
   });
 
   it("listings without a marketplace are Paradise Beyond", () => {
@@ -93,7 +93,7 @@ describe("metadata per brand", () => {
       template: "%s · Spend Time Off Grid",
     });
     expect(String(m.description)).toContain("Stay on farms, homesteads and off-grid projects");
-    expect(m.metadataBase?.toString()).toBe("https://spendtimeoffgrid.com/");
+    expect(m.metadataBase?.toString()).toBe("https://www.spendtimeoffgrid.com/");
   });
 });
 

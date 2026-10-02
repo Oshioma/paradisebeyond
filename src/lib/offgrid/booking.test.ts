@@ -65,7 +65,7 @@ describe("free / exchange-only stay", () => {
   it("creates a reserved booking without Stripe or any payment", async () => {
     const dest = await createOffGridBooking({
       user, experience: freeListing, departure: freeListing.departures[0],
-      arrival: future("2026-12-05"), nights: 10, guests: 1, origin: "https://spendtimeoffgrid.com",
+      arrival: future("2026-12-05"), nights: 10, guests: 1, origin: "https://www.spendtimeoffgrid.com",
     });
     expect(startStripeCheckout).not.toHaveBeenCalled();
     expect(paymentIntent).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe("paid stay", () => {
   it("goes to Stripe Checkout with the 15% application fee, brand origin and snapshot fields", async () => {
     const dest = await createOffGridBooking({
       user, experience: paidListing, departure: paidListing.departures[0],
-      arrival: future("2026-11-10"), nights: 7, guests: 2, origin: "https://spendtimeoffgrid.com",
+      arrival: future("2026-11-10"), nights: 7, guests: 2, origin: "https://www.spendtimeoffgrid.com",
     });
     expect(dest).toBe("https://checkout.stripe.test/s");
     expect(startStripeCheckout).toHaveBeenCalledOnce();
@@ -101,7 +101,7 @@ describe("paid stay", () => {
       platformFeeMinor: Math.round(2200 * 7 * 2 * 0.15),
       feeDueNowMinor: Math.round(2200 * 7 * 2 * 0.15),
       hostNetMinor: 2200 * 7 * 2 - Math.round(2200 * 7 * 2 * 0.15),
-      origin: "https://spendtimeoffgrid.com",
+      origin: "https://www.spendtimeoffgrid.com",
       extraBookingFields: { marketplace: "spendtimeoffgrid", stay_start_date: "2026-11-10", stay_nights: 7 },
     });
   });
@@ -109,7 +109,7 @@ describe("paid stay", () => {
   it("rejects an invalid stay before touching payments or inventory", async () => {
     const dest = await createOffGridBooking({
       user, experience: paidListing, departure: paidListing.departures[0],
-      arrival: future("2026-11-10"), nights: 3, guests: 1, origin: "https://spendtimeoffgrid.com",
+      arrival: future("2026-11-10"), nights: 3, guests: 1, origin: "https://www.spendtimeoffgrid.com",
     });
     expect(dest).toMatch(/^\/book\/og-pemba-1\?error=/);
     expect(startStripeCheckout).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe("sample listings", () => {
   it("are never booked: no Stripe, no payment, no inventory, back to the listing", async () => {
     const dest = await createOffGridBooking({
       user, experience: { ...paidListing, sample: true }, departure: paidListing.departures[0],
-      arrival: future("2026-11-10"), nights: 7, guests: 1, origin: "https://spendtimeoffgrid.com",
+      arrival: future("2026-11-10"), nights: 7, guests: 1, origin: "https://www.spendtimeoffgrid.com",
     });
     expect(dest).toBe(`/experiences/${paidListing.slug}`);
     expect(startStripeCheckout).not.toHaveBeenCalled();
