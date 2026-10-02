@@ -140,3 +140,9 @@ brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
    are uploaded these show earthy placeholders.
 5. **Preview deployments** (`*.vercel.app`, localhost): add `?site=spendtimeoffgrid`
    to any URL to view the off-grid site; `?site=paradise-beyond` switches back.
+6. **Run migration `0033_stay_checklists.sql`** for the "Before you go" /
+   "Before they arrive" checklist on stays. It adds one private table with
+   row-level security (each side writes only its own row; only the booking's
+   traveller, its host and admins can read; off-grid bookings only). Until it's
+   run, the checklist shows but confirmations can't be saved. Emergency
+   contacts reuse `trip_prep` (migration 0011) — no change there.

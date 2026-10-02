@@ -15,6 +15,7 @@ export const SITE_PAGE_PREFIXES = [
   "/terms",
   "/privacy",
   "/signup",
+  "/trust",
 ] as const;
 
 export function isSitePagePath(pathname: string): boolean {

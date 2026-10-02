@@ -27,6 +27,9 @@ import { PackingList } from "@/components/trip/PackingList";
 import { EmergencyContacts } from "@/components/trip/EmergencyContacts";
 import { PayBalanceButton } from "@/components/dashboard/PayBalanceButton";
 import { payBalance } from "./actions";
+import { checklistSide } from "@/lib/offgrid/checklist";
+import { getStayChecklists } from "@/lib/offgrid/checklistStore";
+import { TravellerBeforeYouGo } from "@/components/offgrid/StayPrep";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
 
@@ -57,6 +60,10 @@ export default async function TripPage({
   const prep = await getTripPrepForTrip(trip.id, dates.end);
   const packing = packingList(trip.experience);
   const contacts = supportContacts(trip.experience.destinationSlug);
+  // Spend Time Off Grid stays get the pre-arrival checklist in place of the
+  // Paradise Beyond itinerary / flights / questionnaire sections.
+  const offGridSide = checklistSide(user, trip);
+  const checklists = offGridSide === "guest" ? await getStayChecklists(trip.id) : null;
 
   return (
     <div>
@@ -111,30 +118,45 @@ export default async function TripPage({
             </div>
           </section>
 
-          {/* Itinerary */}
-          <section>
-            <SectionTitle>Itinerary</SectionTitle>
-            <Itinerary days={trip.experience.itinerary} />
-          </section>
+          {checklists ? (
+            <section id="before-you-go" className="scroll-mt-24">
+              <TravellerBeforeYouGo
+                trip={trip}
+                checklists={checklists}
+                messages={messages}
+                prep={prep}
+                hostName={host?.name.split(" ")[0] ?? "your host"}
+                guestName={user.name.split(" ")[0]}
+              />
+            </section>
+          ) : (
+            <>
+            {/* Itinerary */}
+            <section>
+              <SectionTitle>Itinerary</SectionTitle>
+              <Itinerary days={trip.experience.itinerary} />
+            </section>
 
-          {/* Before you go */}
-          <section>
-            <SectionTitle>Before you go</SectionTitle>
-            <BeforeYouGo destination={destination} />
-          </section>
+            {/* Before you go */}
+            <section>
+              <SectionTitle>Before you go</SectionTitle>
+              <BeforeYouGo destination={destination} />
+            </section>
 
-          {/* Flights */}
-          <section>
-            <SectionTitle>Your flights</SectionTitle>
-            <div className="rounded-xl2 border border-ink/10 bg-sand-100 p-6">
-              <p className="mb-5 max-w-prose text-sm text-ink-muted">
-                Your international flights aren&apos;t included — please arrange
-                your own. Enter your details here so the team can coordinate your
-                airport transfer.
-              </p>
-              <FlightForm bookingId={trip.id} flight={trip.flight} />
-            </div>
-          </section>
+            {/* Flights */}
+            <section>
+              <SectionTitle>Your flights</SectionTitle>
+              <div className="rounded-xl2 border border-ink/10 bg-sand-100 p-6">
+                <p className="mb-5 max-w-prose text-sm text-ink-muted">
+                  Your international flights aren&apos;t included — please arrange
+                  your own. Enter your details here so the team can coordinate your
+                  airport transfer.
+                </p>
+                <FlightForm bookingId={trip.id} flight={trip.flight} />
+              </div>
+            </section>
+            </>
+          )}
 
           {/* Messages with the host */}
           <section>
@@ -143,7 +165,7 @@ export default async function TripPage({
               bookingId={trip.id}
               messages={messages}
               currentUserId={user.id}
-              names={{ host: host?.name ?? "Host", guest: user.name, admin: "Paradise Beyond" }}
+              names={{ host: host?.name ?? "Host", guest: user.name, admin: checklists ? "Spend Time Off Grid" : "Paradise Beyond" }}
             />
           </section>
 
@@ -173,14 +195,16 @@ export default async function TripPage({
           </section>
 
           {/* Documents / questionnaire / packing */}
-          <section>
-            <SectionTitle>Documents & preparation</SectionTitle>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <TripQuestionnaire bookingId={trip.id} initial={prep} />
-              <PackingList bookingId={trip.id} groups={packing} />
-              <EmergencyContacts contacts={contacts} prep={prep} />
-            </div>
-          </section>
+          {!checklists && (
+            <section>
+              <SectionTitle>Documents & preparation</SectionTitle>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <TripQuestionnaire bookingId={trip.id} initial={prep} />
+                <PackingList bookingId={trip.id} groups={packing} />
+                <EmergencyContacts contacts={contacts} prep={prep} />
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Payment sidebar */}

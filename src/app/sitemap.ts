@@ -24,6 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/host/apply`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    // Spend Time Off Grid only.
+    ...(paradise ? [] : [{ url: `${base}/trust`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.5 }]),
   ];
 
   const [experiences, hosts] = await Promise.all([getMarketplaceExperiences(brand.id), getAllHosts()]);

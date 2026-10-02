@@ -7,6 +7,7 @@ import { categoriesWithListings } from "@/lib/data/filter";
 import { CategorySlider } from "@/components/offgrid/CategorySlider";
 import { ExperienceCard } from "@/components/experience/ExperienceCard";
 import { OffGridSearch } from "@/components/offgrid/OffGridSearch";
+import { TrustTeaser, TryTheLife } from "@/components/offgrid/HomeStory";
 import {
   ArrowRightIcon,
   BookIcon,
@@ -167,6 +168,9 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
         </div>
       </section>
 
+      {/* Try the life — the deeper reason the marketplace exists. */}
+      <TryTheLife lives={kinds.map(({ category: c }) => ({ label: c.name, href: `/categories/${c.slug}` }))} />
+
       {/* The experience — an editorial split on deep forest. */}
       <section className="bg-forest-900 text-sand-50">
         <div className="container-editorial grid items-center gap-8 py-14 sm:gap-10 sm:py-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:py-20">
@@ -228,6 +232,9 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
           </div>
         </div>
       </section>
+
+      {/* Trust — compact; the detail is on /trust. */}
+      <TrustTeaser />
 
       {/* Host CTA — runs straight into the footer (cancels its top margin). */}
       <section className="relative -mb-24 overflow-hidden">

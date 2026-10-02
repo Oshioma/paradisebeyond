@@ -9,6 +9,9 @@ export interface TripPrep {
   medical?: string;
   emergencyName?: string;
   emergencyPhone?: string;
+  /** Spend Time Off Grid asks for these too (private to guest and host). */
+  emergencyRelationship?: string;
+  emergencyEmail?: string;
   notes?: string;
   updatedAt?: string;
   /**

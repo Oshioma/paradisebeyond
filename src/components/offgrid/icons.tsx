@@ -102,3 +102,60 @@ export const ArrowRightIcon = (p: P) => (
     <path d="M5 12h14M13 6l6 6-6 6" />
   </Svg>
 );
+
+export const UserIcon = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="8.5" r="3.8" />
+    <path d="M4.5 20c.8-3.6 3.8-5.8 7.5-5.8s6.7 2.2 7.5 5.8" />
+  </Svg>
+);
+
+export const ChatIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z" />
+    <path d="M8 9.5h8M8 12.5h5" />
+  </Svg>
+);
+
+export const VideoIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="6.5" width="12.5" height="11" rx="2" />
+    <path d="m15.5 10.5 5.5-3v9l-5.5-3" />
+  </Svg>
+);
+
+export const ShieldIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 3.5 5 6.2v5.3c0 4.3 3 7.6 7 9 4-1.4 7-4.7 7-9V6.2z" />
+    <path d="m9 12 2.2 2.2L15.5 10" />
+  </Svg>
+);
+
+export const ListIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M9.5 6.5h10M9.5 12h10M9.5 17.5h10" />
+    <path d="m4 6.5 1.2 1.2L7 5.8M4 12l1.2 1.2L7 11.3M4 17.5l1.2 1.2L7 16.8" />
+  </Svg>
+);
+
+export const ShareIcon = (p: P) => (
+  <Svg {...p}>
+    <circle cx="17.5" cy="5.5" r="2.3" />
+    <circle cx="6.5" cy="12" r="2.3" />
+    <circle cx="17.5" cy="18.5" r="2.3" />
+    <path d="m8.5 10.9 7-4.2M8.5 13.1l7 4.2" />
+  </Svg>
+);
+
+export const WaveIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 21a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17z" />
+    <path d="m8.5 12.3 2.3 2.3 4.7-5" />
+  </Svg>
+);
+
+export const StarIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="m12 4 2.4 5 5.4.7-4 3.8 1 5.4L12 16.3 7.2 18.9l1-5.4-4-3.8 5.4-.7z" />
+  </Svg>
+);
