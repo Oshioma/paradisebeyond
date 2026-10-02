@@ -55,16 +55,16 @@ export function SiteHeader({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
     >
       <div className="container-editorial flex h-[var(--paradise-nav-h)] items-center justify-between">
         {earth ? (
-          <Link href="/" className="group flex items-center gap-3 leading-none">
+          <Link href="/" className="group flex items-center gap-2.5 leading-none sm:gap-3">
             {brand.icon && (
-              // eslint-disable-next-line @next/next/no-img-element -- tiny static brand SVG
-              <img src={brand.icon.svg} alt="" width={37} height={37} className="h-[35px] w-[35px] flex-none rounded-lg sm:h-[37px] sm:w-[37px]" />
+              // eslint-disable-next-line @next/next/no-img-element -- small static brand SVG
+              <img src={brand.icon.logo ?? brand.icon.svg} alt="" width={46} height={46} className="h-10 w-10 flex-none sm:h-[46px] sm:w-[46px]" />
             )}
             <span className="flex flex-col">
-              <span className="text-[0.88rem] font-semibold uppercase tracking-[0.24em] text-forest-800 sm:text-[0.95rem]">
+              <span className="text-[0.95rem] font-semibold uppercase tracking-[0.17em] text-ink sm:text-[1.15rem]">
                 {brand.wordmark}
               </span>
-              <span className="mt-1 text-[0.62rem] uppercase tracking-[0.2em] text-ink-muted">
+              <span className="mt-1.5 text-[0.6rem] font-medium uppercase tracking-[0.22em] text-ink-soft sm:text-[0.68rem]">
                 {brand.wordmarkSub}
               </span>
             </span>
