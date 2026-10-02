@@ -101,44 +101,46 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
       {/* Find your kind of off-grid — only kinds that have stays, so every
           card leads somewhere; one sideways-scrolling row. */}
       {kinds.length > 0 && (
-        <section className="container-editorial pt-14 sm:pt-20">
-          <div className="max-w-3xl reveal">
-            <p className="eyebrow text-forest-700">Find your kind of off-grid</p>
-            <h2 className="mt-3 text-headline font-semibold text-ink">Places worth getting your hands dirty for</h2>
-            <p className="mt-3 text-ink-muted">Farms, homesteads, eco-projects and communities around the world.</p>
-          </div>
-          <div className="mt-8">
-            <CategorySlider
-              items={kinds.map(({ category: c, count }) => ({
-                slug: c.slug,
-                name: c.name,
-                image: img(c.imageSeed, 400, 480),
-                count,
-              }))}
-            />
-          </div>
+        <section className="container-editorial pt-16 sm:pt-24">
+          <CategorySlider
+            header={
+              <div className="max-w-3xl reveal">
+                <p className="eyebrow text-forest-700">Find your kind of off-grid</p>
+                <h2 className="mt-3 text-headline font-semibold text-ink">Places worth getting your hands dirty for</h2>
+                <p className="mt-3 text-ink-muted">Farms, homesteads, eco-projects and communities around the world.</p>
+              </div>
+            }
+            items={kinds.map(({ category: c, count }) => ({
+              slug: c.slug,
+              name: c.name,
+              image: img(c.imageSeed, 440, 550),
+              count,
+            }))}
+          />
         </section>
       )}
 
       {/* Featured stays — same warm background, no hard break. */}
-      <section className="container-editorial py-14 sm:py-20">
+      <section className="container-editorial py-16 sm:py-24">
         <div className="flex flex-wrap items-end justify-between gap-4 reveal">
           <div className="max-w-3xl">
             <p className="eyebrow text-forest-700">Featured stays</p>
             <h2 className="mt-3 text-headline font-semibold text-ink">Live somewhere different for a while.</h2>
+            <p className="mt-3 text-ink-muted">What you&apos;ll help with, where you&apos;ll sleep and what you&apos;ll eat — on every card.</p>
           </div>
           {featured.length > 0 && (
-            <Link href="/experiences" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:text-forest-700">
-              View all experiences <ArrowRightIcon className="h-4 w-4" />
+            <Link href="/experiences" className="group inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:text-forest-700">
+              View all experiences
+              <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
           )}
         </div>
 
-        <div className="mt-8">
+        <div className="mt-10">
           {featured.length > 0 ? (
             <div
               className={cn(
-                "grid grid-cols-1 gap-5 sm:grid-cols-2",
+                "grid grid-cols-1 gap-6 sm:grid-cols-2",
                 featured.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3",
               )}
             >
@@ -165,71 +167,104 @@ export async function OffGridHome({ brand }: { brand: Brand }) {
         </div>
       </section>
 
-      {/* What this is (and isn't). */}
-      <section className="container-editorial pb-14 sm:pb-20">
-        <div className="mx-auto max-w-3xl border-y border-ink/10 py-12 text-center sm:py-16 reveal">
-          <p className="font-display text-3xl font-semibold leading-tight text-forest-900 sm:text-4xl">
-            This isn&apos;t volunteering.
-            <br />
-            And it isn&apos;t a hotel.
-          </p>
-          <p className="mx-auto mt-5 max-w-md font-display text-xl italic leading-snug text-ink-soft sm:text-2xl">
-            You&apos;re temporarily joining someone else&apos;s way of life.
-          </p>
-        </div>
-      </section>
-
-      {/* How it works — four steps across. */}
-      <section id="how-it-works" className="scroll-mt-24 bg-sand-100 py-14 sm:py-20">
-        <div className="container-editorial">
-          <div className="text-center reveal">
-            <p className="eyebrow text-forest-700">How it works</p>
-            <h2 className="mt-3 text-headline font-semibold text-ink">A simple way to stay, contribute and learn.</h2>
+      {/* What this is (and isn't) — an editorial split on deep forest. */}
+      <section className="bg-forest-900 text-sand-50">
+        <div className="container-editorial grid items-center gap-10 py-16 sm:py-20 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:py-20">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-xl2 reveal lg:aspect-[5/4]">
+            <Image
+              src={img("stog-home-how", 1200, 960)}
+              alt="Hands in the soil, planting out seedlings"
+              fill
+              sizes="(max-width: 1024px) 92vw, 46vw"
+              className="object-cover"
+            />
           </div>
-          <ol className="mt-10 grid gap-8 sm:grid-cols-2 lg:mt-12 lg:grid-cols-4 lg:gap-0">
-            {STEPS.map(({ title, body, Icon }, i) => (
-              <li key={title} className="relative flex gap-4 reveal lg:flex-col lg:items-center lg:px-6 lg:text-center" style={{ transitionDelay: `${i * 60}ms` }}>
-                <Icon className="h-9 w-9 flex-none text-forest-800 lg:h-11 lg:w-11" />
-                <div>
-                  <h3 className="font-medium text-ink lg:mt-4">
-                    {i + 1}. {title}
-                  </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{body}</p>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <ArrowRightIcon className="absolute -right-2.5 top-3 hidden h-5 w-5 text-ink/30 lg:block" />
-                )}
-              </li>
-            ))}
-          </ol>
+          <div className="reveal">
+            <p className="eyebrow text-sand-100/60">What this is</p>
+            <p className="mt-5 font-display text-[clamp(2.1rem,3.4vw,3rem)] font-semibold leading-[1.06] tracking-[-0.015em]">
+              This isn&apos;t volunteering.
+              <br />
+              <span className="text-sand-100/70">And it isn&apos;t a hotel.</span>
+            </p>
+            <div className="mt-8 h-px w-16 bg-earth-400" />
+            <p className="mt-8 max-w-md font-display text-2xl italic leading-snug text-sand-100 sm:text-[1.7rem]">
+              You&apos;re temporarily joining someone else&apos;s way of life.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* Host CTA */}
-      <section className="relative overflow-hidden">
+      {/* How it works — four numbered steps, joined on desktop. */}
+      <section id="how-it-works" className="scroll-mt-24 py-16 sm:py-24">
+        <div className="container-editorial">
+          <div className="mx-auto max-w-3xl text-center reveal">
+            <p className="eyebrow text-forest-700">How it works</p>
+            <h2 className="mt-3 text-balance text-headline font-semibold text-ink">A simple way to stay, contribute and learn.</h2>
+          </div>
+          <div className="relative mt-12 lg:mt-14">
+            {/* The thread between the steps (desktop). */}
+            <div aria-hidden className="absolute left-[12.5%] right-[12.5%] top-7 hidden border-t border-dashed border-forest-700/30 lg:block" />
+            <ol className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+              {STEPS.map(({ title, body, Icon }, i) => (
+                <li
+                  key={title}
+                  className="relative flex gap-4 rounded-xl2 bg-sand-100 p-5 reveal lg:flex-col lg:items-center lg:bg-transparent lg:p-0 lg:text-center"
+                  style={{ transitionDelay: `${i * 60}ms` }}
+                >
+                  <span className="relative flex h-14 w-14 flex-none items-center justify-center rounded-full border border-forest-700/20 bg-sand-50 text-forest-800 shadow-[0_6px_20px_-12px_rgba(20,35,25,0.5)]">
+                    <Icon className="h-6 w-6" />
+                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-forest-700 text-[0.62rem] font-semibold text-sand-50">
+                      {i + 1}
+                    </span>
+                  </span>
+                  <div>
+                    <h3 className="font-display text-lg font-semibold text-ink lg:mt-5">{title}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-ink-muted lg:mx-auto lg:max-w-[15rem]">{body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* Host CTA — runs straight into the footer (cancels its top margin). */}
+      <section className="relative -mb-24 overflow-hidden">
         <div className="absolute inset-0">
           <Image src={hero("stog-home-host")} alt="A host walking their land at dusk" fill sizes="100vw" className="object-cover" />
-          <div className="absolute inset-0 bg-forest-800/80" />
+          <div className="absolute inset-0 bg-gradient-to-r from-forest-900/90 via-forest-900/80 to-forest-900/55" />
         </div>
-        <div className="container-editorial relative py-20 text-sand-50 sm:py-28">
-          <div className="max-w-2xl">
+        <div className="container-editorial relative grid items-center gap-12 py-20 text-sand-50 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
+          <div>
             <p className="eyebrow text-sand-100/80 reveal">For hosts</p>
-            <h2 className="mt-3 text-headline font-semibold reveal">Have land worth experiencing?</h2>
-            <p className="mt-5 text-lg leading-relaxed text-sand-100/90 reveal">
+            <h2 className="mt-3 text-display font-semibold reveal">Have land worth experiencing?</h2>
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-sand-100/90 reveal">
               Open your farm, homestead or off-grid project to people who want to help, learn and live differently.
             </p>
-            <p className="mt-3 leading-relaxed text-sand-100/80 reveal">
+            <p className="mt-3 max-w-xl leading-relaxed text-sand-100/80 reveal">
               You decide what guests help with, what you provide and what the stay costs.
             </p>
-            <div className="mt-8 reveal">
+            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4 reveal">
               <Link
                 href={brand.hostCta.href}
                 className="inline-flex rounded-full bg-sand-50 px-7 py-3.5 text-xs font-medium uppercase tracking-[0.16em] text-forest-800 hover:bg-sand-100"
               >
                 {brand.hostCta.label}
               </Link>
+              <Link href={brand.hostCta.href} className="group inline-flex items-center gap-1.5 text-sm text-sand-100/85 hover:text-sand-50">
+                How hosting works
+                <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
           </div>
+          <ul className="divide-y divide-sand-50/15 rounded-xl2 border border-sand-50/15 bg-forest-900/40 backdrop-blur-sm reveal">
+            {hostPoints(brand).map((p) => (
+              <li key={p.t} className="p-5 sm:p-6">
+                <p className="font-display text-xl font-semibold">{p.t}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-sand-100/80">{p.d}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </>
@@ -241,6 +276,16 @@ const EXCHANGE = [
   { eyebrow: "You get", lines: ["Accommodation", "and food included"], Icon: HouseIcon },
   { eyebrow: "You experience", lines: ["A different way of living", "and learn new skills"], Icon: BookIcon },
 ];
+
+/** The same three facts the /host page leads with — kept short here. */
+function hostPoints(brand: Brand) {
+  const pct = (brand.fixedCommissionBps ?? 0) / 100;
+  return [
+    { t: "Your place, your terms", d: "Set the hours, the days, the food and the bed. Travellers see the exchange before they book." },
+    { t: "People who want to be there", d: "Travellers come to help, learn and live the way you do." },
+    { t: "Simple, transparent money", d: `Charge per day, week or stay — or nothing. We take ${pct}% of paid bookings; free stays cost you nothing.` },
+  ];
+}
 
 const STEPS = [
   { title: "Find somewhere", body: "Discover farms, homesteads and off-grid projects around the world.", Icon: SearchIcon },

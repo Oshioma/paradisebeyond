@@ -39,7 +39,7 @@ const SITE_SLOTS: Slot[] = [
 // Spend Time Off Grid page imagery (replace with real photography here).
 const OFF_GRID_SITE_SLOTS: Slot[] = [
   slot("stog-home-hero", "Homepage hero", 2000, 1200),
-  slot("stog-home-how", "How it works image", 1000, 1250),
+  slot("stog-home-how", "Homepage statement image", 1000, 1250),
   slot("stog-home-host", "List your land banner", 2000, 1200),
   slot("stog-host-landing", "Host page hero", 2000, 1200),
 ];
