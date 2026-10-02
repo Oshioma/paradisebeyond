@@ -13,6 +13,7 @@ import { getExperienceOrder, applyExperienceOrder } from "./experienceOrder";
 import { matchesFilter, onlyMarketplace, visibleOn, type ExperienceFilter } from "./filter";
 import { categoriesFor } from "./categories";
 import type { MarketplaceId } from "@/lib/brand/config";
+import { unstable_noStore as noStore } from "next/cache";
 
 /**
  * The repository is the single seam between the magazine and its data source.
@@ -39,6 +40,11 @@ async function source(): Promise<Experience[]> {
     const { OFFGRID_DEMO_EXPERIENCES } = await import("@/lib/demo/offgridSamples");
     return withHostDisplay(applyExperienceOrder([...EXPERIENCES, ...OFFGRID_DEMO_EXPERIENCES], await getExperienceOrder()));
   }
+  // Never let Next's Data Cache pin the catalogue read (a cacheable GET) to a
+  // stale result — same lesson as the media overrides and display order. It
+  // must run before the fetch below: a fetch made before noStore() is still
+  // cached, which is how new listings went missing from the explore page.
+  noStore();
   // Small per-request-ish cache to avoid refetching the catalogue repeatedly
   // within a single render pass.
   if (cache && Date.now() - cache.at < 5000) return cache.data;
