@@ -78,7 +78,7 @@ export async function messagePastGuests(formData: FormData): Promise<SendResult>
       ok: false,
       error: isEmailConfigured()
         ? "No emails could be sent — we couldn't find an email address for the selected guests."
-        : "Email isn't configured yet (RESEND_API_KEY). Invites were prepared but not delivered.",
+        : "Email isn't configured yet (SMTP login). Invites were prepared but not delivered.",
     };
   }
   return { ok: true, sent, skipped };

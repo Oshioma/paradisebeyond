@@ -86,7 +86,7 @@ the whole flow on `/desk/settings` (all green) before going to live keys.
 Also live: **pay-balance-later** (trip page → Stripe checkout for the balance),
 an **in-app refund** button (Admin → Bookings; reverses charge + fee + transfer),
 **promo codes** (Admin → Promos; applied at checkout), and **automated emails**
-(booking confirmation, balance receipt, host-application decisions via Resend).
+(booking confirmation, balance receipt, host-application decisions via ImprovMX SMTP).
 Run migrations `0006_stripe.sql` and `0007_promos.sql` for these.
 
 ---
@@ -155,11 +155,17 @@ brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
      and `select vault.create_secret('<random secret>', 'checkins_mailer_secret');`
    - Vercel env: `CHECKINS_CRON_SECRET=<the same secret>` (Production).
    Until both are set the cron still queues check-ins (shown on the stay page)
-   but no emails go out. Emails need `RESEND_API_KEY` as usual.
-8. **Email domain**: Spend Time Off Grid emails are sent from
-   `Spend Time Off Grid <noreply@spendtimeoffgrid.com>` (set in
-   `src/lib/brand/config.ts`, not `EMAIL_FROM`, which stays Paradise Beyond's).
-   Add and verify `spendtimeoffgrid.com` in Resend → Domains (the DNS records
-   it lists), or those emails are rejected. Replies go to `support@`,
-   `bookings@` or `safety@spendtimeoffgrid.com`, and check-in alerts go to
-   `safety@` — make sure those inboxes (or forwards) exist.
+   but no emails go out. Emails need the SMTP logins in step 8.
+8. **Email (ImprovMX)**: every app email goes through ImprovMX SMTP
+   (`smtp.improvmx.com`, port 587), logging in on the sender's own domain.
+   SMTP sending needs an ImprovMX plan that includes it.
+   - ImprovMX → each domain → **SMTP credentials**: create one for
+     `hello@paradisebeyond.com` and one for `noreply@spendtimeoffgrid.com`
+     (the senders), and add the SPF/DKIM DNS records ImprovMX shows.
+   - Vercel env (Production): `SMTP_USER` / `SMTP_PASSWORD` (Paradise Beyond)
+     and `OFFGRID_SMTP_USER` / `OFFGRID_SMTP_PASSWORD` (Spend Time Off Grid).
+     `EMAIL_FROM` stays Paradise Beyond's sender; Spend Time Off Grid's is
+     `Spend Time Off Grid <noreply@spendtimeoffgrid.com>` (brand config).
+   - Check it on `/desk/settings` → **Send test emails** (one per site).
+   - Replies go to `support@`, `bookings@`, `hosts@` or `safety@`, and check-in
+     alerts go to `safety@` — make sure those aliases forward somewhere in ImprovMX.

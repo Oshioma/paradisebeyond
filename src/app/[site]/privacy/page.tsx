@@ -177,8 +177,9 @@ export default function PrivacyPage({ params }: { params: SiteParams }) {
           <DefRow term="Supabase — database, authentication and file storage">
             Hosts our database, sign-in system and uploaded images, as our processor.
           </DefRow>
-          <DefRow term="Resend — transactional email">
-            Delivers booking confirmations, balance reminders and account emails, as our processor.
+          <DefRow term="ImprovMX — email">
+            Sends booking confirmations, balance reminders, stay check-ins and account emails, and
+            forwards email sent to our addresses, as our processor.
           </DefRow>
           <DefRow term="Vercel — hosting">
             Serves the website and holds the request logs that come with it, as our processor.

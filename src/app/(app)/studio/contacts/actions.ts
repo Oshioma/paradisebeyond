@@ -137,7 +137,7 @@ export async function messageContacts(formData: FormData): Promise<SendResult> {
       ok: false,
       error: isEmailConfigured()
         ? "No emails could be sent — please try again."
-        : "Email isn't configured yet (RESEND_API_KEY). Invites were prepared but not delivered.",
+        : "Email isn't configured yet (SMTP login). Invites were prepared but not delivered.",
     };
   }
   return { ok: true, sent, skipped };

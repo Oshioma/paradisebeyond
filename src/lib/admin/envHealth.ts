@@ -119,11 +119,14 @@ export function getEnvHealth(): EnvHealth {
   };
 
   const emailGroup = {
-    title: "Email (Resend)",
-    note: "For the app's transactional emails. Supabase auth emails are configured separately (Auth → SMTP Settings → point at Resend).",
+    title: "Email (ImprovMX SMTP)",
+    note: "For the app's transactional emails, sent through smtp.improvmx.com with a login on each site's domain. Supabase auth emails are configured separately (Auth → SMTP Settings → point at smtp.improvmx.com).",
     checks: [
-      secretCheck("RESEND_API_KEY", "Resend API key", false),
-      publicCheck("EMAIL_FROM", "From address", false),
+      publicCheck("SMTP_USER", "Paradise Beyond SMTP login", false),
+      secretCheck("SMTP_PASSWORD", "Paradise Beyond SMTP password", false),
+      publicCheck("OFFGRID_SMTP_USER", "Spend Time Off Grid SMTP login", false),
+      secretCheck("OFFGRID_SMTP_PASSWORD", "Spend Time Off Grid SMTP password", false),
+      publicCheck("EMAIL_FROM", "Paradise Beyond from address", false),
       {
         key: "ADMIN_EMAIL",
         label: "Ops notifications recipient",

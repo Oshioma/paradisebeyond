@@ -22,14 +22,14 @@ export async function setApplicationStatus(formData: FormData) {
   if (!id || !ALLOWED.includes(status)) return;
 
   const notes = String(formData.get("notes") ?? "").trim() || undefined;
-  let applicant: { name: string; email: string } | null = null;
+  let applicant: { name: string; email: string; marketplace?: string } | null = null;
 
   if (isSupabaseConfigured()) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = createClient();
     await supabase.from("host_applications").update({ status, review_notes: notes, updated_at: new Date().toISOString() }).eq("id", id);
-    const { data } = await supabase.from("host_applications").select("name, email, applicant_id").eq("id", id).maybeSingle();
-    if (data) applicant = { name: data.name, email: data.email };
+    const { data } = await supabase.from("host_applications").select("name, email, applicant_id, marketplace").eq("id", id).maybeSingle();
+    if (data) applicant = { name: data.name, email: data.email, marketplace: data.marketplace ?? undefined };
     // On approval: grant the host role AND create their host profile row, so they
     // show up in Desk → Hosts immediately and their drafts/payouts link up. The
     // host row is keyed by owner_id, so the later retreat build reuses it (never
@@ -55,15 +55,29 @@ export async function setApplicationStatus(formData: FormData) {
     });
     const { DEMO_APPLICATIONS } = await import("@/lib/demo/applications");
     const app = DEMO_APPLICATIONS.find((a) => a.id === id);
-    if (app) applicant = { name: app.name, email: app.email };
+    if (app) applicant = { name: app.name, email: app.email, marketplace: app.marketplace };
   }
 
   // Notify the applicant on a decision (best-effort).
   if (applicant && (status === "approved" || status === "rejected" || status === "changes_requested")) {
     try {
       const { sendEmail } = await import("@/lib/email");
-      const { applicationStatusEmail } = await import("@/lib/email/templates");
-      await sendEmail({ to: applicant.email, ...applicationStatusEmail(applicant.name, status, notes) });
+      const { getBrandById, OFFGRID_EMAIL } = await import("@/lib/brand/config");
+      const brand = getBrandById(applicant.marketplace);
+      if (brand.id === "spendtimeoffgrid") {
+        // Spend Time Off Grid's own wording, sender and links; replies go to hosts@.
+        const { hostApplicationEmail } = await import("@/lib/offgrid/emails");
+        const { canonicalOriginFor } = await import("@/lib/brand/server");
+        await sendEmail({
+          to: applicant.email,
+          from: brand.emailFrom ?? undefined,
+          replyTo: OFFGRID_EMAIL.hosts,
+          ...hostApplicationEmail({ origin: canonicalOriginFor(brand), name: applicant.name, status, notes }),
+        });
+      } else {
+        const { applicationStatusEmail } = await import("@/lib/email/templates");
+        await sendEmail({ to: applicant.email, ...applicationStatusEmail(applicant.name, status, notes) });
+      }
     } catch { /* non-fatal */ }
   }
 

@@ -21,22 +21,23 @@ Paste and run each file, top to bottom:
 > the `public` schema, then run 1–6 fresh. This deletes app data (auth users are
 > untouched). It's the reliable way to recover from an earlier partial run.
 
-### Auth emails hit a rate limit? (Resend)
+### Auth emails hit a rate limit? (ImprovMX SMTP)
 
 Supabase's built-in email is limited to a few messages/hour. To send auth emails
-(confirmation, password reset) via **Resend**: Supabase → **Authentication →
+(confirmation, password reset) via **ImprovMX**: Supabase → **Authentication →
 SMTP Settings** → enable Custom SMTP:
 
 ```
-Host:     smtp.resend.com
-Port:     465        (or 587)
-Username: resend
-Password: <your Resend API key, re_...>
-Sender:   hello@paradisebeyond.com   (a verified domain address)
+Host:     smtp.improvmx.com
+Port:     587        (or 465)
+Username: hello@paradisebeyond.com   (an ImprovMX SMTP credential)
+Password: <that credential's password>
+Sender:   hello@paradisebeyond.com
 ```
 
-(Setting `RESEND_API_KEY` in the app only powers the app's own emails, e.g.
-booking confirmations — it does not change Supabase's auth emails.)
+(The app's `SMTP_USER` / `SMTP_PASSWORD` only power the app's own emails, e.g.
+booking confirmations — they do not change Supabase's auth emails. Supabase has
+one sender for the whole project, shared by both sites.)
 
 To just get in immediately without email: Supabase → Authentication → Providers
 → Email → turn **off** "Confirm email", then sign up and sign in.

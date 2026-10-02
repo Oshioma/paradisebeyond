@@ -124,10 +124,10 @@ export default async function SettingsPage() {
       <section className="mt-12">
         <h2 className="font-display text-2xl font-semibold text-ink">Email deliverability</h2>
         <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-          Send yourself a live test email through Resend to confirm the API key and your{" "}
-          <code>EMAIL_FROM</code> domain actually deliver. The result shows Resend&apos;s real response —
-          the app&apos;s own emails send best-effort and never surface errors, so this is the way to catch a
-          bad key or an unverified sending domain.
+          Send yourself a live test email from each site&apos;s sender through ImprovMX SMTP, to confirm the
+          logins actually deliver. The result shows the SMTP server&apos;s real response — the app&apos;s own
+          emails send best-effort and never surface errors, so this is the way to catch a missing login or a
+          wrong password.
         </p>
         <div className="mt-4">
           <TestEmailButton />
