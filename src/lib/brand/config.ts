@@ -122,7 +122,9 @@ export const SPEND_TIME_OFF_GRID: Brand = {
   wordmark: "Spend Time Off Grid",
   wordmarkSub: "Stay · Contribute · Learn",
   domains: ["spendtimeoffgrid.com", "www.spendtimeoffgrid.com"],
-  canonicalOrigin: "https://spendtimeoffgrid.com",
+  // www is the primary host (Vercel redirects the apex to it), so canonical
+  // URLs, sitemap, Stripe returns and auth links all use it.
+  canonicalOrigin: "https://www.spendtimeoffgrid.com",
   metadata: {
     defaultTitle: "Spend Time Off Grid | Farms, Homesteads & Off-Grid Experiences",
     titleTemplate: "%s · Spend Time Off Grid",
