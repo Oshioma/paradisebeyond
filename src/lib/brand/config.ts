@@ -57,6 +57,11 @@ export interface Brand {
   footerBlurb: string;
   /** Public contact address shown on this brand's site. */
   contactEmail: string;
+  /** Address for legal and privacy requests (terms, privacy policy). */
+  legalEmail: string;
+  /** Sender for this brand's emails ("Name <address>"). Null = EMAIL_FROM
+   *  (Paradise Beyond's existing behaviour). */
+  emailFrom: string | null;
   /** Words that differ between the two marketplaces. */
   terms: {
     experience: string;
@@ -103,6 +108,8 @@ export const PARADISE_BEYOND: Brand = {
   headerCta: { label: "Explore", href: "/experiences" },
   hostCta: { label: "Host a Retreat", href: "/host" },
   contactEmail: LEGAL.email,
+  legalEmail: LEGAL.email,
+  emailFrom: null,
   footerBlurb:
     "Come for more than a holiday. Curated 7 & 14-day experiences in extraordinary places — starting in Zanzibar.",
   terms: {
@@ -120,6 +127,30 @@ export const PARADISE_BEYOND: Brand = {
   icon: null,
   theme: "paradise",
 };
+
+/** Spend Time Off Grid's addresses, by purpose. */
+export const OFFGRID_EMAIL = {
+  /** General enquiries — the main public address. */
+  hello: "hello@spendtimeoffgrid.com",
+  /** Booking questions and problems. */
+  bookings: "bookings@spendtimeoffgrid.com",
+  /** Host enquiries and onboarding. */
+  hosts: "hosts@spendtimeoffgrid.com",
+  /** Customer support. */
+  support: "support@spendtimeoffgrid.com",
+  /** Safety, ID/verification and incidents — check-in alerts go here. */
+  safety: "safety@spendtimeoffgrid.com",
+  /** Payments, invoices and refunds. */
+  accounts: "accounts@spendtimeoffgrid.com",
+  /** Partnerships, landowners and communities. */
+  partners: "partners@spendtimeoffgrid.com",
+  /** Journalists and media. */
+  press: "press@spendtimeoffgrid.com",
+  /** Legal and privacy requests. */
+  legal: "legal@spendtimeoffgrid.com",
+  /** Sender for automated platform emails — never shown as a contact. */
+  noreply: "noreply@spendtimeoffgrid.com",
+} as const;
 
 export const SPEND_TIME_OFF_GRID: Brand = {
   id: "spendtimeoffgrid",
@@ -143,7 +174,9 @@ export const SPEND_TIME_OFF_GRID: Brand = {
   ],
   headerCta: { label: "List your land", href: "/host" },
   hostCta: { label: "List your land", href: "/host" },
-  contactEmail: "offgrid@guestlist.net",
+  contactEmail: OFFGRID_EMAIL.hello,
+  legalEmail: OFFGRID_EMAIL.legal,
+  emailFrom: `Spend Time Off Grid <${OFFGRID_EMAIL.noreply}>`,
   footerBlurb:
     "Stays on farms, homesteads and off-grid projects, where food and a place to sleep come with a few hours helping each day.",
   terms: {

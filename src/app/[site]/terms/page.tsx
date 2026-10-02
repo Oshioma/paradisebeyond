@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage({ params }: { params: SiteParams }) {
-  const email = brandFromParams(params).contactEmail;
+  const email = brandFromParams(params).legalEmail;
   return (
     <LegalShell email={email}
       eyebrow="Legal"

@@ -203,14 +203,17 @@ async function confirmationEmail(
   try {
     const { sendEmail } = await import("@/lib/email");
     const { bookingConfirmationEmail } = await import("@/lib/email/templates");
-    const { getBrandById } = await import("@/lib/brand/config");
+    const { getBrandById, OFFGRID_EMAIL } = await import("@/lib/brand/config");
+    const brand = getBrandById(plan.marketplace);
     await sendEmail({
       to: args.user.email,
+      from: brand.emailFrom ?? undefined,
+      replyTo: brand.id === "spendtimeoffgrid" ? OFFGRID_EMAIL.bookings : undefined,
       ...bookingConfirmationEmail({
         guestName: args.user.name, experienceName: args.experience.name, location: args.experience.location,
         startDate: plan.arrival, endDate: plan.departDate, reference, paidMinor: plan.quote.subtotalMinor,
         balanceMinor: 0, currency: plan.quote.currency, bookingId,
-        brand: { name: getBrandById(plan.marketplace).name, origin: args.origin, offGrid: true },
+        brand: { name: brand.name, origin: args.origin, offGrid: true },
       }),
     });
   } catch { /* non-fatal */ }

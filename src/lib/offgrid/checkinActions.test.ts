@@ -9,7 +9,7 @@ const trips: Record<string, { id: string; guestId: string; marketplace?: string;
 };
 let due = [{ bookingId: "stay", kind: "arrival", dueAt: "2026-11-12T16:00:00Z" }];
 const answers: unknown[] = [];
-const emails: { to: string; subject: string }[] = [];
+const emails: { to: string; subject: string; from?: string }[] = [];
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ requireUser: async () => currentUser }));
@@ -44,7 +44,11 @@ describe("answerCheckin", () => {
   it("'help' alerts the Spend Time Off Grid team, with the note", async () => {
     await answerCheckin(fd({ bookingId: "stay", kind: "arrival", response: "help", note: "Nobody is here" }));
     expect(emails).toHaveLength(1);
-    expect(emails[0]).toMatchObject({ to: "offgrid@guestlist.net", subject: expect.stringMatching(/Help requested/) });
+    expect(emails[0]).toMatchObject({
+      to: "safety@spendtimeoffgrid.com",
+      from: "Spend Time Off Grid <noreply@spendtimeoffgrid.com>",
+      subject: expect.stringMatching(/Help requested/),
+    });
   });
   it("another traveller, a host, or a Paradise Beyond booking can't answer", async () => {
     currentUser = { id: "traveller-2", email: "o@x", name: "Other", role: "guest" };

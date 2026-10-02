@@ -82,8 +82,10 @@ export async function submitHostApplication(raw: Record<string, unknown>): Promi
     try {
       const { sendEmail } = await import("@/lib/email");
       const { siteUrl } = await import("@/lib/siteUrl");
+      const { getBrandById } = await import("@/lib/brand/config");
       await sendEmail({
         to: adminEmail,
+        from: getBrandById(a.marketplace).emailFrom ?? undefined,
         replyTo: a.email,
         subject: `New host application — ${a.name}`,
         html: `<p><strong>${a.name}</strong> (${a.email}) applied to host a ${a.duration}-day retreat in ${a.destination}.</p>

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { hero } from "@/lib/images";
 import { OFFGRID_STEPS } from "@/lib/offgrid/schema";
-import { SPEND_TIME_OFF_GRID } from "@/lib/brand/config";
+import { OFFGRID_EMAIL, SPEND_TIME_OFF_GRID } from "@/lib/brand/config";
 
 /** "List your land" — the Spend Time Off Grid host page. */
 export function OffGridHostLanding({ canBuild }: { canBuild: boolean }) {
@@ -25,6 +25,12 @@ export function OffGridHostLanding({ canBuild }: { canBuild: boolean }) {
             <Link href={href} className="inline-flex rounded-full bg-sand-50 px-7 py-3.5 text-xs font-medium uppercase tracking-[0.16em] text-forest-800 hover:bg-sand-100">
               {label}
             </Link>
+            <p className="mt-5 text-sm text-sand-100/75">
+              Questions about hosting?{" "}
+              <a href={`mailto:${OFFGRID_EMAIL.hosts}`} className="text-sand-50 underline underline-offset-4">
+                {OFFGRID_EMAIL.hosts}
+              </a>
+            </p>
           </div>
         </div>
       </section>
@@ -66,6 +72,12 @@ export function OffGridHostLanding({ canBuild }: { canBuild: boolean }) {
             <Link href={href} className="inline-flex rounded-full bg-sand-50 px-7 py-3.5 text-xs font-medium uppercase tracking-[0.16em] text-forest-800 hover:bg-sand-100">
               {label}
             </Link>
+            <p className="mt-5 text-sm text-sand-100/75">
+              Questions about hosting?{" "}
+              <a href={`mailto:${OFFGRID_EMAIL.hosts}`} className="text-sand-50 underline underline-offset-4">
+                {OFFGRID_EMAIL.hosts}
+              </a>
+            </p>
           </div>
         </div>
       </section>

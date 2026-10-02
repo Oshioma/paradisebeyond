@@ -26,12 +26,13 @@ export async function answerCheckin(formData: FormData): Promise<{ ok: boolean; 
 
   if (response === "help") {
     try {
-      const { SPEND_TIME_OFF_GRID } = await import("@/lib/brand/config");
+      const { SPEND_TIME_OFF_GRID, OFFGRID_EMAIL } = await import("@/lib/brand/config");
       const { canonicalOriginFor } = await import("@/lib/brand/server");
       const { supportAlertEmail } = await import("@/lib/offgrid/emails");
       const { sendEmail } = await import("@/lib/email");
       await sendEmail({
-        to: SPEND_TIME_OFF_GRID.contactEmail,
+        to: OFFGRID_EMAIL.safety,
+        from: SPEND_TIME_OFF_GRID.emailFrom ?? undefined,
         replyTo: user.email,
         ...supportAlertEmail({
           origin: canonicalOriginFor(SPEND_TIME_OFF_GRID), reason: "help", kind, reference: trip.reference,

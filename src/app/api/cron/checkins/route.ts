@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const { createServiceRoleClient } = await import("@/lib/supabase/server");
   const { sendEmail } = await import("@/lib/email");
   const { checkinEmail, supportAlertEmail } = await import("@/lib/offgrid/emails");
-  const { SPEND_TIME_OFF_GRID } = await import("@/lib/brand/config");
+  const { SPEND_TIME_OFF_GRID, OFFGRID_EMAIL } = await import("@/lib/brand/config");
   const { canonicalOriginFor } = await import("@/lib/brand/server");
   const { getAllExperiences } = await import("@/lib/data/repository");
   const { findByDeparture } = await import("@/lib/booking/pricing");
@@ -60,7 +60,11 @@ export async function POST(req: Request) {
   for (const c of due ?? []) {
     const ctx = await context(c.booking_id);
     if (ctx?.email) {
-      const res = await sendEmail({ to: ctx.email, ...checkinEmail({ origin, bookingId: c.booking_id, kind: c.kind, listing: ctx.listing }) });
+      const res = await sendEmail({
+        to: ctx.email,
+        from: SPEND_TIME_OFF_GRID.emailFrom ?? undefined,
+        replyTo: OFFGRID_EMAIL.support,
+        ...checkinEmail({ origin, bookingId: c.booking_id, kind: c.kind, listing: ctx.listing }) });
       if (!res.ok) continue; // try again next hour
       sent++;
     }
@@ -81,7 +85,8 @@ export async function POST(req: Request) {
     const ctx = await context(c.booking_id);
     if (!ctx) continue;
     const res = await sendEmail({
-      to: SPEND_TIME_OFF_GRID.contactEmail,
+      to: OFFGRID_EMAIL.safety,
+      from: SPEND_TIME_OFF_GRID.emailFrom ?? undefined,
       ...supportAlertEmail({
         origin, reason: "no-reply", kind: "arrival", reference: ctx.booking.reference, listing: ctx.listing,
         travellerName: ctx.name, travellerEmail: ctx.email ?? undefined,

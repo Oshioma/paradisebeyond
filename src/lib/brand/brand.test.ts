@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  OFFGRID_EMAIL,
   PARADISE_BEYOND,
   SPEND_TIME_OFF_GRID,
   brandForHost,
@@ -63,8 +64,20 @@ describe("brand configuration", () => {
   });
 
   it("each brand has its own contact address", () => {
-    expect(SPEND_TIME_OFF_GRID.contactEmail).toBe("offgrid@guestlist.net");
+    expect(SPEND_TIME_OFF_GRID.contactEmail).toBe("hello@spendtimeoffgrid.com");
     expect(PARADISE_BEYOND.contactEmail).toBe("paradisebeyond@guestlist.net");
+  });
+
+  it("Spend Time Off Grid sends and shows only its own addresses", () => {
+    expect(SPEND_TIME_OFF_GRID.emailFrom).toBe("Spend Time Off Grid <noreply@spendtimeoffgrid.com>");
+    expect(SPEND_TIME_OFF_GRID.legalEmail).toBe("legal@spendtimeoffgrid.com");
+    for (const addr of Object.values(OFFGRID_EMAIL)) expect(addr).toMatch(/^[a-z]+@spendtimeoffgrid\.com$/);
+    expect(JSON.stringify(SPEND_TIME_OFF_GRID)).not.toMatch(/guestlist/);
+  });
+
+  it("Paradise Beyond keeps its existing sender and addresses", () => {
+    expect(PARADISE_BEYOND.emailFrom).toBeNull();
+    expect(PARADISE_BEYOND.legalEmail).toBe(PARADISE_BEYOND.contactEmail);
   });
 
   it("Spend Time Off Grid's canonical origin is its own domain", () => {

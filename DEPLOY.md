@@ -156,3 +156,10 @@ brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
    - Vercel env: `CHECKINS_CRON_SECRET=<the same secret>` (Production).
    Until both are set the cron still queues check-ins (shown on the stay page)
    but no emails go out. Emails need `RESEND_API_KEY` as usual.
+8. **Email domain**: Spend Time Off Grid emails are sent from
+   `Spend Time Off Grid <noreply@spendtimeoffgrid.com>` (set in
+   `src/lib/brand/config.ts`, not `EMAIL_FROM`, which stays Paradise Beyond's).
+   Add and verify `spendtimeoffgrid.com` in Resend → Domains (the DNS records
+   it lists), or those emails are rejected. Replies go to `support@`,
+   `bookings@` or `safety@spendtimeoffgrid.com`, and check-in alerts go to
+   `safety@` — make sure those inboxes (or forwards) exist.
