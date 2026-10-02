@@ -25,6 +25,7 @@ export default async function BookingPage({
   const found = findByDeparture(all, params.departureId);
   if (!found) notFound();
   const { experience, departure } = found;
+  if (experience.sample) redirect(`/experiences/${experience.slug}`);
   // Isolation: a listing is only bookable on its own marketplace's site.
   const brand = getBrand();
   const owner = getBrandById(marketplaceOf(experience));

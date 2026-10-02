@@ -57,6 +57,7 @@ export async function generateMetadata({
       openGraph: { title: e.name, description: desc },
       twitter: { card: "summary_large_image", title: `${e.name} · ${brand.name}`, description: desc },
       alternates: { canonical: `/experiences/${e.slug}` },
+      ...(e.sample ? { robots: { index: false, follow: true } } : {}),
     };
   }
   const next = upcomingDeparture(e);

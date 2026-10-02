@@ -117,6 +117,20 @@ describe("paid stay", () => {
   });
 });
 
+describe("sample listings", () => {
+  it("are never booked: no Stripe, no payment, no inventory, back to the listing", async () => {
+    const dest = await createOffGridBooking({
+      user, experience: { ...paidListing, sample: true }, departure: paidListing.departures[0],
+      arrival: future("2026-11-10"), nights: 7, guests: 1, origin: "https://spendtimeoffgrid.com",
+    });
+    expect(dest).toBe(`/experiences/${paidListing.slug}`);
+    expect(startStripeCheckout).not.toHaveBeenCalled();
+    expect(paymentIntent).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(inserted).toHaveLength(0);
+  });
+});
+
 describe("Paradise Beyond is untouched", () => {
   it("PB listings have no off-grid details, so createBooking never takes this path", () => {
     expect(EXPERIENCES.every((e) => !e.offGrid && !e.marketplace)).toBe(true);

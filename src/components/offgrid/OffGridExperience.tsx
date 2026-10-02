@@ -69,6 +69,12 @@ export function OffGridExperience({
       </section>
 
       <div className="container-editorial pt-8 sm:pt-10">
+        {e.sample && (
+          <div className="mb-6 rounded-xl2 border border-earth-500/40 bg-earth-500/10 p-4 text-sm text-ink-soft">
+            <span className="font-semibold text-ink">Sample listing.</span> This stay shows how listings on Spend Time
+            Off Grid work. It isn&apos;t a real place and can&apos;t be booked.
+          </div>
+        )}
         <OwnerEditButton hostSlugs={e.hostSlugs} retreatDraftId={e.retreatDraftId} />
         <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-eyebrow text-forest-700">
           {category && <Link href={`/categories/${category.slug}`} className="hover:underline">{category.name}</Link>}
@@ -237,7 +243,7 @@ export function OffGridExperience({
           </div>
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
-            <OffGridReservePanel offGrid={o} departures={e.departures} currency={e.currency} />
+            <OffGridReservePanel offGrid={o} departures={e.departures} currency={e.currency} sample={e.sample} />
           </aside>
         </div>
       </div>

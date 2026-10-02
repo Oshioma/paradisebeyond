@@ -95,6 +95,8 @@ export async function createOffGridBooking(args: {
 }): Promise<string> {
   const { user, experience, departure } = args;
   const back = (msg: string) => `/book/${departure.id}?error=${encodeURIComponent(msg)}`;
+  // Sample listings are illustrations: never reserve or charge for them.
+  if (experience.sample) return `/experiences/${experience.slug}`;
 
   const { getCommissionBpsFor } = await import("@/lib/booking/commission");
   const plan = planOffGridBooking({ ...args, commissionBps: await getCommissionBpsFor(experience) });

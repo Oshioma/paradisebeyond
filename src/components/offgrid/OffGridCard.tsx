@@ -41,6 +41,11 @@ export function OffGridCard({
             className="object-cover transition-transform duration-[1.2s] ease-out-soft group-hover:scale-[1.05]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-forest-900/45 via-transparent to-transparent" />
+          {e.sample && (
+            <span className="absolute left-3 top-11 rounded-full bg-earth-500 px-3 py-1 text-[0.64rem] font-semibold uppercase tracking-eyebrow text-sand-50">
+              Sample listing
+            </span>
+          )}
           {category && (
             <span className="absolute left-3 top-3 rounded-full bg-sand-50/90 px-3 py-1 text-[0.64rem] font-medium uppercase tracking-eyebrow text-forest-800 backdrop-blur">
               {category.name}

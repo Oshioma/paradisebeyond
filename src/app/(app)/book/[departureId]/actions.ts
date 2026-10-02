@@ -47,6 +47,8 @@ export async function createBooking(formData: FormData) {
   const found = findByDeparture(experiences, departureId);
   if (!found) redirect("/experiences");
   const { experience, departure } = found;
+  // Sample listings are never bookable, whatever the request says.
+  if (experience.sample) redirect(`/experiences/${experience.slug}`);
 
   // Off-grid (Spend Time Off Grid) listings: traveller-chosen arrival + nights,
   // fixed marketplace commission, free stays skip payment. Same engine; see

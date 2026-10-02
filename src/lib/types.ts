@@ -177,4 +177,9 @@ export interface Experience {
    * stay length comes from `offGrid.stay`.
    */
   offGrid?: OffGridDetails;
+  /**
+   * A sample listing that shows how the marketplace works. Clearly labelled,
+   * never bookable (refused server-side), and kept out of search indexes.
+   */
+  sample?: boolean;
 }
