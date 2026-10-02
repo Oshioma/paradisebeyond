@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setExperienceHost } from "@/app/desk/experiences/actions";
+import { setExperienceHost } from "@/app/(app)/desk/experiences/actions";
 
 /**
  * Reassign an experience to a different host from a dropdown. Saves on change

@@ -161,7 +161,9 @@ async function sendGuestEmail(
 
     const { data: booking } = await supabase
       .from("bookings")
-      .select("reference, currency, balance_minor, departure_id, guest_id")
+      // `*` rather than a column list: marketplace / stay_* exist only after
+      // migration 0032, and an unknown column would silently drop the email.
+      .select("*")
       .eq("id", bookingId)
       .maybeSingle();
     if (!booking) return;
@@ -178,6 +180,20 @@ async function sendGuestEmail(
       if (d) { experience = e; departure = d; break; }
     }
     if (!experience || !departure) return;
+    // Brand the email from the booking's own marketplace snapshot. Paradise
+    // Beyond bookings get the original email (brand omitted).
+    const { getBrandById } = await import("@/lib/brand/config");
+    const { canonicalOriginFor } = await import("@/lib/brand/server");
+    const owner = getBrandById(booking.marketplace);
+    const offGrid = owner.id !== "paradise-beyond";
+    let startDate = departure.startDate;
+    let endDate = departure.endDate;
+    if (offGrid && booking.stay_start_date && booking.stay_nights) {
+      const end = new Date(booking.stay_start_date + "T00:00:00Z");
+      end.setUTCDate(end.getUTCDate() + Number(booking.stay_nights));
+      startDate = booking.stay_start_date;
+      endDate = end.toISOString().slice(0, 10);
+    }
 
     const { sendEmail } = await import("@/lib/email");
     if (kind === "balance") {
@@ -191,13 +207,14 @@ async function sendGuestEmail(
           guestName,
           experienceName: experience.name,
           location: experience.location,
-          startDate: departure.startDate,
-          endDate: departure.endDate,
+          startDate,
+          endDate,
           reference: booking.reference,
           paidMinor: session.amount_total ?? 0,
           balanceMinor: kind === "deposit" ? (booking.balance_minor ?? 0) : 0,
           currency: booking.currency,
           bookingId,
+          brand: offGrid ? { name: owner.name, origin: canonicalOriginFor(owner), offGrid: true } : undefined,
         }),
       });
     }

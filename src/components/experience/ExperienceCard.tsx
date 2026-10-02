@@ -10,6 +10,7 @@ import { getCategory, categoryLabel } from "@/lib/data/categories";
 import { getHost } from "@/lib/data/hosts";
 import { DurationBadge, VerifiedBadge } from "@/components/ui/Badge";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
+import { OffGridCard } from "@/components/offgrid/OffGridCard";
 
 export function ExperienceCard({
   experience,
@@ -22,6 +23,9 @@ export function ExperienceCard({
    *  retreat's own branded microsite/subdomain. */
   linkMode?: "marketplace" | "microsite";
 }) {
+  // Off-grid listings (Spend Time Off Grid) use their own card, which leads
+  // with the exchange: contribution, stay length, food and accommodation.
+  if (experience.offGrid) return <OffGridCard experience={{ ...experience, offGrid: experience.offGrid }} priority={priority} />;
   const e = experience;
   const next = upcomingDeparture(e);
   const primaryCategory = getCategory(e.categorySlugs[0]);

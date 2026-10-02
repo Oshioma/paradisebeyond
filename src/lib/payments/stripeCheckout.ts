@@ -34,6 +34,15 @@ export async function startStripeCheckout(p: {
   reference: string;
   promoCode?: string;
   discountMinor?: number;
+  /** Origin for Stripe's return URLs, so the traveller lands back on the
+   *  brand (and auth cookies) they booked on. Omitted = siteUrl(), as before. */
+  origin?: string;
+  /** Extra columns snapshotted onto the booking row (marketplace, stay dates).
+   *  Also scope the duplicate-checkout reuse below, so a different stay never
+   *  reuses an open session. Omitted for Paradise Beyond bookings. */
+  extraBookingFields?: Record<string, string | number>;
+  /** Overrides the Checkout line description. */
+  lineDescription?: string;
 }): Promise<{ url?: string; soldOut?: boolean; error?: boolean }> {
   const { createClient, createServiceRoleClient } = await import("@/lib/supabase/server");
   const supabase = createClient();
@@ -43,14 +52,19 @@ export async function startStripeCheckout(p: {
   //    reserving and charging a second time. Best-effort — any hiccup falls
   //    through to a fresh flow.
   try {
-    const { data: prior } = await supabase
+    let priorQuery = supabase
       .from("bookings")
       .select("stripe_session_id")
       .eq("guest_id", p.guestId)
       .eq("departure_id", p.departure.id)
       .eq("room_type_id", p.room.id)
       .eq("status", "pending")
-      .not("stripe_session_id", "is", null)
+      .not("stripe_session_id", "is", null);
+    if (p.extraBookingFields) {
+      for (const [k, v] of Object.entries(p.extraBookingFields)) priorQuery = priorQuery.eq(k, v);
+      priorQuery = priorQuery.eq("subtotal_minor", p.subtotalMinor).eq("guest_count", p.guests);
+    }
+    const { data: prior } = await priorQuery
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -92,6 +106,7 @@ export async function startStripeCheckout(p: {
         promo_code: p.promoCode ?? null,
         discount_minor: p.discountMinor ?? 0,
         status: "pending",
+        ...(p.extraBookingFields ?? {}),
       })
       .select("id")
       .single();
@@ -129,15 +144,15 @@ export async function startStripeCheckout(p: {
             unit_amount: p.dueNowMinor,
             product_data: {
               name: `${p.experience.name} — ${p.kind === "full" ? "full payment" : "deposit"}`,
-              description: `${formatDateRange(p.departure.startDate, p.departure.endDate)} · ${p.room.name} · ${p.guests} guest(s)`,
+              description: p.lineDescription ?? `${formatDateRange(p.departure.startDate, p.departure.endDate)} · ${p.room.name} · ${p.guests} guest(s)`,
             },
           },
         },
       ],
       payment_intent_data: paymentIntentData,
       metadata: { booking_id: bookingId, kind: p.kind },
-      success_url: `${siteUrl()}/account/trips/${bookingId}?paid=1`,
-      cancel_url: `${siteUrl()}/book/${p.departure.id}?canceled=1`,
+      success_url: `${p.origin ?? siteUrl()}/account/trips/${bookingId}?paid=1`,
+      cancel_url: `${p.origin ?? siteUrl()}/book/${p.departure.id}?canceled=1`,
     });
 
     // Persist the session id via the service role — guests have no UPDATE on bookings.

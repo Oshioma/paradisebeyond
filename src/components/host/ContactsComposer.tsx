@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { messageContacts, addPastedContacts, type SendResult, type AddResult } from "@/app/studio/contacts/actions";
+import { messageContacts, addPastedContacts, type SendResult, type AddResult } from "@/app/(app)/studio/contacts/actions";
 
 export interface ContactGroup {
   experienceSlug: string;

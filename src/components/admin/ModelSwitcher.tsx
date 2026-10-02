@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setAiModel } from "@/app/desk/settings/actions";
+import { setAiModel } from "@/app/(app)/desk/settings/actions";
 import type { AiModelOption } from "@/lib/ai/models";
 import { cn } from "@/lib/utils";
 

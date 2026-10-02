@@ -13,10 +13,12 @@ import {
   submitRetreat,
   suggestCopy,
   uploadRetreatPhoto,
-} from "@/app/studio/retreats/new/actions";
+} from "@/app/(app)/studio/retreats/new/actions";
 import { cn } from "@/lib/utils";
 import { prepareImageForUpload } from "@/lib/media/clientImage";
 import { CoHostManager } from "@/components/retreat/CoHostManager";
+import { OFFGRID_STEPS, OFFGRID_SUBMIT_STEP } from "@/lib/offgrid/schema";
+import { OffGridStepContent } from "@/components/offgrid/OffGridSteps";
 
 interface Opt { value: string; label: string }
 
@@ -45,6 +47,9 @@ export function RetreatWizard({
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<RetreatDraft>(initialDraft);
+  // A Spend Time Off Grid listing uses the same builder with its own steps.
+  const offGrid = initialDraft.marketplace === "spendtimeoffgrid";
+  const STEP_LABELS: readonly string[] = offGrid ? OFFGRID_STEPS : STEPS;
   const [step, setStep] = useState(0);
   const [saving, startSaving] = useTransition();
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -113,10 +118,12 @@ export function RetreatWizard({
 
   const validation = useMemo(() => validateForSubmit(draft), [draft]);
 
-  const go = (i: number) => setStep(Math.max(0, Math.min(STEPS.length - 1, i)));
+  const go = (i: number) => setStep(Math.max(0, Math.min(STEP_LABELS.length - 1, i)));
 
   // What (if anything) stops the host advancing from this step with "Continue".
-  const advanceBlock = advanceBlockReason(step, draft);
+  const advanceBlock = offGrid
+    ? step === 0 && draft.categorySlugs.length === 0 ? "Pick at least one kind of place first" : null
+    : advanceBlockReason(step, draft);
 
   // On mobile the step list is tucked into a collapsible "jump to step" menu so
   // it fits — open it, pick any step, it closes. Desktop shows the list inline.
@@ -127,7 +134,7 @@ export function RetreatWizard({
       {/* Stepper */}
       <aside className="lg:sticky lg:top-6 lg:self-start">
         {/* Desktop: full step list, always visible. */}
-        <StepList step={step} onGo={go} className="hidden lg:block" />
+        <StepList labels={STEP_LABELS} step={step} onGo={go} className="hidden lg:block" />
 
         {/* Mobile: current step + progress, with a tap-to-open jump menu. */}
         <div className="lg:hidden">
@@ -138,18 +145,19 @@ export function RetreatWizard({
             className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink/15 bg-sand-50 px-3 py-2.5 text-left"
           >
             <span className="min-w-0">
-              <span className="eyebrow block text-ocean-700">Step {step + 1} of {STEPS.length}</span>
-              <span className="mt-0.5 block truncate text-sm font-medium text-ink">{STEPS[step]}</span>
+              <span className="eyebrow block text-ocean-700">Step {step + 1} of {STEP_LABELS.length}</span>
+              <span className="mt-0.5 block truncate text-sm font-medium text-ink">{STEP_LABELS[step]}</span>
             </span>
             <svg viewBox="0 0 24 24" className={cn("h-4 w-4 flex-none text-ink-muted transition-transform", navOpen && "rotate-180")} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink/10">
-            <div className="h-full rounded-full bg-clay-500 transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            <div className="h-full rounded-full bg-clay-500 transition-all" style={{ width: `${((step + 1) / STEP_LABELS.length) * 100}%` }} />
           </div>
           {navOpen && (
             <StepList
+              labels={STEP_LABELS}
               step={step}
               onGo={(i) => { go(i); setNavOpen(false); }}
               className="mt-3 max-h-[55vh] overflow-auto rounded-xl border border-ink/10 bg-sand-50 p-2"
@@ -179,11 +187,15 @@ export function RetreatWizard({
 
         <div className="mb-6">
           <p className="eyebrow text-clay-600">Step {step + 1}</p>
-          <h2 className="mt-1 font-display text-3xl font-semibold text-ink">{STEPS[step]}</h2>
+          <h2 className="mt-1 font-display text-3xl font-semibold text-ink">{STEP_LABELS[step]}</h2>
         </div>
 
         <div className="min-h-[340px]">
-          <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} draftId={draftId} isOwner={isOwner} isLiveListing={isLiveListing} />
+          {offGrid ? (
+            <OffGridStepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} validation={validation} router={router} go={go} draftId={draftId} isOwner={isOwner} isLiveListing={isLiveListing} />
+          ) : (
+            <StepContent step={step} draft={draft} set={set} setDraft={setDraft} categories={categories} destinations={destinations} validation={validation} router={router} go={go} applicationBrief={applicationBrief} draftId={draftId} isOwner={isOwner} isLiveListing={isLiveListing} />
+          )}
         </div>
 
         {/* Nav */}
@@ -195,7 +207,7 @@ export function RetreatWizard({
             <button onClick={saveDraftNow} disabled={saving} className="text-xs uppercase tracking-eyebrow text-ink-muted hover:text-ink disabled:opacity-50">
               {saving ? "Saving…" : "Save draft"}
             </button>
-            {step < STEPS.length - 1 && (
+            {step < STEP_LABELS.length - 1 && (
               <div className="flex flex-col items-end gap-1">
                 <button
                   onClick={() => { if (!advanceBlock) go(step + 1); }}
@@ -226,10 +238,10 @@ function advanceBlockReason(step: number, d: RetreatDraft): string | null {
 
 // The clickable list of steps — shared by the desktop sidebar and the mobile
 // "jump to step" menu, so both navigate to any step in one tap.
-function StepList({ step, onGo, className }: { step: number; onGo: (i: number) => void; className?: string }) {
+function StepList({ labels, step, onGo, className }: { labels: readonly string[]; step: number; onGo: (i: number) => void; className?: string }) {
   return (
     <ol className={cn("space-y-1", className)}>
-      {STEPS.map((label, i) => (
+      {labels.map((label, i) => (
         <li key={label}>
           <button
             onClick={() => onGo(i)}
@@ -607,7 +619,11 @@ function StepContent({
 }
 
 // ---- Submit step -----------------------------------------------------------
-function SubmitStep({ draft, validation, router, go, isLiveListing }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter>; go: (i: number) => void; isLiveListing: boolean }) {
+export function SubmitStep({ draft, validation, router, go, isLiveListing }: { draft: RetreatDraft; validation: ReturnType<typeof validateForSubmit>; router: ReturnType<typeof useRouter>; go: (i: number) => void; isLiveListing: boolean }) {
+  const offGrid = draft.marketplace === "spendtimeoffgrid";
+  const submitStep = offGrid ? OFFGRID_SUBMIT_STEP : 15;
+  const team = offGrid ? "Spend Time Off Grid" : "Paradise Beyond";
+  const noun = offGrid ? "listing" : "retreat";
   const [pending, start] = useTransition();
   const [serverErrors, setServerErrors] = useState<{ message: string; step: number }[] | null>(null);
   // Live client validation until the server rejects (which shouldn't happen
@@ -623,12 +639,12 @@ function SubmitStep({ draft, validation, router, go, isLiveListing }: { draft: R
           // Admin direct-publish returns the live slug; hosts go to the queue.
           router.push(res.slug ? `/experiences/${res.slug}` : "/studio/retreats?submitted=1");
         } else {
-          setServerErrors((res.errors ?? ["Something went wrong."]).map((m) => ({ message: m, step: 15 })));
+          setServerErrors((res.errors ?? ["Something went wrong."]).map((m) => ({ message: m, step: submitStep })));
         }
       } catch (e) {
         // Keep the host on the page with a clear message instead of the generic
         // error screen; their work is still saved.
-        setServerErrors([{ message: e instanceof Error && e.message ? e.message : "Something went wrong submitting. Your work is saved — please try again.", step: 15 }]);
+        setServerErrors([{ message: e instanceof Error && e.message ? e.message : "Something went wrong submitting. Your work is saved — please try again.", step: submitStep }]);
       }
     });
   }
@@ -637,11 +653,11 @@ function SubmitStep({ draft, validation, router, go, isLiveListing }: { draft: R
     <div className="max-w-xl">
       <p className="text-ink-muted">
         {isLiveListing ? (
-          <>Because this retreat is already live, your changes publish as soon as
-          you submit — no waiting for approval. The Paradise Beyond team is
+          <>Because this {noun} is already live, your changes publish as soon as
+          you submit — no waiting for approval. The {team} team is
           notified of what changed.</>
         ) : (
-          <>When you submit, the Paradise Beyond team reviews your retreat by hand.
+          <>When you submit, the {team} team reviews your {noun} by hand.
           Nothing goes live automatically — you&apos;ll hear back by email, and we
           may suggest a few refinements first.</>
         )}
@@ -713,9 +729,9 @@ function Preview({ draft }: { draft: RetreatDraft }) {
 }
 
 // ---- Field primitives ------------------------------------------------------
-const inp = "w-full rounded-xl border border-ink/15 bg-sand-50 px-4 py-3 text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500";
+export const inp = "w-full rounded-xl border border-ink/15 bg-sand-50 px-4 py-3 text-ink placeholder:text-ink-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ocean-500";
 
-function Field({ label, hint, suggest, children }: { label: string; hint?: string; suggest?: React.ReactNode; children: React.ReactNode }) {
+export function Field({ label, hint, suggest, children }: { label: string; hint?: string; suggest?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-3">
@@ -727,11 +743,11 @@ function Field({ label, hint, suggest, children }: { label: string; hint?: strin
     </div>
   );
 }
-function Sub({ label, children }: { label: string; children: React.ReactNode }) {
+export function Sub({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className="block"><span className="mb-1 block text-[0.66rem] uppercase tracking-eyebrow text-ink-muted">{label}</span>{children}</label>;
 }
 
-function ListEditor({ items, onChange, placeholder, textarea, small }: { items: string[]; onChange: (v: string[]) => void; placeholder?: string; textarea?: boolean; small?: boolean }) {
+export function ListEditor({ items, onChange, placeholder, textarea, small }: { items: string[]; onChange: (v: string[]) => void; placeholder?: string; textarea?: boolean; small?: boolean }) {
   return (
     <div className="space-y-2">
       {items.map((it, i) => (
@@ -747,7 +763,7 @@ function ListEditor({ items, onChange, placeholder, textarea, small }: { items: 
   );
 }
 
-function Chips({ options, selected, onToggle }: { options: Opt[]; selected: string[]; onToggle: (v: string) => void }) {
+export function Chips({ options, selected, onToggle }: { options: Opt[]; selected: string[]; onToggle: (v: string) => void }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((o) => {
@@ -762,7 +778,7 @@ function Chips({ options, selected, onToggle }: { options: Opt[]; selected: stri
   );
 }
 
-function MoneyInput({ value, onChange, currency }: { value: number; onChange: (v: number) => void; currency: string }) {
+export function MoneyInput({ value, onChange, currency }: { value: number; onChange: (v: number) => void; currency: string }) {
   return (
     <div className="flex items-center rounded-xl border border-ink/15 bg-sand-50 focus-within:ring-2 focus-within:ring-ocean-500">
       <span className="px-3 text-sm text-ink-muted">{currency}</span>
@@ -771,7 +787,7 @@ function MoneyInput({ value, onChange, currency }: { value: number; onChange: (v
   );
 }
 
-function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+export function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs uppercase tracking-eyebrow transition-colors", on ? "border-ink bg-ink text-sand-50" : "border-ink/15 text-ink-muted")}>
       <span className={cn("h-2 w-2 rounded-full", on ? "bg-palm-500" : "bg-ink/20")} />{label}
@@ -779,10 +795,10 @@ function Toggle({ label, on, onClick }: { label: string; on: boolean; onClick: (
   );
 }
 
-function AddBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+export function AddBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return <button onClick={onClick} className="rounded-full border border-dashed border-ink/25 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-muted hover:border-ink/50 hover:text-ink">+ {children}</button>;
 }
-function RemoveBtn({ onClick }: { onClick: () => void }) {
+export function RemoveBtn({ onClick }: { onClick: () => void }) {
   return <button onClick={onClick} aria-label="Remove" className="mt-1 flex h-8 w-8 flex-none items-center justify-center rounded-full text-ink-muted hover:bg-clay-500/10 hover:text-clay-600">✕</button>;
 }
 
@@ -892,7 +908,7 @@ function Suggest({ kind, draft, apply }: { kind: string; draft: RetreatDraft; ap
   );
 }
 
-function GalleryUrlAdd({ onAdd }: { onAdd: (u: string) => void }) {
+export function GalleryUrlAdd({ onAdd }: { onAdd: (u: string) => void }) {
   const [v, setV] = useState("");
   const [err, setErr] = useState<string | null>(null);
   function add() {
@@ -917,7 +933,7 @@ function GalleryUrlAdd({ onAdd }: { onAdd: (u: string) => void }) {
   );
 }
 
-function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, compact, multiple }: { draftId: string; slot: string; url: string; onUploaded: (u: string) => void; onUploadedMany?: (urls: string[]) => void; onClear?: () => void; compact?: boolean; multiple?: boolean }) {
+export function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, compact, multiple }: { draftId: string; slot: string; url: string; onUploaded: (u: string) => void; onUploadedMany?: (urls: string[]) => void; onClear?: () => void; compact?: boolean; multiple?: boolean }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -984,7 +1000,7 @@ function PhotoUpload({ draftId, slot, url, onUploaded, onUploadedMany, onClear, 
  * or the photo already lives somewhere. Shared so the compact uploaders (which
  * have no room for it in their tile) can offer it alongside the grid.
  */
-function UrlPasteRow({ onAdd, label }: { onAdd: (u: string) => void; label?: string }) {
+export function UrlPasteRow({ onAdd, label }: { onAdd: (u: string) => void; label?: string }) {
   const [value, setValue] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
@@ -1035,7 +1051,7 @@ function NudgeBtn({ dir, disabled, label, onClick }: { dir: "left" | "right"; di
 }
 
 // ---- helpers ---------------------------------------------------------------
-function toggle(list: string[], v: string) { return list.includes(v) ? list.filter((x) => x !== v) : [...list, v]; }
+export function toggle(list: string[], v: string) { return list.includes(v) ? list.filter((x) => x !== v) : [...list, v]; }
 /** Move one item within a list, ignoring moves that would fall off either end. */
 function moveInArray<T>(list: T[], from: number, to: number): T[] {
   if (to < 0 || to >= list.length || from === to) return list;
@@ -1044,7 +1060,7 @@ function moveInArray<T>(list: T[], from: number, to: number): T[] {
   next.splice(to, 0, item);
   return next;
 }
-function updateArr<K extends keyof RetreatDraft>(setDraft: React.Dispatch<React.SetStateAction<RetreatDraft>>, key: K, i: number, patch: object) {
+export function updateArr<K extends keyof RetreatDraft>(setDraft: React.Dispatch<React.SetStateAction<RetreatDraft>>, key: K, i: number, patch: object) {
   setDraft((d) => {
     const arr = [...(d[key] as unknown as object[])];
     arr[i] = { ...(arr[i] as object), ...patch };

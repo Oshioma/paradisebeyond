@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { messagePastGuests, type SendResult } from "@/app/studio/guests/actions";
+import { messagePastGuests, type SendResult } from "@/app/(app)/studio/guests/actions";
 
 export interface GuestGroup {
   experienceSlug: string;

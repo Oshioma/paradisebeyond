@@ -15,10 +15,18 @@ export const hostApplicationSchema = z.object({
   retreatIdea: z.string().min(20, "Describe your retreat idea (20+ characters)").max(4000),
   duration: z.enum(["7", "14"]),
   approxDates: z.string().min(2, "Roughly when?").max(200),
-  expectedPriceUsd: z.coerce.number().int().positive("Enter an expected price").max(1_000_000, "That price looks too high"),
+  // ≥ 0 here; Paradise Beyond still requires a positive price (refined below),
+  // while an off-grid host may offer a free, exchange-only stay.
+  expectedPriceUsd: z.coerce.number().int().min(0, "Enter an expected price").max(1_000_000, "That price looks too high"),
   expectedGroupSize: z.coerce.number().int().positive("Enter a group size").max(100, "That group size looks too high"),
   accommodation: z.string().min(5, "Where would guests stay?").max(2000),
   description: z.string().min(20, "A short description (20+ characters)").max(4000),
+  /** Which marketplace the host is applying to. */
+  marketplace: z.enum(["paradise-beyond", "spendtimeoffgrid"]).default("paradise-beyond"),
+}).superRefine((a, ctx) => {
+  if (a.marketplace === "paradise-beyond" && a.expectedPriceUsd <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["expectedPriceUsd"], message: "Enter an expected price" });
+  }
 });
 
 export type HostApplicationInput = z.infer<typeof hostApplicationSchema>;

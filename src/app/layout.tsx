@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/site/SiteHeader";
-import { SiteFooter } from "@/components/site/SiteFooter";
-import { ChromeGate } from "@/components/site/ChromeGate";
 import { WishlistProvider } from "@/components/wishlist/WishlistProvider";
 import { RevealScript } from "@/components/site/RevealScript";
+import { PARADISE_BEYOND } from "@/lib/brand/config";
+import { brandMetadata } from "@/lib/brand/metadata";
 
 const display = Fraunces({
   subsets: ["latin"],
@@ -20,25 +19,16 @@ const sans = Inter({
   display: "swap",
 });
 
-const SITE_NAME = "Paradise Beyond";
-const SITE_DESC =
-  "Curated 7 & 14-day experiences in extraordinary places. Come for more than a holiday.";
-
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://paradisebeyond.example"),
-  title: {
-    default: `${SITE_NAME} — Come for more than a holiday`,
-    template: `%s · ${SITE_NAME}`,
-  },
-  description: SITE_DESC,
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    title: `${SITE_NAME} — Come for more than a holiday`,
-    description: SITE_DESC,
-  },
-  twitter: { card: "summary_large_image" },
-};
+/**
+ * Root metadata stays Paradise Beyond's (and static). Brand-specific metadata
+ * is set by the `[site]` layout for public pages and by the app-area layouts.
+ *
+ * The root layout deliberately reads no request data, so pages stay static.
+ * Marketplace chrome (header/footer) is rendered one level down: by
+ * `[site]/layout.tsx` for public pages and by `BrandChrome` in the
+ * request-time app areas.
+ */
+export const metadata: Metadata = brandMetadata(PARADISE_BEYOND, { root: true });
 
 export default function RootLayout({
   children,
@@ -55,9 +45,7 @@ export default function RootLayout({
           }}
         />
         <WishlistProvider>
-          <SiteHeader />
-          <main>{children}</main>
-          <ChromeGate><SiteFooter /></ChromeGate>
+          {children}
         </WishlistProvider>
         <RevealScript />
       </body>

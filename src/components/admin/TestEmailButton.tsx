@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { sendTestEmail, type TestEmailResult } from "@/app/desk/settings/actions";
+import { sendTestEmail, type TestEmailResult } from "@/app/(app)/desk/settings/actions";
 
 /** Fires a live Resend send to the admin's own address and shows the raw result. */
 export function TestEmailButton() {

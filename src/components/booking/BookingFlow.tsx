@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/money";
 import { formatDateRange } from "@/lib/utils";
 import { priceBooking } from "@/lib/booking/pricing";
 import { cn } from "@/lib/utils";
-import { createBooking, checkPromo } from "@/app/book/[departureId]/actions";
+import { createBooking, checkPromo } from "@/app/(app)/book/[departureId]/actions";
 
 export function BookingFlow({
   experience,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { uploadImage, setImageUrl, resetImage } from "@/app/desk/media/actions";
+import { uploadImage, setImageUrl, resetImage } from "@/app/(app)/desk/media/actions";
 import { prepareImageForUpload } from "@/lib/media/clientImage";
 import type { Slot } from "@/lib/media/registry";
 

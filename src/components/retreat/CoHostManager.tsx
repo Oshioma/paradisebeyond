@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { listCoHosts, addCoHost, removeCoHost } from "@/app/studio/retreats/new/coHostActions";
+import { listCoHosts, addCoHost, removeCoHost } from "@/app/(app)/studio/retreats/new/coHostActions";
 import type { CoHost } from "@/lib/retreat/coHosts";
 
 /**

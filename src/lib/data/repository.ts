@@ -4,13 +4,15 @@ import type {
   Experience,
   Host,
 } from "@/lib/types";
-import { CATEGORIES } from "./categories";
 import { DESTINATIONS } from "./destinations";
 import { HOSTS } from "./hosts";
 import { EXPERIENCES } from "./experiences";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { nextOpenDeparture, upcomingDeparture } from "./helpers";
 import { getExperienceOrder, applyExperienceOrder } from "./experienceOrder";
+import { matchesFilter, onlyMarketplace, visibleOn, type ExperienceFilter } from "./filter";
+import { categoriesFor } from "./categories";
+import type { MarketplaceId } from "@/lib/brand/config";
 
 /**
  * The repository is the single seam between the magazine and its data source.
@@ -33,7 +35,9 @@ export function invalidateExperiences() {
 
 async function source(): Promise<Experience[]> {
   if (!isSupabaseConfigured()) {
-    return withHostDisplay(applyExperienceOrder(EXPERIENCES, await getExperienceOrder()));
+    // Demo mode: the sample catalogue for both marketplaces.
+    const { OFFGRID_DEMO_EXPERIENCES } = await import("@/lib/demo/offgridSamples");
+    return withHostDisplay(applyExperienceOrder([...EXPERIENCES, ...OFFGRID_DEMO_EXPERIENCES], await getExperienceOrder()));
   }
   // Small per-request-ish cache to avoid refetching the catalogue repeatedly
   // within a single render pass.
@@ -60,48 +64,49 @@ async function withHostDisplay(list: Experience[]): Promise<Experience[]> {
   });
 }
 
-export interface ExperienceFilter {
-  duration?: 7 | 14;
-  category?: string;
-  destination?: string;
-  /** Month index 0-11 within the filter year, matched against any departure. */
-  month?: number;
-  /** Maximum "from" price in minor units. */
-  maxPriceMinor?: number;
-}
+export type { ExperienceFilter };
 
+/** Every published listing, across marketplaces. Use for lookups by id/slug
+ *  and admin views — public listing pages should use the filtered queries. */
 export async function getAllExperiences(): Promise<Experience[]> {
   return source();
 }
 
-export async function getFeaturedExperiences(limit = 6): Promise<Experience[]> {
-  return (await source()).filter((e) => e.featured).slice(0, limit);
+/** All listings of one marketplace (default Paradise Beyond). */
+export async function getMarketplaceExperiences(marketplace: MarketplaceId = "paradise-beyond"): Promise<Experience[]> {
+  return onlyMarketplace(await source(), marketplace);
+}
+
+export async function getFeaturedExperiences(limit = 6, marketplace: MarketplaceId = "paradise-beyond"): Promise<Experience[]> {
+  const list = await getMarketplaceExperiences(marketplace);
+  const featured = list.filter((e) => e.featured);
+  // A young marketplace may have nothing flagged yet: show its real listings
+  // (never placeholders) rather than an empty section.
+  if (!featured.length && marketplace !== "paradise-beyond") return list.slice(0, limit);
+  return featured.slice(0, limit);
 }
 
 export async function filterExperiences(
   filter: ExperienceFilter,
 ): Promise<Experience[]> {
-  const matched = (await source()).filter((e) => {
-    if (filter.duration && e.duration !== filter.duration) return false;
-    if (filter.category && !e.categorySlugs.includes(filter.category as never)) return false;
-    if (filter.destination && e.destinationSlug !== filter.destination) return false;
-    if (filter.maxPriceMinor && e.priceFromMinor > filter.maxPriceMinor) return false;
-    if (filter.month !== undefined) {
-      const hasMonth = e.departures.some((d) => {
-        const m = new Date(d.startDate + "T00:00:00Z").getUTCMonth();
-        return m === filter.month;
-      });
-      if (!hasMonth) return false;
-    }
-    return true;
-  });
   // Order is already applied globally in source() (admin order, then
   // featured-first). Filtering preserves it, so just return the matches.
-  return matched;
+  return (await source()).filter((e) => matchesFilter(e, filter));
 }
 
+/** Any listing by slug, across marketplaces (admin / booking lookups). Public
+ *  pages use getPublicExperienceBySlug. */
 export async function getExperienceBySlug(slug: string): Promise<Experience | undefined> {
   return (await source()).find((e) => e.slug === slug);
+}
+
+/** A listing by slug only if it belongs to `marketplace` — public pages. */
+export async function getPublicExperienceBySlug(
+  slug: string,
+  marketplace: MarketplaceId,
+): Promise<Experience | undefined> {
+  const e = await getExperienceBySlug(slug);
+  return e && visibleOn(e, marketplace) ? e : undefined;
 }
 
 export async function getExperiencesByHost(hostSlug: string): Promise<Experience[]> {
@@ -118,16 +123,23 @@ export async function getManagedExperiences(user: { role: string; hostSlug?: str
   return user.hostSlug ? getExperiencesByHost(user.hostSlug) : [];
 }
 
-export async function getExperiencesByCategory(categorySlug: string): Promise<Experience[]> {
-  return (await source()).filter((e) => e.categorySlugs.includes(categorySlug as never));
+export async function getExperiencesByCategory(
+  categorySlug: string,
+  marketplace: MarketplaceId = "paradise-beyond",
+): Promise<Experience[]> {
+  return onlyMarketplace(await source(), marketplace).filter((e) => e.categorySlugs.includes(categorySlug as never));
 }
 
-export async function getExperiencesByDestination(destinationSlug: string): Promise<Experience[]> {
-  return (await source()).filter((e) => e.destinationSlug === destinationSlug);
+export async function getExperiencesByDestination(
+  destinationSlug: string,
+  marketplace: MarketplaceId = "paradise-beyond",
+): Promise<Experience[]> {
+  return onlyMarketplace(await source(), marketplace).filter((e) => e.destinationSlug === destinationSlug);
 }
 
-export async function getAllCategories(): Promise<Category[]> {
-  return CATEGORIES;
+/** A marketplace's categories (default: Paradise Beyond's, unchanged). */
+export async function getAllCategories(marketplace: MarketplaceId = "paradise-beyond"): Promise<Category[]> {
+  return categoriesFor(marketplace);
 }
 
 export async function getAllDestinations(): Promise<Destination[]> {
@@ -159,7 +171,10 @@ function mapHostRow(row: Record<string, unknown>): Host {
 }
 
 export async function getAllHosts(): Promise<Host[]> {
-  if (!isSupabaseConfigured()) return HOSTS;
+  if (!isSupabaseConfigured()) {
+    const { OFFGRID_DEMO_HOSTS } = await import("@/lib/demo/offgridSamples");
+    return [...HOSTS, ...OFFGRID_DEMO_HOSTS];
+  }
   if (hostsCache && Date.now() - hostsCache.at < 15_000) return hostsCache.data;
   const { createAnonClient } = await import("@/lib/supabase/server");
   // Explicit display columns only — stripe_account_id/owner_id are revoked from

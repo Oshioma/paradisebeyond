@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setExperienceSubdomain } from "@/app/studio/branding/actions";
+import { setExperienceSubdomain } from "@/app/(app)/studio/branding/actions";
 
 /**
  * Lets a host choose their retreat's web address label — <label>.<hostSuffix>.

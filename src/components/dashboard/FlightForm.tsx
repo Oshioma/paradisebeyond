@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { FlightDetails } from "@/lib/booking/types";
-import { saveFlightDetails } from "@/app/account/trips/[bookingId]/actions";
+import { saveFlightDetails } from "@/app/(app)/account/trips/[bookingId]/actions";
 
 export function FlightForm({
   bookingId,

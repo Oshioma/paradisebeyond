@@ -1,7 +1,7 @@
 import { slotKey } from "@/lib/images";
 import { EXPERIENCES } from "@/lib/data/experiences";
 import { HOSTS } from "@/lib/data/hosts";
-import { CATEGORIES } from "@/lib/data/categories";
+import { CATEGORIES, OFF_GRID_CATEGORIES } from "@/lib/data/categories";
 import { DESTINATIONS } from "@/lib/data/destinations";
 
 /**
@@ -36,6 +36,14 @@ const SITE_SLOTS: Slot[] = [
   slot("login-cover", "Sign-in cover", 2000, 1200),
 ];
 
+// Spend Time Off Grid page imagery (replace with real photography here).
+const OFF_GRID_SITE_SLOTS: Slot[] = [
+  slot("stog-home-hero", "Homepage hero", 2000, 1200),
+  slot("stog-home-how", "How it works image", 1000, 1250),
+  slot("stog-home-host", "List your land banner", 2000, 1200),
+  slot("stog-host-landing", "Host page hero", 2000, 1200),
+];
+
 export function getMediaGroups(
   // Real hosts (including ones created in the Desk) so their photo slots show up
   // here too — not just the built-in seed hosts. Deduped by image seed.
@@ -44,6 +52,12 @@ export function getMediaGroups(
   const groups: SlotGroup[] = [];
 
   groups.push({ title: "Site", slots: SITE_SLOTS });
+
+  groups.push({ title: "Spend Time Off Grid", slots: OFF_GRID_SITE_SLOTS });
+  groups.push({
+    title: "Spend Time Off Grid · Categories",
+    slots: OFF_GRID_CATEGORIES.map((c) => slot(c.imageSeed, c.name, 700, 933)),
+  });
 
   groups.push({
     title: "Destinations",

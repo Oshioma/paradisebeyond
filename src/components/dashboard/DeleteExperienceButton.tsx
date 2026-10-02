@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteExperience } from "@/app/desk/experiences/actions";
+import { deleteExperience } from "@/app/(app)/desk/experiences/actions";
 
 /**
  * Admin-only: permanently delete a retreat, with a typed confirmation so it

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { reorderExperiences } from "@/app/desk/experiences/actions";
+import { reorderExperiences } from "@/app/(app)/desk/experiences/actions";
 import { StartFromSampleButton } from "@/components/dashboard/StartFromSampleButton";
 
 export interface ReorderItem {

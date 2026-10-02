@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { SessionUser } from "@/lib/auth/types";
-import { signOut } from "@/app/login/actions";
+import { signOut } from "@/app/(app)/login/actions";
 import { cn } from "@/lib/utils";
+import { clearAllDrafts } from "@/lib/forms/drafts";
+import { PARADISE_BEYOND, type Brand } from "@/lib/brand/config";
 
 interface NavItem {
   label: string;
@@ -16,10 +18,12 @@ interface NavItem {
  * feeling like part of Paradise Beyond, not a generic admin panel.
  */
 export function DashboardTopbar({
+  brand = PARADISE_BEYOND,
   user,
   area,
   nav,
 }: {
+  brand?: Brand;
   user: SessionUser;
   area: string;
   nav: NavItem[];
@@ -31,7 +35,7 @@ export function DashboardTopbar({
       <div className="container-editorial flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-baseline gap-3">
           <Link href="/" className="font-display text-lg font-semibold text-ink">
-            Paradise Beyond
+            {brand.name}
           </Link>
           <span className="text-ink-muted">/</span>
           <span className="eyebrow text-ocean-700">{area}</span>
@@ -43,7 +47,7 @@ export function DashboardTopbar({
             </span>
           )}
           <span className="hidden text-sm text-ink-muted sm:inline">{user.name}</span>
-          <form action={signOut}>
+          <form action={signOut} onSubmit={clearAllDrafts}>
             <button className="rounded-full border border-ink/15 px-4 py-1.5 text-xs uppercase tracking-eyebrow text-ink-soft transition-colors hover:border-ink/40">
               Sign out
             </button>
