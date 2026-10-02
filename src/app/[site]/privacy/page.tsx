@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage({ params }: { params: SiteParams }) {
-  const email = brandFromParams(params).contactEmail;
+  const email = brandFromParams(params).legalEmail;
   return (
     <LegalShell email={email}
       eyebrow="Legal"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { brandFromParams, type SiteParams } from "@/lib/brand/site";
+import { OFFGRID_EMAIL } from "@/lib/brand/config";
 import {
   ChatIcon,
   ListIcon,
@@ -224,8 +225,8 @@ export default function TrustPage({ params }: { params: SiteParams }) {
                 Talk to each other first — most things are misunderstandings about hours, food or space. If that doesn&apos;t
                 fix it, or you&apos;d rather not, contact us and we&apos;ll help, including with changing or ending the stay.
               </p>
-              <a href={`mailto:${brand.contactEmail}`} className="mt-4 inline-block text-sand-50 underline underline-offset-4">
-                {brand.contactEmail}
+              <a href={`mailto:${OFFGRID_EMAIL.support}`} className="mt-4 inline-block text-sand-50 underline underline-offset-4">
+                {OFFGRID_EMAIL.support}
               </a>
             </div>
             <div className="rounded-xl2 border border-earth-400/60 bg-sand-50/[0.04] p-6 sm:p-7">
@@ -234,6 +235,9 @@ export default function TrustPage({ params }: { params: SiteParams }) {
                 Leave the situation if you can do so safely, and contact the local emergency services or police straight away.
                 Once you&apos;re safe, tell us what happened.
               </p>
+              <a href={`mailto:${OFFGRID_EMAIL.safety}`} className="mt-4 inline-block text-sand-50 underline underline-offset-4">
+                {OFFGRID_EMAIL.safety}
+              </a>
               <p className="mt-4 text-sm text-sand-100/70">
                 Spend Time Off Grid isn&apos;t an emergency service and can&apos;t send help — always call local emergency
                 numbers first.

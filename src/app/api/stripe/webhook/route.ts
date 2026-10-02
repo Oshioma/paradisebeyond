@@ -198,11 +198,12 @@ async function sendGuestEmail(
     const { sendEmail } = await import("@/lib/email");
     if (kind === "balance") {
       const { balancePaidEmail } = await import("@/lib/email/templates");
-      await sendEmail({ to: guestEmail, ...balancePaidEmail(guestName, experience.name) });
+      await sendEmail({ to: guestEmail, from: owner.emailFrom ?? undefined, ...balancePaidEmail(guestName, experience.name) });
     } else {
       const { bookingConfirmationEmail } = await import("@/lib/email/templates");
       await sendEmail({
         to: guestEmail,
+        from: owner.emailFrom ?? undefined,
         ...bookingConfirmationEmail({
           guestName,
           experienceName: experience.name,

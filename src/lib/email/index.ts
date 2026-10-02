@@ -15,14 +15,17 @@ export interface EmailMessage {
   subject: string;
   html: string;
   replyTo?: string;
+  /** Sender ("Name <address>"). Defaults to EMAIL_FROM — pass a brand's
+   *  emailFrom for another marketplace's emails. */
+  from?: string;
 }
 
 export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
 }
 
-function fromAddress(): string {
-  return process.env.EMAIL_FROM || "Paradise Beyond <hello@paradisebeyond.com>";
+function fromAddress(from?: string | null): string {
+  return from || process.env.EMAIL_FROM || "Paradise Beyond <hello@paradisebeyond.com>";
 }
 
 export async function sendEmail(msg: EmailMessage): Promise<{ ok: boolean; error?: string }> {
@@ -38,7 +41,7 @@ export async function sendEmail(msg: EmailMessage): Promise<{ ok: boolean; error
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: fromAddress(),
+        from: fromAddress(msg.from),
         to: [msg.to],
         subject: msg.subject,
         html: msg.html,

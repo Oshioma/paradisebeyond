@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LEGAL } from "@/lib/legal";
-import { PARADISE_BEYOND, type Brand } from "@/lib/brand/config";
+import { OFFGRID_EMAIL, PARADISE_BEYOND, type Brand } from "@/lib/brand/config";
 import { offGridCategories } from "@/lib/data/categories";
 
 export function SiteFooter({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
@@ -129,6 +129,20 @@ function OffGridFooter({ brand }: { brand: Brand }) {
                 {brand.contactEmail}
               </a>
             </p>
+            {brand.id === "spendtimeoffgrid" && (
+              <ul className="mt-3 space-y-1 text-xs text-sand-100/65">
+                {([
+                  ["Bookings", OFFGRID_EMAIL.bookings],
+                  ["Hosts", OFFGRID_EMAIL.hosts],
+                  ["Safety", OFFGRID_EMAIL.safety],
+                ] as const).map(([label, addr]) => (
+                  <li key={addr}>
+                    {label}:{" "}
+                    <a href={`mailto:${addr}`} className="transition-colors hover:text-sand-50">{addr}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <OffGridCol
             title="Explore"

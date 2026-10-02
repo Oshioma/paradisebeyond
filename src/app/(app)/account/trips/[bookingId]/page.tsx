@@ -33,7 +33,7 @@ import { TravellerBeforeYouGo } from "@/components/offgrid/StayPrep";
 import { getCheckins } from "@/lib/offgrid/checkinStore";
 import { latestCheckin } from "@/lib/offgrid/checkins";
 import { CheckinCard } from "@/components/offgrid/CheckinCard";
-import { SPEND_TIME_OFF_GRID } from "@/lib/brand/config";
+import { OFFGRID_EMAIL } from "@/lib/brand/config";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
 
@@ -119,7 +119,7 @@ export default async function TripPage({
 
       <div className="container-editorial grid gap-10 py-12 lg:grid-cols-[1fr_340px]">
         <div className="space-y-12">
-          {checkin && <CheckinCard checkin={checkin} contactEmail={SPEND_TIME_OFF_GRID.contactEmail} />}
+          {checkin && <CheckinCard checkin={checkin} contactEmail={OFFGRID_EMAIL.safety} />}
 
           {/* Booking summary */}
           <section>

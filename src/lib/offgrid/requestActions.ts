@@ -19,7 +19,8 @@ async function stogOrigin() {
 async function email(to: string, msg: { subject: string; html: string }) {
   try {
     const { sendEmail } = await import("@/lib/email");
-    await sendEmail({ to, ...msg });
+    const { SPEND_TIME_OFF_GRID, OFFGRID_EMAIL } = await import("@/lib/brand/config");
+    await sendEmail({ to, from: SPEND_TIME_OFF_GRID.emailFrom ?? undefined, replyTo: OFFGRID_EMAIL.bookings, ...msg });
   } catch { /* best-effort */ }
 }
 
