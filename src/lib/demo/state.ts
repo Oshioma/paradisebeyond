@@ -41,6 +41,10 @@ export interface DemoState {
   aiModelId?: string;
   /** Spend Time Off Grid pre-arrival checklists (demo), by booking id. */
   stayChecklists?: Record<string, { guest?: import("@/lib/offgrid/checklist").ChecklistData; host?: import("@/lib/offgrid/checklist").ChecklistData }>;
+  /** Spend Time Off Grid stay requests (demo). */
+  stayRequests?: import("@/lib/offgrid/requests").StayRequest[];
+  /** Spend Time Off Grid check-in answers (demo), by `${bookingId}:${kind}`. */
+  stayCheckins?: Record<string, { response: "ok" | "help"; note?: string; respondedAt: string }>;
 }
 
 const EMPTY: DemoState = { flights: {}, apps: {}, bookings: [], balancePaid: [], refunded: [], messages: [], reviews: [], tripPrep: {} };

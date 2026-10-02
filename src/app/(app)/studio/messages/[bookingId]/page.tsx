@@ -22,6 +22,13 @@ export default async function HostThreadPage({ params }: { params: { bookingId: 
   // Spend Time Off Grid stays: the host's pre-arrival checklist beside the thread.
   const offGrid = checklistSide(user, trip) === "host";
   const [checklists, prep] = offGrid ? await Promise.all([getStayChecklists(trip.id), getTripPrep(trip.id)]) : [null, null];
+  // Until the traveller's introduction is carried into the stay, show the one
+  // they wrote with their request.
+  if (checklists && !checklists.guest.introduction) {
+    const { requestForStay } = await import("@/lib/offgrid/requestAdopt");
+    const req = await requestForStay(trip);
+    if (req) checklists.guest = { ...checklists.guest, introduction: req.introduction };
+  }
   const dates = bookingDates(trip);
 
   return (

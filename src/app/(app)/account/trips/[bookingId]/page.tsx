@@ -30,6 +30,10 @@ import { payBalance } from "./actions";
 import { checklistSide } from "@/lib/offgrid/checklist";
 import { getStayChecklists } from "@/lib/offgrid/checklistStore";
 import { TravellerBeforeYouGo } from "@/components/offgrid/StayPrep";
+import { getCheckins } from "@/lib/offgrid/checkinStore";
+import { latestCheckin } from "@/lib/offgrid/checkins";
+import { CheckinCard } from "@/components/offgrid/CheckinCard";
+import { SPEND_TIME_OFF_GRID } from "@/lib/brand/config";
 
 export const metadata: Metadata = { title: "Your trip", robots: { index: false } };
 
@@ -51,6 +55,15 @@ export default async function TripPage({
   const paidPct = trip.subtotalMinor > 0 ? Math.round((trip.paidMinor / trip.subtotalMinor) * 100) : 100;
   const justBooked = Boolean(searchParams.new);
   const justPaid = Boolean(searchParams.paid);
+  // Request-to-book: link the accepted request and carry its introduction into
+  // the stay (once). Stripe bookings land here first after payment. Writes can
+  // be refused mid-render (demo cookies) — the booking action already did it then.
+  if (checklistSide(user, trip) === "guest") {
+    try {
+      const { adoptRequestIntoStay } = await import("@/lib/offgrid/requestAdopt");
+      await adoptRequestIntoStay(user, trip);
+    } catch { /* best-effort */ }
+  }
   const messages = await getMessages(trip.id);
   const existingReview = await getBookingReview(trip.id, user.id);
   // Reviews open once the trip has ended (or is marked completed). Demo: always.
@@ -64,6 +77,7 @@ export default async function TripPage({
   // Paradise Beyond itinerary / flights / questionnaire sections.
   const offGridSide = checklistSide(user, trip);
   const checklists = offGridSide === "guest" ? await getStayChecklists(trip.id) : null;
+  const checkin = offGridSide === "guest" ? latestCheckin(await getCheckins(trip)) : null;
 
   return (
     <div>
@@ -105,6 +119,8 @@ export default async function TripPage({
 
       <div className="container-editorial grid gap-10 py-12 lg:grid-cols-[1fr_340px]">
         <div className="space-y-12">
+          {checkin && <CheckinCard checkin={checkin} contactEmail={SPEND_TIME_OFF_GRID.contactEmail} />}
+
           {/* Booking summary */}
           <section>
             <SectionTitle>Your booking</SectionTitle>

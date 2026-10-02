@@ -17,6 +17,8 @@ export default async function StudioLayout({ children }: { children: React.React
           { label: "Overview", href: "/studio" },
           { label: brand.theme === "earth" ? "My listings" : "My Retreats", href: "/studio/retreats" },
           { label: "Your page", href: "/studio/branding" },
+          // Spend Time Off Grid is request-to-book: hosts answer requests first.
+          ...(brand.theme === "earth" ? [{ label: "Requests", href: "/studio/requests" }] : []),
           { label: "Bookings", href: "/studio/bookings" },
           { label: brand.theme === "earth" ? "Past travellers" : "Past guests", href: "/studio/guests" },
           { label: "Contacts", href: "/studio/contacts" },
