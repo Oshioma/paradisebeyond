@@ -39,7 +39,7 @@ export async function OffGridExplore({ brand, get }: { brand: Brand; get: (k: st
         <p className="eyebrow text-forest-700">Explore</p>
         <h1 className="mt-3 text-display font-semibold text-ink">{active ? active.name : "Places to stay off grid"}</h1>
         <p className="mt-4 text-lg text-ink-muted">
-          {active ? active.description : "Every stay shows what you'll contribute, what you'll receive and what it costs — up front."}
+          {active ? active.description : "Every stay shows what you'll help with, what you'll receive and what it costs — up front."}
         </p>
       </header>
 
@@ -58,7 +58,7 @@ export async function OffGridExplore({ brand, get }: { brand: Brand; get: (k: st
           <div className="rounded-xl2 border border-dashed border-ink/20 px-6 py-20 text-center">
             <p className="font-display text-2xl text-ink">Nothing matches that search yet.</p>
             <p className="mx-auto mt-2 max-w-md text-ink-muted">
-              Try other dates, a longer stay or more contribution hours. New hosts are listing their land all the time.
+              Try other dates, a longer stay or more hours of help. New hosts are listing their land all the time.
             </p>
           </div>
         )}

@@ -10,7 +10,7 @@ import { unitLabel } from "./pricing";
 
 export function contributionLine(o: OffGridDetails): string {
   const { hoursPerDay: h, daysPerWeek: d } = o.contribution;
-  if (!h || !d) return "No set contribution hours";
+  if (!h || !d) return "No set hours of help";
   const hrs = `${trim(h)} ${h === 1 ? "hr" : "hrs"}/day`;
   return `${hrs} · ${d} ${d === 1 ? "day" : "days"}/week`;
 }

@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
+import { DateField } from "@/components/offgrid/DateField";
+import { CalendarIcon, ClockIcon, HouseIcon, PinIcon, SearchIcon, SproutIcon } from "@/components/offgrid/icons";
 
 /**
  * Spend Time Off Grid search. A plain GET form to /experiences, so it works
  * without JavaScript and every search is a shareable URL. The params are read
  * by the explore page and applied by the shared catalogue filter
- * (src/lib/data/filter.ts): where → q, when → date, contribution → maxHours,
- * stay → stayNights.
+ * (src/lib/data/filter.ts): where → q, when → date, help per day (`hours`) →
+ * maxHours, minimum stay (`stay`) → stayNights.
  */
 export interface OffGridSearchValues {
   where?: string;
@@ -47,45 +49,43 @@ export function OffGridSearch({
       method="get"
       role="search"
       className={cn(
-        "grid w-full gap-px overflow-hidden rounded-2xl border bg-ink/10 shadow-soft",
-        hero ? "border-sand-50/30 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto]" : "border-ink/10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto]",
+        "grid w-full items-stretch overflow-hidden rounded-2xl border border-ink/10 bg-sand-50",
+        "divide-y divide-ink/10 lg:divide-x lg:divide-y-0",
+        hero
+          ? "shadow-[0_18px_50px_-20px_rgba(20,35,25,0.45)] lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto]"
+          : "shadow-soft sm:grid-cols-2 sm:divide-x lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr_auto]",
       )}
     >
-      <Cell label="Where">
-        <input
-          name="where"
-          defaultValue={values.where}
-          placeholder="Anywhere"
-          className={inputCls}
-          autoComplete="off"
-        />
+      <Cell label="Where" icon={<PinIcon />}>
+        <input name="where" defaultValue={values.where} placeholder="Anywhere" className={inputCls} autoComplete="off" />
       </Cell>
-      <Cell label="When">
-        <input name="date" type="date" defaultValue={values.date} className={inputCls} aria-label="Arrival date (optional)" />
+      <Cell label="When" icon={<CalendarIcon />}>
+        <DateField name="date" defaultValue={values.date} className={inputCls} />
       </Cell>
-      <Cell label="Contribution">
+      <Cell label="Help per day" icon={<SproutIcon />}>
         <select name="hours" defaultValue={values.hours ?? ""} className={inputCls}>
           {HOURS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </Cell>
-      <Cell label="Stay">
+      <Cell label="Minimum stay" icon={<ClockIcon />}>
         <select name="stay" defaultValue={values.stay ?? ""} className={inputCls}>
           {STAY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </Cell>
       {categories && (
-        <Cell label="Kind of place">
+        <Cell label="Kind of place" icon={<HouseIcon />}>
           <select name="category" defaultValue={values.category ?? ""} className={inputCls}>
             <option value="">Any</option>
             {categories.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Cell>
       )}
-      <div className="flex items-stretch bg-sand-50 p-2">
+      <div className={cn("flex items-stretch p-2.5", !hero && "sm:col-span-2 lg:col-span-1")}>
         <button
           type="submit"
-          className="w-full rounded-xl bg-forest-700 px-6 py-3 text-xs font-medium uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-forest-800"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-forest-700 px-7 py-3.5 text-sm font-medium text-sand-50 transition-colors hover:bg-forest-800"
         >
+          <SearchIcon className="h-4 w-4" />
           Search
         </button>
       </div>
@@ -94,13 +94,16 @@ export function OffGridSearch({
 }
 
 const inputCls =
-  "mt-0.5 w-full bg-transparent text-[0.95rem] text-ink placeholder:text-ink-muted/70 focus:outline-none";
+  "w-full min-w-0 bg-transparent text-[0.95rem] text-ink placeholder:text-ink focus:outline-none";
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
+function Cell({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <label className="block bg-sand-50 px-4 py-3 focus-within:bg-sand-100">
-      <span className="block text-[0.62rem] font-semibold uppercase tracking-eyebrow text-forest-700">{label}</span>
-      {children}
+    <label className="flex items-center gap-3 px-4 py-3 transition-colors focus-within:bg-sand-100 sm:px-5">
+      <span className="flex-none text-forest-800">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[0.7rem] font-medium text-ink-muted">{label}</span>
+        {children}
+      </span>
     </label>
   );
 }

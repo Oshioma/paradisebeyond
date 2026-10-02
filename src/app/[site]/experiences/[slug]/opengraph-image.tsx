@@ -19,7 +19,7 @@ export default async function Image({ params }: { params: SiteParams & { slug: s
   const e = await getPublicExperienceBySlug(params.slug, brand.id);
   const og = e?.offGrid;
   const name = e?.name ?? brand.name;
-  const strapline = e?.strapline ?? (og ? "Contribute. Learn. Live differently." : "Come for more than a holiday.");
+  const strapline = e?.strapline ?? (og ? "Help out. Learn. Live differently." : "Come for more than a holiday.");
   const location = e?.location ?? "";
   const price = e ? (og ? priceLine(og, e.currency) : `From ${formatFrom(e.priceFromMinor, e.currency)} pp`) : "";
   const duration = e ? (og ? contributionLine(og) : `${e.duration} days`) : "";

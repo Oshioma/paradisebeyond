@@ -131,6 +131,6 @@ describe("card / summary lines", () => {
     expect(priceLine({ ...o, pricing: { unit: "day", amountMinor: 0 } }, "USD")).toBe("Free · exchange only");
   });
   it("no contribution hours reads honestly", () => {
-    expect(contributionLine({ ...o, contribution: { ...o.contribution, hoursPerDay: 0 } })).toBe("No set contribution hours");
+    expect(contributionLine({ ...o, contribution: { ...o.contribution, hoursPerDay: 0 } })).toBe("No set hours of help");
   });
 });

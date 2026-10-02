@@ -33,7 +33,7 @@ export function OffGridHostLanding({ canBuild }: { canBuild: boolean }) {
         <div className="grid gap-10 md:grid-cols-3">
           {[
             { t: "Your place, your terms", d: "Set the hours, the days, the food and the bed. Travellers see exactly what the exchange is before they book." },
-            { t: "People who want to be there", d: "Travellers come to contribute, learn and live the way you do — not to be served, and not to be employed." },
+            { t: "People who want to be there", d: "Travellers come to help, learn and live the way you do — not to be served, and not to be employed." },
             { t: "Simple, transparent money", d: `Charge per day, per week or per stay — or nothing at all. Travellers pay your price; we take ${pct}% of paid bookings. Free stays cost you nothing.` },
           ].map((c) => (
             <div key={c.t} className="reveal">
