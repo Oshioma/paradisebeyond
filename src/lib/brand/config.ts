@@ -160,7 +160,7 @@ export const SPEND_TIME_OFF_GRID: Brand = {
   // SpendTimeOffGrid takes 15% of paid bookings — fixed per marketplace so the
   // Paradise Beyond commission rules (destination overrides etc.) never apply.
   fixedCommissionBps: 1500,
-  icon: { svg: "/brand/spendtimeoffgrid-icon.svg", apple: "/brand/spendtimeoffgrid-apple-icon.png", logo: "/brand/spendtimeoffgrid-logo.svg" },
+  icon: { svg: "/brand/spendtimeoffgrid-icon.svg?v=2", apple: "/brand/spendtimeoffgrid-apple-icon.png?v=2", logo: "/brand/spendtimeoffgrid-logo.svg" },
   theme: "earth",
 };
 

@@ -100,8 +100,8 @@ describe("metadata per brand", () => {
 describe("browser icons", () => {
   it("Spend Time Off Grid has its own tab and home-screen icons", () => {
     expect(brandMetadata(SPEND_TIME_OFF_GRID).icons).toEqual({
-      icon: "/brand/spendtimeoffgrid-icon.svg",
-      apple: "/brand/spendtimeoffgrid-apple-icon.png",
+      icon: "/brand/spendtimeoffgrid-icon.svg?v=2",
+      apple: "/brand/spendtimeoffgrid-apple-icon.png?v=2",
     });
   });
 
