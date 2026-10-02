@@ -97,6 +97,19 @@ describe("metadata per brand", () => {
   });
 });
 
+describe("browser icons", () => {
+  it("Spend Time Off Grid has its own tab and home-screen icons", () => {
+    expect(brandMetadata(SPEND_TIME_OFF_GRID).icons).toEqual({
+      icon: "/brand/spendtimeoffgrid-icon.svg",
+      apple: "/brand/spendtimeoffgrid-apple-icon.png",
+    });
+  });
+
+  it("Paradise Beyond keeps the app's default icon (no override)", () => {
+    expect(brandMetadata(PARADISE_BEYOND).icons).toBeUndefined();
+  });
+});
+
 describe("[site] rewrite paths", () => {
   it("public marketing paths are served per brand", () => {
     for (const p of ["/", "/experiences", "/experiences/x", "/categories/farms", "/host", "/host/apply", "/hosts/a", "/saved", "/terms", "/privacy", "/signup", "/destinations/zanzibar"]) {
