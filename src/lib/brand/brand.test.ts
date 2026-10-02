@@ -62,6 +62,11 @@ describe("brand configuration", () => {
     expect(PARADISE_BEYOND.fixedCommissionBps).toBeNull();
   });
 
+  it("each brand has its own contact address", () => {
+    expect(SPEND_TIME_OFF_GRID.contactEmail).toBe("offgrid@guestlist.net");
+    expect(PARADISE_BEYOND.contactEmail).toBe("paradisebeyond@guestlist.net");
+  });
+
   it("Spend Time Off Grid's canonical origin is its own domain", () => {
     expect(SPEND_TIME_OFF_GRID.canonicalOrigin).toBe("https://spendtimeoffgrid.com");
   });

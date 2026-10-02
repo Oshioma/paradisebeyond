@@ -13,11 +13,14 @@ export function LegalShell({
   title,
   intro,
   children,
+  email = LEGAL.email,
 }: {
   eyebrow: string;
   title: string;
   intro: string;
   children: React.ReactNode;
+  /** Contact address for the site being viewed (defaults to the legal one). */
+  email?: string;
 }) {
   return (
     <>
@@ -28,8 +31,8 @@ export function LegalShell({
           <p className="mt-5 max-w-prose text-lg leading-relaxed text-ink-muted">{intro}</p>
           <p className="mt-8 text-sm text-ink-muted">
             Last updated {LEGAL.lastUpdated} · Questions?{" "}
-            <a href={`mailto:${LEGAL.email}`} className="link-underline text-ink">
-              {LEGAL.email}
+            <a href={`mailto:${email}`} className="link-underline text-ink">
+              {email}
             </a>
           </p>
         </div>
@@ -120,10 +123,10 @@ export function Callout({ title, children }: { title: string; children: React.Re
 }
 
 /** The one published contact route, rendered as a mailto link. */
-export function ContactEmail() {
+export function ContactEmail({ email = LEGAL.email }: { email?: string }) {
   return (
-    <a href={`mailto:${LEGAL.email}`} className="link-underline text-ink">
-      {LEGAL.email}
+    <a href={`mailto:${email}`} className="link-underline text-ink">
+      {email}
     </a>
   );
 }

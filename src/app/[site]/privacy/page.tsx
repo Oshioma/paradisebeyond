@@ -10,6 +10,7 @@ import {
   Callout,
   ContactEmail,
 } from "@/components/legal/LegalPage";
+import { brandFromParams, type SiteParams } from "@/lib/brand/site";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -18,9 +19,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-export default function PrivacyPage() {
+export default function PrivacyPage({ params }: { params: SiteParams }) {
+  const email = brandFromParams(params).contactEmail;
   return (
-    <LegalShell
+    <LegalShell email={email}
       eyebrow="Legal"
       title="Privacy Policy"
       intro="What personal data we hold about you, why we hold it, who else sees it, and how to get it changed or deleted. Written to be read, not skimmed past."
@@ -33,7 +35,7 @@ export default function PrivacyPage() {
         </P>
         <P>
           For anything about your data — a copy of it, a correction, a deletion — email{" "}
-          <ContactEmail />. That address reaches us directly and is the fastest route.
+          <ContactEmail email={email} />. That address reaches us directly and is the fastest route.
         </P>
         <P>
           We handle personal data under the UK GDPR and the Data Protection Act 2018. Where we serve
@@ -146,7 +148,7 @@ export default function PrivacyPage() {
           You do not have to give this information, but a host cannot cater for a need they do not
           know about. To withdraw, untick the box on your trip page — that clears your dietary and
           medical answers straight away. To have them deleted at any other time, or to ask what we
-          hold, email <ContactEmail />.
+          hold, email <ContactEmail email={email} />.
         </P>
         <P>
           We also clear these two answers by ourselves once your trip has ended, without waiting
@@ -240,7 +242,7 @@ export default function PrivacyPage() {
           ]}
         />
         <P>
-          Email <ContactEmail /> and we will respond within one month. We may ask you to confirm
+          Email <ContactEmail email={email} /> and we will respond within one month. We may ask you to confirm
           your identity first. There is no charge unless a request is clearly excessive.
         </P>
         <P>
@@ -297,7 +299,7 @@ export default function PrivacyPage() {
           Paradise Beyond is for adults. You must be 18 or over to hold an account or make a
           booking. Where a child travels as part of a booking, the adult who booked provides their
           details and is responsible for them. If you believe a child has given us data directly,
-          email <ContactEmail /> and we will delete it.
+          email <ContactEmail email={email} /> and we will delete it.
         </P>
       </Section>
 
@@ -315,7 +317,7 @@ export default function PrivacyPage() {
           <br />
           {LEGAL.address}
           <br />
-          <ContactEmail />
+          <ContactEmail email={email} />
         </P>
         <P>
           For the terms that govern bookings, see our{" "}
