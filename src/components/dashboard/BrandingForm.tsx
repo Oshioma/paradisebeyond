@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateHostBranding, uploadHostLogo, type Social } from "@/app/studio/branding/actions";
+import { updateHostBranding, uploadHostLogo, type Social } from "@/app/(app)/studio/branding/actions";
 
 const PRESETS = ["#B4633B", "#1F6F6B", "#2E5B8A", "#7A5C3E", "#8A5A83", "#3F7A52", "#C08A2D", "#1B1B1A"];
 

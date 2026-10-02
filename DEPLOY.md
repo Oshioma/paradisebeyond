@@ -121,3 +121,22 @@ Without this the app still hides health answers for finished trips, but the rows
 keep the data — the schedule is what actually deletes it, so don't skip it.
 
 [supabase/cli#1591]: https://github.com/supabase/cli/issues/1591
+
+## Spend Time Off Grid (second marketplace, same deployment)
+
+`spendtimeoffgrid.com` is served by this same app. Middleware maps the host to a
+brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
+
+1. **Run migration `0032_marketplaces.sql`** before off-grid hosts publish or
+   travellers book. It's additive (every existing row defaults to
+   `paradise-beyond`) and idempotent. Paradise Beyond keeps working without it.
+2. **Supabase Auth → URL Configuration → Redirect URLs**: add
+   `https://spendtimeoffgrid.com/**` and `https://www.spendtimeoffgrid.com/**`
+   so confirmation / password-reset links can return to the off-grid site.
+3. **Stripe**: nothing new. The same webhook endpoint handles both sites;
+   off-grid bookings return to `spendtimeoffgrid.com` after Checkout.
+4. **Photos**: Desk → Media has a "Spend Time Off Grid" group (homepage hero,
+   how-it-works image, host banner, the 13 category cards). Until real photos
+   are uploaded these show earthy placeholders.
+5. **Preview deployments** (`*.vercel.app`, localhost): add `?site=spendtimeoffgrid`
+   to any URL to view the off-grid site; `?site=paradise-beyond` switches back.

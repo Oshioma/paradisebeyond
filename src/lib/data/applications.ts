@@ -29,6 +29,7 @@ export async function getApplications(): Promise<HostApplication[]> {
       background: (r.background as string) ?? "",
       status: (r.status as HostApplication["status"]) ?? "submitted",
       createdAt: (r.created_at as string) ?? "",
+      marketplace: r.marketplace === "spendtimeoffgrid" ? "spendtimeoffgrid" : "paradise-beyond",
     }));
   }
 

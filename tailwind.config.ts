@@ -38,6 +38,24 @@ const config: Config = {
           500: "#c9744a",
           600: "#a95b36",
         },
+        // Forest / earth — Spend Time Off Grid palette (deep forest green,
+        // turned earth, warm wood). Used only by off-grid surfaces.
+        forest: {
+          50: "#eef2ec",
+          100: "#dbe3d5",
+          200: "#b9c7b1",
+          500: "#4a6644",
+          600: "#3a5236",
+          700: "#2c4029",
+          800: "#203020",
+          900: "#152016",
+        },
+        earth: {
+          300: "#d4b48c",
+          400: "#b98c5e",
+          500: "#9a6b40",
+          600: "#7c5331",
+        },
         // Palm — subtle success / nature
         palm: {
           500: "#5c7a52",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { startDraftFromSample } from "@/app/desk/experiences/actions";
+import { startDraftFromSample } from "@/app/(app)/desk/experiences/actions";
 
 /**
  * Admin-only: fork an experience into a fresh editable draft and jump into the

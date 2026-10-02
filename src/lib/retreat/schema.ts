@@ -1,4 +1,7 @@
 import { z } from "zod";
+import type { MarketplaceId } from "@/lib/brand/config";
+import type { OffGridDetails } from "@/lib/offgrid/types";
+import { validateOffGridForSubmit } from "@/lib/offgrid/schema";
 
 /**
  * Retreat Builder draft — the shape the 16-step wizard produces.
@@ -103,6 +106,12 @@ export interface RetreatDraft {
   hostHeadline: string;
   hostBio: string;
   updatedAt: string;
+  /** Marketplace this listing is for — set when the draft is created (from the
+   *  site the host is building on) and never changed by the wizard. Absent =
+   *  Paradise Beyond. */
+  marketplace?: MarketplaceId;
+  /** Spend Time Off Grid listing details (only for that marketplace). */
+  offGrid?: OffGridDetails;
 }
 
 export const DEFAULT_EXCLUSIONS = [
@@ -210,6 +219,7 @@ const SUBMIT_STEP = 15;
 const RAW_DEFAULT = /^(String must contain|Required|Expected|Invalid|Number must)/;
 
 export function validateForSubmit(draft: RetreatDraft): SubmitValidation {
+  if (draft.marketplace === "spendtimeoffgrid") return validateOffGridForSubmit(draft);
   const res = submitRetreatSchema.safeParse(draft);
   if (res.success) return { ok: true };
 

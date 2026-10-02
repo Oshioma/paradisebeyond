@@ -5,17 +5,13 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { WishlistCount } from "@/components/wishlist/WishlistButton";
-
-const NAV = [
-  { label: "Experiences", href: "/experiences" },
-  { label: "7 Days", href: "/experiences?duration=7" },
-  { label: "14 Days", href: "/experiences?duration=14" },
-  { label: "Host a Retreat", href: "/host" },
-];
+import { PARADISE_BEYOND, type Brand } from "@/lib/brand/config";
 
 type Me = { role: "guest" | "host" | "admin" | null };
 
-export function SiteHeader() {
+export function SiteHeader({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
+  const NAV = brand.nav;
+  const earth = brand.theme === "earth";
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -42,7 +38,7 @@ export function SiteHeader() {
     role === "admin"
       ? { label: "Admin", href: "/desk" }
       : role === "host"
-        ? { label: "Studio", href: "/studio" }
+        ? { label: brand.terms.hostArea, href: "/studio" }
         : null;
 
   // Host microsites (/r/<slug>) render their own branded chrome — no marketplace nav.
@@ -59,11 +55,17 @@ export function SiteHeader() {
     >
       <div className="container-editorial flex h-[var(--paradise-nav-h)] items-center justify-between">
         <Link href="/" className="group flex flex-col leading-none">
-          <span className="font-display text-xl font-semibold tracking-tight text-ink">
-            Paradise Beyond
-          </span>
+          {earth ? (
+            <span className="text-[0.82rem] font-semibold uppercase tracking-[0.24em] text-forest-800 sm:text-sm">
+              {brand.wordmark}
+            </span>
+          ) : (
+            <span className="font-display text-xl font-semibold tracking-tight text-ink">
+              {brand.wordmark}
+            </span>
+          )}
           <span className="mt-0.5 text-[0.6rem] uppercase tracking-eyebrow text-ink-muted">
-            Curated escapes
+            {brand.wordmarkSub}
           </span>
         </Link>
 
@@ -83,7 +85,7 @@ export function SiteHeader() {
           <Link
             href="/saved"
             className="hidden items-center gap-1.5 text-sm text-ink-soft hover:text-ink sm:flex"
-            aria-label="Saved experiences"
+            aria-label={`Saved ${brand.terms.experiences}`}
           >
             <HeartIcon className="h-4 w-4" />
             <WishlistCount />
@@ -103,10 +105,13 @@ export function SiteHeader() {
             Account
           </Link>
           <Link
-            href="/experiences"
-            className="hidden rounded-full bg-ink px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors hover:bg-ink-soft md:inline-flex"
+            href={brand.headerCta.href}
+            className={cn(
+              "hidden rounded-full px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 transition-colors md:inline-flex",
+              earth ? "bg-forest-700 hover:bg-forest-800" : "bg-ink hover:bg-ink-soft",
+            )}
           >
-            Explore
+            {brand.headerCta.label}
           </Link>
           <button
             className="md:hidden"

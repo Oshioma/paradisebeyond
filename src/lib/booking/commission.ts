@@ -1,6 +1,8 @@
 import { DEFAULT_COMMISSION_BPS } from "@/lib/booking/pricing";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { readDemoState, updateDemoState } from "@/lib/demo/state";
+import type { Experience } from "@/lib/types";
+import { getBrandById, marketplaceOf } from "@/lib/brand/config";
 
 /**
  * Platform commission, read from the `commission_rules` table (live) or demo
@@ -14,6 +16,18 @@ async function destinationId(slug: string): Promise<string | null> {
   const { createClient } = await import("@/lib/supabase/server");
   const { data } = await createClient().from("destinations").select("id").eq("slug", slug).maybeSingle();
   return (data?.id as string) ?? null;
+}
+
+/**
+ * The commission for a booking on this experience. Marketplaces with a fixed
+ * rate (Spend Time Off Grid: 15%) use it; Paradise Beyond keeps its
+ * configurable rules exactly as before. The result is snapshotted onto the
+ * booking, so later changes never touch existing bookings.
+ */
+export async function getCommissionBpsFor(experience: Experience): Promise<number> {
+  const fixed = getBrandById(marketplaceOf(experience)).fixedCommissionBps;
+  if (fixed !== null) return fixed;
+  return getActiveCommissionBps(experience.destinationSlug);
 }
 
 /** The effective rate for a booking (destination override → global → default). */

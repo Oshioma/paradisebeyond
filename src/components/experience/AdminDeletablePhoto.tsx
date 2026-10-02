@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deletePhoto } from "@/app/studio/photos/actions";
+import { deletePhoto } from "@/app/(app)/studio/photos/actions";
 
 /**
  * Wraps a guest photo on the public retreat page / microsite and, for an

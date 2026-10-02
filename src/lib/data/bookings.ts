@@ -3,8 +3,26 @@ import type { SessionUser } from "@/lib/auth/types";
 import { getExperience } from "@/lib/data/experiences";
 import { getAllExperiences } from "@/lib/data/repository";
 import { DEMO_BOOKINGS } from "@/lib/demo/bookings";
+import { OFFGRID_DEMO_EXPERIENCES } from "@/lib/demo/offgridSamples";
 import { readDemoState } from "@/lib/demo/state";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isBrandId, type MarketplaceId } from "@/lib/brand/config";
+
+/** A booking's marketplace — its snapshot (older rows: Paradise Beyond). */
+export function bookingMarketplace(b: Pick<Booking, "marketplace">): MarketplaceId {
+  return b.marketplace ?? "paradise-beyond";
+}
+
+/** The dates a booking actually covers: an off-grid traveller's own arrival +
+ *  nights, else the departure's dates. */
+export function bookingDates(b: HydratedBooking): { start: string; end: string } {
+  if (b.stayStartDate && b.stayNights) {
+    const end = new Date(b.stayStartDate + "T00:00:00Z");
+    end.setUTCDate(end.getUTCDate() + b.stayNights);
+    return { start: b.stayStartDate, end: end.toISOString().slice(0, 10) };
+  }
+  return { start: b.departure.startDate, end: b.departure.endDate };
+}
 
 /**
  * Bookings access. In demo mode this reads seeded bookings plus any created in
@@ -31,7 +49,7 @@ function allDemoBookings(): Booking[] {
 }
 
 export function hydrate(booking: Booking): HydratedBooking | null {
-  const experience = getExperience(booking.experienceSlug);
+  const experience = getExperience(booking.experienceSlug) ?? OFFGRID_DEMO_EXPERIENCES.find((e) => e.slug === booking.experienceSlug);
   if (!experience) return null;
   const departure = experience.departures.find((d) => d.id === booking.departureId);
   const room = experience.stay.roomTypes.find((r) => r.id === booking.roomTypeId);
@@ -110,6 +128,11 @@ async function fetchDbBookings(where?: (q: any) => any): Promise<HydratedBooking
         status: r.status,
         createdAt: (r.created_at ?? "").slice(0, 10),
         flight: mapFlight(flightById.get(r.id)),
+        // The booking's OWN snapshot — never re-derived from the experience,
+        // so moving or editing a listing can't change a past booking.
+        marketplace: isBrandId(r.marketplace) ? r.marketplace : "paradise-beyond",
+        stayStartDate: r.stay_start_date ?? undefined,
+        stayNights: r.stay_nights ?? undefined,
         experience: de.e,
         departure: de.d,
         room,
@@ -119,13 +142,21 @@ async function fetchDbBookings(where?: (q: any) => any): Promise<HydratedBooking
 }
 
 // ---- Public API ------------------------------------------------------------
-export async function getMyTrips(user: SessionUser): Promise<HydratedBooking[]> {
+/**
+ * A traveller's bookings. Pass `marketplace` to show only that marketplace's
+ * (each site's account area lists its own trips/stays). Omitted = all, as
+ * before.
+ */
+export async function getMyTrips(user: SessionUser, marketplace?: MarketplaceId): Promise<HydratedBooking[]> {
+  const scope = (list: HydratedBooking[]) =>
+    (marketplace ? list.filter((b) => bookingMarketplace(b) === marketplace) : list).sort((a, b) =>
+      bookingDates(a).start.localeCompare(bookingDates(b).start),
+    );
   if (isSupabaseConfigured()) {
-    const rows = await fetchDbBookings((q) => q.eq("guest_id", user.id));
-    return rows.sort((a, b) => a.departure.startDate.localeCompare(b.departure.startDate));
+    return scope(await fetchDbBookings((q) => q.eq("guest_id", user.id)));
   }
   const rows = allDemoBookings().filter((b) => b.guestId === user.id || user.role === "guest");
-  return hydrateAll(rows).sort((a, b) => a.departure.startDate.localeCompare(b.departure.startDate));
+  return scope(hydrateAll(rows));
 }
 
 export async function getTrip(user: SessionUser, bookingId: string): Promise<HydratedBooking | null> {

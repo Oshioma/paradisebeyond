@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { republishExperience } from "@/app/desk/experiences/actions";
+import { republishExperience } from "@/app/(app)/desk/experiences/actions";
 
 /**
  * Re-push a live experience from its current builder draft — used to sync photos

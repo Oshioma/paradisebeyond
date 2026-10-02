@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setCustomDomain } from "@/app/studio/branding/actions";
+import { setCustomDomain } from "@/app/(app)/studio/branding/actions";
 
 /**
  * Lets a host connect their OWN domain (e.g. aminaretreats.com) to a retreat's

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser, requireRole } from "@/lib/auth/session";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { updateDemoState } from "@/lib/demo/state";
+import { revalidateSitePath } from "@/lib/brand/revalidate";
 
 function clampRating(v: FormDataEntryValue | null): number | undefined {
   const n = Math.round(Number(v));
@@ -78,7 +79,7 @@ export async function submitReview(formData: FormData): Promise<{ ok: boolean; e
   }
 
   revalidatePath(`/account/trips/${bookingId}`);
-  revalidatePath(`/experiences/${experienceSlug}`);
+  revalidateSitePath(`/experiences/${experienceSlug}`);
   revalidatePath("/desk/reviews");
   return { ok: true };
 }
@@ -107,5 +108,5 @@ export async function moderateReview(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/desk/reviews");
-  revalidatePath("/experiences");
+  revalidateSitePath("/experiences");
 }

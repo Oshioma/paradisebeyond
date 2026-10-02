@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { allocatePhotoDay, togglePhotoPublished, deletePhoto, deletePhotos, addPhotosByUrl, clearImportedDays } from "@/app/studio/photos/actions";
+import { allocatePhotoDay, togglePhotoPublished, deletePhoto, deletePhotos, addPhotosByUrl, clearImportedDays } from "@/app/(app)/studio/photos/actions";
 
 interface ManagedPhoto {
   id: string;

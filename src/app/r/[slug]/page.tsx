@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { getExperienceBySlug, getAllExperiences, getHost } from "@/lib/data/repository";
+import { getPublicExperienceBySlug, getMarketplaceExperiences, getHost } from "@/lib/data/repository";
 import { subdomainLabel, siteUrl } from "@/lib/siteUrl";
 import type { Experience, Host } from "@/lib/types";
 import { hero } from "@/lib/images";
@@ -22,9 +22,10 @@ const DEFAULT_BRAND = "#B4633B";
  *  subdomain, or the hyphen-free slug (middleware passes the request Host for
  *  custom domains, so a full domain also lands here). */
 async function resolveExperience(param: string): Promise<Experience | undefined> {
-  const exact = await getExperienceBySlug(param);
+  // Retreat microsites are a Paradise Beyond feature: only its listings resolve.
+  const exact = await getPublicExperienceBySlug(param, "paradise-beyond");
   if (exact) return exact;
-  const all = await getAllExperiences();
+  const all = await getMarketplaceExperiences("paradise-beyond");
   const domain = param.toLowerCase().replace(/^www\./, "");
   const byDomain = all.find(
     (e) => e.customDomain && e.customDomain.toLowerCase().replace(/^www\./, "") === domain,

@@ -29,13 +29,20 @@ export async function getAllExperiences(): Promise<Experience[]> {
   const { createAnonClient } = await import("@/lib/supabase/server");
   const supabase = createAnonClient();
 
-  const { data: exps, error } = (await supabase
+  type Row = { id: string; content: Experience; retreat_draft_id: string | null; subdomain: string | null; custom_domain: string | null; marketplace?: string | null };
+  const base = "id, content, retreat_draft_id, subdomain, custom_domain";
+  let { data: exps, error } = (await supabase
     .from("experiences")
-    .select("id, content, retreat_draft_id, subdomain, custom_domain")
-    .eq("status", "published")) as {
-    data: { id: string; content: Experience; retreat_draft_id: string | null; subdomain: string | null; custom_domain: string | null }[] | null;
-    error: unknown;
-  };
+    .select(`${base}, marketplace`)
+    .eq("status", "published")) as { data: Row[] | null; error: unknown };
+  if (error) {
+    // Deployed before migration 0032 (no marketplace column yet): read as
+    // before. Listings then fall back to content.marketplace / Paradise Beyond.
+    ({ data: exps, error } = (await supabase
+      .from("experiences")
+      .select(base)
+      .eq("status", "published")) as { data: Row[] | null; error: unknown });
+  }
   if (error || !exps) return [];
 
   const ids = exps.map((e) => e.id);
@@ -63,6 +70,8 @@ export async function getAllExperiences(): Promise<Experience[]> {
     if (e.retreat_draft_id) experience.retreatDraftId = e.retreat_draft_id;
     if (e.subdomain) experience.subdomain = e.subdomain;
     if (e.custom_domain) experience.customDomain = e.custom_domain;
+    // The column is the source of truth for which marketplace lists it.
+    if (e.marketplace) experience.marketplace = e.marketplace as Experience["marketplace"];
     // Live departures (real UUIDs + current availability), soonest first.
     const live = (depsByExp.get(expId) ?? []).sort((a, b) => a.startDate.localeCompare(b.startDate));
     if (live.length) experience.departures = live;

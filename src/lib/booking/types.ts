@@ -1,4 +1,5 @@
 import type { Experience, Departure, RoomType } from "@/lib/types";
+import type { MarketplaceId } from "@/lib/brand/config";
 
 export type BookingStatus =
   | "pending"
@@ -38,6 +39,12 @@ export interface Booking {
   status: BookingStatus;
   createdAt: string;
   flight?: FlightDetails;
+  /** Marketplace SNAPSHOT at booking time (absent on older rows = Paradise
+   *  Beyond). Never derived from the experience's current marketplace. */
+  marketplace?: MarketplaceId;
+  /** Off-grid stays: the traveller's own arrival date and length. */
+  stayStartDate?: string;
+  stayNights?: number;
 }
 
 /** A booking joined with its catalogue objects, for rendering. */

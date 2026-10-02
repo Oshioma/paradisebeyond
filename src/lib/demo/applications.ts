@@ -19,6 +19,8 @@ export interface HostApplication {
   background: string;
   status: ApplicationStatus;
   createdAt: string;
+  /** Marketplace applied to (absent = Paradise Beyond). */
+  marketplace?: "paradise-beyond" | "spendtimeoffgrid";
 }
 
 /** Seed applications for the admin desk to review in demo mode. */

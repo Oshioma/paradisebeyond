@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateHost, type HostUpdate } from "@/app/desk/hosts/actions";
+import { updateHost, type HostUpdate } from "@/app/(app)/desk/hosts/actions";
 
 /**
  * Edit a host's profile text, specialisms and verified badge. Photos are edited

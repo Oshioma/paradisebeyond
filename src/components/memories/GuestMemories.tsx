@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { uploadGuestPhotos, submitGuestReview } from "@/app/memories/[token]/actions";
+import { uploadGuestPhotos, submitGuestReview } from "@/app/(app)/memories/[token]/actions";
 import { prepareImageForUpload } from "@/lib/media/clientImage";
 import { cn } from "@/lib/utils";
 

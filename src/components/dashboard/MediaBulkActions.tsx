@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { loadDemoPhotos, clearAllPhotos, saveDefaultImages } from "@/app/desk/media/actions";
+import { loadDemoPhotos, clearAllPhotos, saveDefaultImages } from "@/app/(app)/desk/media/actions";
 
 /**
  * Bulk media controls with clear working/done feedback. "Save current as

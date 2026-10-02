@@ -1,6 +1,7 @@
 import type { RetreatDraft } from "@/lib/retreat/schema";
 import type { CategorySlug, Departure, Experience, ItineraryDay, RoomType } from "@/lib/types";
 import { slotKey } from "@/lib/images";
+import { emptyOffGrid } from "@/lib/offgrid/types";
 
 /**
  * Materialise an approved retreat draft into the live catalogue.
@@ -39,6 +40,7 @@ const usdToMinor = (v: number) => Math.round((Number.isFinite(v) ? v : 0) * 100)
 /** Build the editorial Experience JSON stored in experiences.content. Exported
  *  for tests — it's a pure function of the draft (no DB access). */
 export function buildContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): Experience {
+  if (draft.marketplace === "spendtimeoffgrid") return buildOffGridContent(draft, slug, hostSlugs);
   const hotels = (draft.hotels ?? [])
     .filter((h) => h.name?.trim())
     .map((h) => ({
@@ -128,6 +130,92 @@ export function buildContent(draft: RetreatDraft, slug: string, hostSlugs: strin
     itinerary,
     departures,
     featured: false,
+  };
+}
+
+/**
+ * An off-grid listing in the same Experience shape the whole site reads. The
+ * shared fields carry what they always do (name, story, photos, host, dates);
+ * the stay details live in `offGrid`. Availability windows become departures
+ * (so reserve_departure guards capacity), priced at the host's rate with no
+ * deposit (off-grid stays are paid in full, or free). The accommodation
+ * becomes the single room type the booking engine prices against.
+ */
+function buildOffGridContent(draft: RetreatDraft, slug: string, hostSlugs: string[]): Experience {
+  const o = draft.offGrid ?? emptyOffGrid();
+  const currency = draft.currency || "USD";
+  const amount = Math.max(0, Math.round(o.pricing.amountMinor || 0));
+  const heroSeed = `${slug}-hero`;
+  const galleryUrls = (draft.galleryUrls ?? []).map((u) => (u ?? "").trim()).filter(Boolean);
+  const gallerySeeds = galleryUrls.map((_, i) => `${slug}-g${i}`);
+  const stayImages = (draft.hotels?.[0]?.images ?? []).map((u) => (u ?? "").trim()).filter(Boolean);
+  const accommodation = o.stay.accommodationType.trim() || "Accommodation";
+  const departures: Departure[] = (draft.departures ?? [])
+    .filter((d) => d.startDate && d.endDate)
+    .map((d, i) => ({
+      id: `${slug}-d${i}`,
+      startDate: d.startDate,
+      endDate: d.endDate,
+      priceFromMinor: amount,
+      currency,
+      capacity: d.capacity,
+      spacesRemaining: d.capacity,
+      depositMinor: 0,
+      balanceDueDays: 0,
+      status: "open",
+    }));
+  return {
+    slug,
+    name: draft.name,
+    strapline: draft.strapline,
+    duration: 7, // nominal; off-grid stay length comes from offGrid.stay
+    destinationSlug: draft.destinationSlug,
+    location: draft.locationLabel || draft.country,
+    categorySlugs: (draft.categorySlugs ?? []) as CategorySlug[],
+    hostSlugs,
+    verified: false,
+    currency,
+    priceFromMinor: amount,
+    maxGroupSize: Math.max(1, ...departures.map((d) => d.capacity), 1),
+    heroImageSeed: heroSeed,
+    gallerySeeds,
+    forYouIf: [],
+    story: (draft.story ?? []).filter(Boolean),
+    highlights: (draft.highlights ?? [])
+      .filter((h) => h.title?.trim() || h.description?.trim())
+      .map((h, i) => ({ title: h.title, description: h.description, imageSeed: `${slug}-h${i}` })),
+    stay: {
+      property: accommodation,
+      description: o.stay.description,
+      hotels: [{ name: accommodation, description: o.stay.description, images: stayImages }],
+      roomTypes: [
+        {
+          id: `${slug}-r0`,
+          name: accommodation,
+          description: o.stay.description,
+          occupancy: o.stay.privacy === "private" ? "private" : "shared",
+          priceDeltaMinor: 0,
+        },
+      ],
+      imageSeeds: [],
+    },
+    inclusions: [],
+    exclusions: [],
+    itinerary: [],
+    departures,
+    featured: false,
+    marketplace: "spendtimeoffgrid",
+    offGrid: {
+      ...o,
+      pricing: { unit: o.pricing.unit, amountMinor: amount },
+      contribution: {
+        ...o.contribution,
+        typicalTasks: o.contribution.typicalTasks.filter((t) => t.trim()),
+        skillsRequired: o.contribution.skillsRequired.filter((t) => t.trim()),
+        skillsYouCanLearn: o.contribution.skillsYouCanLearn.filter((t) => t.trim()),
+      },
+      practical: { ...o.practical, whatToBring: o.practical.whatToBring.filter((t) => t.trim()) },
+    },
   };
 }
 
@@ -281,6 +369,9 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
         created_by: actingUserId,
         content,
         updated_at: new Date().toISOString(),
+        // Only non-default marketplaces write the column, so Paradise Beyond
+        // publishing is byte-identical (and works before migration 0032).
+        ...(content.marketplace && content.marketplace !== "paradise-beyond" ? { marketplace: content.marketplace } : {}),
       },
       { onConflict: "retreat_draft_id" },
     )

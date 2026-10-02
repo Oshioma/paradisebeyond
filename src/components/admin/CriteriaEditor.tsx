@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveCriteria } from "@/app/desk/verification/actions";
+import { saveCriteria } from "@/app/(app)/desk/verification/actions";
 
 /** Editable verification-criteria checklist. Saved to app_settings. */
 export function CriteriaEditor({ initial }: { initial: string[] }) {

@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
-import { siteUrl } from "@/lib/siteUrl";
+import { getBrand, brandOrigin } from "@/lib/brand/server";
 
-/** Allow the public marketing surface; keep private/app areas out of the index. */
+/** Allow the public marketing surface; keep private/app areas out of the index.
+ *  Per request, so each domain points at its own sitemap. */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -11,6 +12,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/account", "/studio", "/desk", "/api", "/book", "/login", "/signup", "/forgot-password", "/reset-password", "/auth", "/saved"],
       },
     ],
-    sitemap: `${siteUrl()}/sitemap.xml`,
+    sitemap: `${brandOrigin(getBrand())}/sitemap.xml`,
   };
 }

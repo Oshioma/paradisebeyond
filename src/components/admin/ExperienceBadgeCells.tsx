@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { toggleVerified, toggleFeatured } from "@/app/desk/verification/actions";
+import { toggleVerified, toggleFeatured } from "@/app/(app)/desk/verification/actions";
 
 /**
  * The Verified / Featured status pills and their toggle buttons for one

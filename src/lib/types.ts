@@ -9,9 +9,29 @@
  * (e.g. cents). Never store or compute money as a float. See src/lib/money.ts.
  */
 
+import type { MarketplaceId } from "@/lib/brand/config";
+import type { OffGridDetails } from "@/lib/offgrid/types";
+
 export type Duration = 7 | 14;
 
+/** Spend Time Off Grid categories (see src/lib/data/categories.ts). */
+export type OffGridCategorySlug =
+  | "farms"
+  | "permaculture"
+  | "homesteads"
+  | "eco-villages"
+  | "natural-building"
+  | "conservation"
+  | "animal-care"
+  | "rewilding"
+  | "community-projects"
+  | "retreat-centres"
+  | "remote-islands"
+  | "sailing"
+  | "sustainable-living";
+
 export type CategorySlug =
+  | OffGridCategorySlug
   | "wellness"
   | "adventure"
   | "family"
@@ -30,6 +50,8 @@ export interface Category {
   /** Homepage label may differ from the canonical name (e.g. "Connection"). */
   displayLabel?: string;
   imageSeed: string;
+  /** Which marketplace lists this category (absent = Paradise Beyond). */
+  marketplace?: MarketplaceId;
 }
 
 export interface Destination {
@@ -146,4 +168,13 @@ export interface Experience {
   subdomain?: string;
   /** The host's own custom domain (e.g. aminaretreats.com) → this microsite. */
   customDomain?: string;
+  /** Marketplace this listing belongs to. Absent = Paradise Beyond. */
+  marketplace?: MarketplaceId;
+  /**
+   * Spend Time Off Grid stay details (contribution, food, facilities, pricing
+   * unit…). Present only on off-grid listings. For those, `duration` is a
+   * nominal value required by the shared schema and is never displayed —
+   * stay length comes from `offGrid.stay`.
+   */
+  offGrid?: OffGridDetails;
 }
