@@ -113,7 +113,13 @@ function OffGridFooter({ brand }: { brand: Brand }) {
       <div className="container-editorial py-16">
         <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sand-50">{brand.wordmark}</p>
+            <Link href="/" className="inline-flex items-center gap-3">
+              {brand.icon?.logoOnDark && (
+                // eslint-disable-next-line @next/next/no-img-element -- small static brand SVG
+                <img src={brand.icon.logoOnDark} alt="" width={44} height={44} className="h-11 w-11 flex-none" />
+              )}
+              <span className="text-base font-semibold uppercase tracking-[0.17em] text-sand-50">{brand.wordmark}</span>
+            </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-sand-100/75">{brand.footerBlurb}</p>
             <p className="mt-6 text-sm text-sand-100/75">
               Travellers arrange their own way there unless a host includes transfers.
