@@ -51,8 +51,13 @@ export function RetreatWizard({
   const offGrid = initialDraft.marketplace === "spendtimeoffgrid";
   const STEP_LABELS: readonly string[] = offGrid ? OFFGRID_STEPS : STEPS;
   const [step, setStep] = useState(0);
-  const [saving, startSaving] = useTransition();
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  // "Saving…" has to stay on screen for the whole request (a transition's
+  // pending flag ends as soon as the synchronous part of an async callback
+  // does), and the outcome must be visible on every screen size — on a phone
+  // the only feedback is the line under the Save draft button.
+  const [saving, setSaving] = useState(false);
+  const [saveNote, setSaveNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const inFlightRef = useRef(0);
   const storageKey = `pb:retreat:${initialDraft.id}`;
   // The last draft we've persisted to the server, so autosave only fires on real
   // changes and never re-saves the same thing.
@@ -79,12 +84,12 @@ export function RetreatWizard({
     const json = JSON.stringify(draft);
     if (json === lastSavedRef.current) return;
     const t = setTimeout(() => {
-      startSaving(async () => {
+      void runSave(async () => {
         try {
           const res = await saveRetreatDraft(draft);
           if (res.ok) {
             lastSavedRef.current = json;
-            setSavedAt(new Date().toLocaleTimeString());
+            setSaveNote({ ok: true, text: `Saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` });
           }
           // On failure leave lastSavedRef unchanged so the next change retries;
           // the localStorage copy still holds the work in the meantime.
@@ -100,18 +105,30 @@ export function RetreatWizard({
   const set = <K extends keyof RetreatDraft>(key: K, value: RetreatDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  // Show "Saving…" for as long as any save request is in flight.
+  async function runSave(fn: () => Promise<void>) {
+    inFlightRef.current += 1;
+    setSaving(true);
+    try {
+      await fn();
+    } finally {
+      inFlightRef.current -= 1;
+      if (inFlightRef.current === 0) setSaving(false);
+    }
+  }
+
   function saveDraftNow() {
-    startSaving(async () => {
+    void runSave(async () => {
       try {
         const res = await saveRetreatDraft(draft);
         if (res.ok) {
           lastSavedRef.current = JSON.stringify(draft);
-          setSavedAt(new Date().toLocaleTimeString());
+          setSaveNote({ ok: true, text: `Saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — safe to leave and come back` });
         } else {
-          setSavedAt(`Couldn't save: ${res.error ?? "try again"}`);
+          setSaveNote({ ok: false, text: `Couldn't save: ${res.error ?? "try again"}` });
         }
       } catch {
-        setSavedAt("Couldn't save — check your connection.");
+        setSaveNote({ ok: false, text: "Couldn't save — check your connection and try again." });
       }
     });
   }
@@ -168,7 +185,7 @@ export function RetreatWizard({
         <button onClick={saveDraftNow} disabled={saving} className="mt-4 hidden w-full rounded-full border border-ink/15 px-4 py-2 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-50 lg:block">
           {saving ? "Saving…" : "Save draft"}
         </button>
-        {savedAt && <p className="mt-2 hidden text-center text-xs text-ink-muted lg:block">Saved {savedAt}</p>}
+        {saveNote && <p className={cn("mt-2 hidden text-center text-xs lg:block", saveNote.ok ? "text-ink-muted" : "text-clay-600")}>{saveNote.text}</p>}
       </aside>
 
       {/* Step content */}
@@ -200,11 +217,11 @@ export function RetreatWizard({
 
         {/* Nav */}
         <div className="mt-10 flex items-center justify-between border-t border-ink/10 pt-6">
-          <button onClick={() => go(step - 1)} disabled={step === 0} className="rounded-full border border-ink/15 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-40">
+          <button type="button" onClick={() => go(step - 1)} disabled={step === 0} className="rounded-full border border-ink/15 px-5 py-2.5 text-xs uppercase tracking-eyebrow text-ink-soft hover:border-ink/40 disabled:opacity-40">
             Back
           </button>
           <div className="flex items-center gap-3">
-            <button onClick={saveDraftNow} disabled={saving} className="text-xs uppercase tracking-eyebrow text-ink-muted hover:text-ink disabled:opacity-50">
+            <button type="button" onClick={saveDraftNow} disabled={saving} className="whitespace-nowrap rounded-full px-3 py-2.5 text-xs uppercase tracking-eyebrow text-ink-muted hover:text-ink disabled:opacity-50">
               {saving ? "Saving…" : "Save draft"}
             </button>
             {step < STEP_LABELS.length - 1 && (
@@ -222,6 +239,11 @@ export function RetreatWizard({
             )}
           </div>
         </div>
+        {/* On phones the step list (and its "Saved" line) is tucked away, so the
+            outcome of a save shows here, where the button is. */}
+        <p role="status" aria-live="polite" className={cn("mt-3 min-h-[1rem] text-right text-xs lg:hidden", saveNote?.ok === false ? "text-clay-600" : "text-ink-muted")}>
+          {saving ? "Saving your draft…" : saveNote?.text ?? ""}
+        </p>
       </div>
     </div>
   );
