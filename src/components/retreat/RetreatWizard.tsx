@@ -321,7 +321,7 @@ function StepContent({
             <input className={inp} value={draft.strapline} onChange={(e) => set("strapline", e.target.value)} placeholder={`${draft.duration} days to come back to yourself.`} />
           </Field>
           <Field label="Categories" hint={draft.categorySlugs.length === 0 ? "Pick at least one — e.g. Wellness. Required before you can continue." : "Pick all that fit."}>
-            <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => set("categorySlugs", toggle(draft.categorySlugs, v))} />
+            <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => setDraft((d) => ({ ...d, categorySlugs: toggle(d.categorySlugs, v) }))} />
           </Field>
           <Field label="This experience is for you if…" suggest={<Suggest kind="idealGuest" draft={draft} apply={(v) => set("idealGuest", v)} />}>
             <ListEditor items={draft.idealGuest} onChange={(v) => set("idealGuest", v)} placeholder="You've been running on empty…" />
@@ -764,12 +764,47 @@ export function ListEditor({ items, onChange, placeholder, textarea, small }: { 
 }
 
 export function Chips({ options, selected, onToggle }: { options: Opt[]; selected: string[]; onToggle: (v: string) => void }) {
+  // On a phone, a scroll that starts with a finger resting on a chip can end as
+  // a "tap" if the finger lifts after only a small movement — the browser then
+  // fires a click, which toggled the chip the host had just picked. Browsers
+  // hold back touchmove events inside that small movement, so measure how far
+  // the finger travelled when it lifts as well, and ignore the click that
+  // follows a touch that moved: that was a scroll, not a choice.
+  const touch = useRef<{ x: number; y: number; moved: boolean; suppressClickUntil: number }>({ x: 0, y: 0, moved: false, suppressClickUntil: 0 });
+  const SCROLL_PX = 8;
+  const note = (t: React.Touch | undefined) => {
+    const s = touch.current;
+    if (t && !s.moved && Math.hypot(t.clientX - s.x, t.clientY - s.y) > SCROLL_PX) s.moved = true;
+  };
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((o) => {
         const on = selected.includes(o.value);
         return (
-          <button key={o.value} onClick={() => onToggle(o.value)} className={cn("rounded-full px-4 py-2 text-xs uppercase tracking-eyebrow transition-colors", on ? "bg-ink text-sand-50" : "border border-ink/15 text-ink-soft hover:border-ink/40")}>
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            onTouchStart={(e) => {
+              const t = e.touches[0];
+              if (t) touch.current = { x: t.clientX, y: t.clientY, moved: false, suppressClickUntil: 0 };
+            }}
+            onTouchMove={(e) => note(e.touches[0])}
+            onTouchEnd={(e) => {
+              note(e.changedTouches[0]);
+              // The click, if the browser sends one, arrives right after touchend.
+              if (touch.current.moved) touch.current.suppressClickUntil = Date.now() + 1000;
+            }}
+            onClick={() => {
+              const s = touch.current;
+              if (Date.now() < s.suppressClickUntil) {
+                s.suppressClickUntil = 0;
+                return;
+              }
+              onToggle(o.value);
+            }}
+            className={cn("rounded-full px-4 py-2 text-xs uppercase tracking-eyebrow transition-colors", on ? "bg-ink text-sand-50" : "border border-ink/15 text-ink-soft hover:border-ink/40")}
+          >
             {o.label}
           </button>
         );

@@ -83,7 +83,7 @@ export function OffGridStepContent({
             <input className={inp} value={draft.strapline} onChange={(e) => set("strapline", e.target.value)} placeholder="Spice trees, food forest and long evenings by the fire." />
           </Field>
           <Field label="What kind of place is it?" hint="Pick all that fit.">
-            <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => set("categorySlugs", toggle(draft.categorySlugs, v))} />
+            <Chips options={categories} selected={draft.categorySlugs} onToggle={(v) => setDraft((d) => ({ ...d, categorySlugs: toggle(d.categorySlugs, v) }))} />
           </Field>
           <Field label="Tell travellers about your place" hint="The land, the project, the people, why it exists. Tell it — don't list features.">
             <ListEditor items={draft.story.length ? draft.story : [""]} onChange={(v) => set("story", v)} textarea placeholder="A family farm slowly turned into a food forest…" />
