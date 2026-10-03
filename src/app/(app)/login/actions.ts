@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { Role } from "@/lib/auth/types";
 import { DEMO_COOKIE } from "@/lib/demo/session";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { captchaOptions, friendlyAuthError } from "@/lib/auth/captcha";
 
 function safeNext(next: FormDataEntryValue | null, fallback: string): string {
   const n = typeof next === "string" ? next : "";
@@ -38,9 +39,10 @@ export async function signInWithPassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaOptions(formData) });
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    const next = safeNext(formData.get("next"), "");
+    redirect(`/login?error=${encodeURIComponent(friendlyAuthError(error.message))}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
   }
   redirect(safeNext(formData.get("next"), "/account"));
 }
@@ -53,7 +55,7 @@ export async function signUp(formData: FormData) {
   const name = String(formData.get("name") ?? "");
   // The brand's own origin, so the link lands on the site (and cookie jar) the
   // person is using. Paradise Beyond: siteUrl(), exactly as before.
-  const { brandOrigin } = await import("@/lib/brand/server");
+  const { brandOrigin, getBrand } = await import("@/lib/brand/server");
   const siteUrl = () => brandOrigin();
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = createClient();
@@ -61,11 +63,14 @@ export async function signUp(formData: FormData) {
     email,
     password,
     options: {
-      data: { full_name: name },
+      // `site` lets the Supabase email templates speak as the site the person
+      // joined (supabase/templates/*.html).
+      data: { full_name: name, site: getBrand().id },
       emailRedirectTo: `${siteUrl()}/auth/callback?next=/account`,
+      ...captchaOptions(formData),
     },
   });
-  if (error) redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+  if (error) redirect(`/signup?error=${encodeURIComponent(friendlyAuthError(error.message))}`);
   redirect(`/login?message=${encodeURIComponent("Check your email to confirm your account, then sign in.")}`);
 }
 
@@ -79,9 +84,15 @@ export async function sendPasswordReset(formData: FormData) {
   const siteUrl = () => brandOrigin();
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = createClient();
-  await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
+    ...captchaOptions(formData),
   });
+  // A failed security check is the one error worth showing — anything else
+  // stays silent so the page never reveals whether an account exists.
+  if (error && /captcha/i.test(error.message)) {
+    redirect(`/forgot-password?error=${encodeURIComponent(friendlyAuthError(error.message))}`);
+  }
   // Always confirm (don't reveal whether the email exists).
   redirect(`/forgot-password?sent=1`);
 }

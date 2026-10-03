@@ -174,3 +174,19 @@ brand (`src/lib/brand/config.ts`); everything brand-specific lives there.
    `stay_nights`, and a booking's currency, discount and deposit join its
    frozen financial snapshot. `balance_minor`, `status` and the Stripe ids stay
    editable.
+10. **Bot protection (Cloudflare Turnstile)** on sign-up, sign-in and password
+    reset. Do it in this order, or every sign-in is blocked:
+    1. Cloudflare dashboard → Turnstile → Add widget, hostnames
+       `paradisebeyond.com`, `www.paradisebeyond.com`, `spendtimeoffgrid.com`,
+       `www.spendtimeoffgrid.com`; mode Managed. Copy the site key and secret key.
+    2. Vercel env (Production + Preview): `NEXT_PUBLIC_TURNSTILE_SITE_KEY=<site key>`,
+       then redeploy. The security check now shows on the three forms.
+    3. Supabase → Authentication → Attack Protection → Enable CAPTCHA protection,
+       provider Turnstile, paste the **secret** key, save.
+11. **Account emails per site**: Supabase sends sign-up and reset emails itself,
+    from one sender. Paste `supabase/templates/confirm-signup.html` into
+    Authentication → Emails → "Confirm signup" (subject "Confirm your email") and
+    `supabase/templates/reset-password.html` into "Reset password" (subject
+    "Reset your password"). They read `user_metadata.site`, set at sign-up, so
+    Spend Time Off Grid members get Spend Time Off Grid wording; everyone else
+    gets Paradise Beyond.
