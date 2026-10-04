@@ -22,9 +22,9 @@ const ENV = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "OFFGRID_SM
 
 function configure() {
   process.env.SMTP_USER = "hello@paradisebeyond.com";
-  process.env.SMTP_PASSWORD = "pb-pass";
+  process.env.SMTP_PASSWORD = "test-pb-placeholder";
   process.env.OFFGRID_SMTP_USER = "noreply@spendtimeoffgrid.com";
-  process.env.OFFGRID_SMTP_PASSWORD = "og-pass";
+  process.env.OFFGRID_SMTP_PASSWORD = "test-og-placeholder";
   process.env.EMAIL_FROM = "Paradise Beyond <hello@paradisebeyond.com>";
 }
 
@@ -55,7 +55,7 @@ describe("sendEmail via ImprovMX SMTP", () => {
       host: "smtp.improvmx.com",
       port: 587,
       secure: false,
-      auth: { user: "hello@paradisebeyond.com", pass: "pb-pass" },
+      auth: { user: "hello@paradisebeyond.com", pass: "test-pb-placeholder" },
     });
     expect(sent[0].from).toBe("Paradise Beyond <hello@paradisebeyond.com>");
   });
@@ -69,7 +69,7 @@ describe("sendEmail via ImprovMX SMTP", () => {
       from: "Spend Time Off Grid <noreply@spendtimeoffgrid.com>",
       replyTo: "support@spendtimeoffgrid.com",
     });
-    expect(transports[0].auth).toEqual({ user: "noreply@spendtimeoffgrid.com", pass: "og-pass" });
+    expect(transports[0].auth).toEqual({ user: "noreply@spendtimeoffgrid.com", pass: "test-og-placeholder" });
     expect(sent[0]).toMatchObject({
       from: "Spend Time Off Grid <noreply@spendtimeoffgrid.com>",
       replyTo: "support@spendtimeoffgrid.com",
@@ -78,7 +78,7 @@ describe("sendEmail via ImprovMX SMTP", () => {
 
   it("never uses one site's login for the other site's sender", () => {
     process.env.SMTP_USER = "hello@paradisebeyond.com";
-    process.env.SMTP_PASSWORD = "pb-pass";
+    process.env.SMTP_PASSWORD = "test-pb-placeholder";
     expect(loginFor("Spend Time Off Grid <noreply@spendtimeoffgrid.com>")).toBeNull();
     expect(isEmailConfigured("Spend Time Off Grid <noreply@spendtimeoffgrid.com>")).toBe(false);
   });
