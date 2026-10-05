@@ -6,18 +6,13 @@ import type { Role } from "@/lib/auth/types";
 import { DEMO_COOKIE } from "@/lib/demo/session";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { captchaOptions, friendlyAuthError } from "@/lib/auth/captcha";
+import { DASHBOARD, dashboardForUser } from "@/lib/auth/dashboard";
 
 function safeNext(next: FormDataEntryValue | null, fallback: string): string {
   const n = typeof next === "string" ? next : "";
   // Only allow internal paths.
   return n.startsWith("/") && !n.startsWith("//") ? n : fallback;
 }
-
-const DASHBOARD: Record<Role, string> = {
-  guest: "/account",
-  host: "/studio",
-  admin: "/desk",
-};
 
 /** Demo sign-in — sets the role cookie. Only meaningful without Supabase. */
 export async function signInDemo(formData: FormData) {
@@ -39,12 +34,15 @@ export async function signInWithPassword(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaOptions(formData) });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password, options: captchaOptions(formData) });
   if (error) {
     const next = safeNext(formData.get("next"), "");
     redirect(`/login?error=${encodeURIComponent(friendlyAuthError(error.message))}${next ? `&next=${encodeURIComponent(next)}` : ""}`);
   }
-  redirect(safeNext(formData.get("next"), "/account"));
+  // No explicit destination → land on the dashboard for their role (hosts and
+  // co-hosts go to the Studio, admins to the Desk).
+  const next = safeNext(formData.get("next"), "");
+  redirect(next || (await dashboardForUser(supabase, data.user?.id)));
 }
 
 /** Create an account (email + password). Emails a confirmation link. */

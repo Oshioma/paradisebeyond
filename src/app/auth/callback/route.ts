@@ -18,7 +18,16 @@ export async function GET(req: NextRequest) {
     const supabase = createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${safeNext}`);
+      // Sign-up confirmations default to /account; send hosts (including
+      // invited co-hosts, who become hosts on sign-up) to the Studio and admins
+      // to the Desk instead. Explicit destinations (e.g. password reset) are kept.
+      let dest = safeNext;
+      if (safeNext === "/account") {
+        const { dashboardForUser } = await import("@/lib/auth/dashboard");
+        const { data } = await supabase.auth.getUser();
+        dest = await dashboardForUser(supabase, data.user?.id);
+      }
+      return NextResponse.redirect(`${origin}${dest}`);
     }
     return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
   }
