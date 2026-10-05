@@ -87,3 +87,19 @@ export async function editorHostIds(draftId: string): Promise<string[]> {
   const { data } = await db.from("retreat_draft_editors").select("host_id").eq("draft_id", draftId);
   return ((data ?? []) as { host_id: string }[]).map((r) => r.host_id);
 }
+
+export type PendingInvite = { id: string; email: string };
+
+/** Invites sent to people who haven't signed up yet (claimed on sign-up). */
+export async function listPendingInvites(draftId: string): Promise<PendingInvite[]> {
+  if (!isSupabaseConfigured()) return [];
+  const { createServiceRoleClient } = await import("@/lib/supabase/server");
+  const db = createServiceRoleClient();
+  const { data } = await db
+    .from("cohost_invites")
+    .select("id, email")
+    .eq("draft_id", draftId)
+    .is("accepted_at", null)
+    .order("created_at");
+  return (data ?? []) as PendingInvite[];
+}
