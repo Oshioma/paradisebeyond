@@ -511,13 +511,18 @@ function StepContent({
       const days = draft.itinerary.length ? draft.itinerary : resizeItinerary(draft);
       if (!draft.itinerary.length) setTimeout(() => set("itinerary", days), 0);
       return (
-        <Field label={`Day-by-day (${draft.duration} days)`} hint="A title per day, plus the moments in it.">
+        <Field label={`Day-by-day (${draft.duration} days)`} hint="A title per day, an optional one-line summary, plus the moments in it.">
           <div className="space-y-3">
             {days.map((d, i) => (
               <div key={d.day} className="rounded-xl border border-ink/10 p-4">
                 <div className="flex items-center gap-3">
                   <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-clay-500 text-xs font-semibold text-sand-50">{d.day}</span>
                   <input className={inp} placeholder={`Day ${d.day} title — e.g. Arrive`} value={d.title} onChange={(e) => updateArr(setDraft, "itinerary", i, { title: e.target.value })} />
+                </div>
+                {/* Shown under the day title on the listing. "Draft with AI" fills this
+                    in, so it must be editable (and clearable) here. */}
+                <div className="mt-3 pl-10">
+                  <textarea rows={2} className={cn(inp, "py-2 text-sm")} placeholder="Optional summary shown under the day title — leave blank to hide" value={d.summary ?? ""} onChange={(e) => updateArr(setDraft, "itinerary", i, { summary: e.target.value })} />
                 </div>
                 <div className="mt-3 pl-10">
                   <ListEditor items={d.items} onChange={(items) => updateArr(setDraft, "itinerary", i, { items })} placeholder="Airport pickup" small />
