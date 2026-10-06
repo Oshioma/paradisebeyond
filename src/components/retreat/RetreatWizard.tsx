@@ -6,6 +6,7 @@ import {
   type RetreatDraft,
   resizeItinerary,
   validateForSubmit,
+  groupSizeOf,
 } from "@/lib/retreat/schema";
 import {
   aiDraftRetreat,
@@ -389,7 +390,7 @@ function StepContent({
                 <RemoveBtn onClick={() => set("departures", draft.departures.filter((_, j) => j !== i))} />
               </div>
             ))}
-            <AddBtn onClick={() => set("departures", [...draft.departures, { startDate: "", endDate: "", capacity: draft.maxGroupSize }])}>Add a departure</AddBtn>
+            <AddBtn onClick={() => set("departures", [...draft.departures, { startDate: "", endDate: "", capacity: draft.departures[draft.departures.length - 1]?.capacity || 12 }])}>Add a departure</AddBtn>
           </div>
         </Field>
       );
@@ -574,14 +575,13 @@ function StepContent({
       );
     case 9:
       return (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Starting price (per person)"><MoneyInput value={draft.priceFromUsd} onChange={(v) => set("priceFromUsd", v)} currency={draft.currency} /></Field>
           <Field label="Currency">
             <select className={inp} value={draft.currency} onChange={(e) => set("currency", e.target.value)}>
               {["USD", "EUR", "GBP"].map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="Max group size"><input type="number" min={0} inputMode="numeric" placeholder="12" className={inp} value={draft.maxGroupSize || ""} onChange={(e) => set("maxGroupSize", Number(e.target.value))} /></Field>
         </div>
       );
     case 10:
@@ -755,7 +755,7 @@ function Preview({ draft }: { draft: RetreatDraft }) {
           <span>{draft.duration} days</span>
           <span>From {draft.currency} {draft.priceFromUsd || "—"} pp</span>
           <span>{draft.departures.filter((d) => d.startDate).length} departures</span>
-          <span>Max {draft.maxGroupSize}</span>
+          <span>Max {groupSizeOf(draft)}</span>
         </div>
         {draft.inclusions.filter(Boolean).length > 0 && (
           <ul className="mt-4 grid gap-1 text-sm text-ink-soft sm:grid-cols-2">

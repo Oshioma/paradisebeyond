@@ -195,7 +195,7 @@ export default async function ExperiencePage({
               </Link>
             )}
             <p className="mt-4 px-2 text-center text-xs text-ink-muted">
-              Max group size {e.maxGroupSize} · small by design
+              Max group size {Math.max(0, ...e.departures.map((d) => d.capacity)) || e.maxGroupSize}
             </p>
           </aside>
         </div>

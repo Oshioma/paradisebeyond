@@ -116,6 +116,12 @@ export interface RetreatDraft {
   offGrid?: OffGridDetails;
 }
 
+/** A retreat's group size is its largest departure capacity (the old separate
+ *  "Max group size" field is only a fallback for drafts without capacities). */
+export function groupSizeOf(draft: Pick<RetreatDraft, "departures" | "maxGroupSize">): number {
+  return Math.max(0, ...(draft.departures ?? []).map((d) => Number(d.capacity) || 0)) || draft.maxGroupSize || 12;
+}
+
 export const DEFAULT_EXCLUSIONS = [
   "International flights",
   "Travel insurance",
