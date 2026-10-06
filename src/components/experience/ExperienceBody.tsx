@@ -10,6 +10,7 @@ import { Itinerary } from "@/components/experience/Itinerary";
 import { RatingSummary } from "@/components/reviews/Stars";
 import { ReviewList } from "@/components/reviews/ReviewList";
 import { FlightsNote } from "@/components/experience/FlightsNote";
+import { DESTINATIONS } from "@/lib/data/destinations";
 import { ShareButton } from "@/components/experience/ShareButton";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { AdminDeletablePhoto } from "@/components/experience/AdminDeletablePhoto";
@@ -209,7 +210,12 @@ export function ExperienceBody({
                 </li>
               ))}
             </ul>
-            <div className="mt-5"><FlightsNote /></div>
+            <div className="mt-5">
+              <FlightsNote
+                text={e.flightsNote}
+                place={DESTINATIONS.find((d) => d.slug === e.destinationSlug)?.name}
+              />
+            </div>
           </div>
         </div>
       </Section>

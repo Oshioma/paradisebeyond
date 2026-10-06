@@ -157,6 +157,7 @@ function summarizeChanges(oldExp: Experience, draft: RetreatDraft): string[] {
   if (j(oldExp.story ?? []) !== j((draft.story ?? []).filter(Boolean))) out.push("Story updated");
   if (j((oldExp.itinerary ?? []).map((d) => ({ t: d.title, i: d.items?.map((x) => x.title) }))) !==
       j((draft.itinerary ?? []).map((d) => ({ t: d.title, i: (d.items ?? []).filter(Boolean) })))) out.push("Itinerary updated");
+  if ((oldExp.flightsNote ?? "").trim() !== (draft.flightsNote ?? "").trim()) out.push("Flights note updated");
   if ((oldExp.communityGuidelines ?? "").trim() !== (draft.communityGuidelines ?? "").trim()) out.push("Community guidelines updated");
   if ((oldExp.stay?.roomTypes?.length ?? 0) !== (draft.rooms ?? []).filter((r) => r.name?.trim()).length) out.push("Accommodation options changed");
   return out;

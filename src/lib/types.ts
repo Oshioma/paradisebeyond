@@ -154,6 +154,8 @@ export interface Experience {
   };
   inclusions: string[];
   exclusions: string[];
+  /** Host-authored text under "What's not included" (the flights aside). Absent = default copy. */
+  flightsNote?: string;
   /** Host-authored community guidelines for this retreat (shown on its page). */
   communityGuidelines?: string;
   itinerary: ItineraryDay[];

@@ -98,6 +98,8 @@ export interface RetreatDraft {
   // 12 Cancellation
   cancellationPolicy: string;
   communityGuidelines: string;
+  /** Text under "What's not included". Empty = the default flights copy. */
+  flightsNote?: string;
   // 13 Photos
   heroImageUrl: string;
   galleryUrls: string[];
@@ -140,6 +142,7 @@ export function emptyDraft(id: string): RetreatDraft {
     hotels: [{ name: "", description: "" }],
     inclusions: [""],
     exclusions: [...DEFAULT_EXCLUSIONS],
+    flightsNote: "",
     highlights: [{ title: "", description: "" }],
     itinerary: [],
     rooms: [{ name: "Shared Room", description: "", occupancy: "shared", priceDeltaUsd: 0 }],
