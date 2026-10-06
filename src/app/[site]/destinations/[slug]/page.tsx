@@ -48,7 +48,7 @@ export default async function DestinationPage({ params }: { params: Params }) {
           <p className="text-lg leading-relaxed text-ink-soft">{d.description}</p>
         </div>
         <div className="mt-8 max-w-2xl">
-          <FlightsNote />
+          <FlightsNote place={d.name} />
         </div>
 
         <div className="mt-14">

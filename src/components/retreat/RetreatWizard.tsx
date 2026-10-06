@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { prepareImageForUpload } from "@/lib/media/clientImage";
 import { CoHostManager } from "@/components/retreat/CoHostManager";
+import { flightsNoteDefault } from "@/components/experience/FlightsNote";
 import { OFFGRID_STEPS, OFFGRID_SUBMIT_STEP } from "@/lib/offgrid/schema";
 import { OffGridStepContent } from "@/components/offgrid/OffGridSteps";
 
@@ -490,6 +491,17 @@ function StepContent({
           <Field label="What's not included" hint="Flights are never included — keep it clear, not cold.">
             <ListEditor items={draft.exclusions} onChange={(v) => set("exclusions", v)} placeholder="International flights" />
           </Field>
+          <div className="sm:col-span-2">
+          <Field label="Note under “What's not included”" hint="Shown beneath your exclusions. Leave blank to use the default wording.">
+            <textarea
+              rows={3}
+              className={inp}
+              value={draft.flightsNote ?? ""}
+              onChange={(e) => set("flightsNote", e.target.value)}
+              placeholder={flightsNoteDefault(draft.destinationName || "your destination")}
+            />
+          </Field>
+          </div>
         </div>
       );
     case 6:

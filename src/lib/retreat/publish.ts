@@ -126,6 +126,7 @@ export function buildContent(draft: RetreatDraft, slug: string, hostSlugs: strin
     },
     inclusions: (draft.inclusions ?? []).filter(Boolean),
     exclusions: (draft.exclusions ?? []).filter(Boolean),
+    flightsNote: draft.flightsNote?.trim() || undefined,
     communityGuidelines: draft.communityGuidelines?.trim() || undefined,
     itinerary,
     departures,
