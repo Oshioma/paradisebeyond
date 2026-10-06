@@ -17,7 +17,7 @@ export function SiteFooter({ brand = PARADISE_BEYOND }: { brand?: Brand }) {
             </p>
             <p className="mt-6 text-sm text-ink-soft">
               Your international flights aren&apos;t included. Get yourself to
-              Zanzibar and we&apos;ll take care of the rest.
+              your destination and we&apos;ll take care of the rest.
             </p>
             <p className="mt-6 text-sm text-ink-soft">
               <a href={`mailto:${LEGAL.email}`} className="link-underline">

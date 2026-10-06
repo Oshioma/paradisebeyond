@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /** The default wording, shared with the Studio editor's placeholder. */
-export function flightsNoteDefault(place = "Zanzibar") {
+export function flightsNoteDefault(place = "your destination") {
   return `Your international flights aren't included. Get yourself to ${place} and we'll take care of the rest — transfers, stay, and every scheduled moment.`;
 }
 
@@ -16,7 +16,7 @@ export function FlightsNote({
   className,
   tone = "sand",
   text,
-  place = "Zanzibar",
+  place = "your destination",
 }: {
   className?: string;
   tone?: "sand" | "ocean";
