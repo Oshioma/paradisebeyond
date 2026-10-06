@@ -1,4 +1,4 @@
-import type { RetreatDraft } from "@/lib/retreat/schema";
+import { groupSizeOf, type RetreatDraft } from "@/lib/retreat/schema";
 import type { CategorySlug, Departure, Experience, ItineraryDay, RoomType } from "@/lib/types";
 import { slotKey } from "@/lib/images";
 import { emptyOffGrid } from "@/lib/offgrid/types";
@@ -105,7 +105,7 @@ export function buildContent(draft: RetreatDraft, slug: string, hostSlugs: strin
     verified: false,
     currency,
     priceFromMinor: usdToMinor(draft.priceFromUsd),
-    maxGroupSize: draft.maxGroupSize,
+    maxGroupSize: groupSizeOf(draft),
     heroImageSeed: heroSeed,
     gallerySeeds,
     forYouIf: (draft.idealGuest ?? []).filter(Boolean),
@@ -361,7 +361,7 @@ export async function publishDraft(draft: RetreatDraft, actingUserId: string): P
         location_label: draft.locationLabel || null,
         currency: content.currency,
         price_from_minor: content.priceFromMinor,
-        max_group_size: draft.maxGroupSize,
+        max_group_size: groupSizeOf(draft),
         hero_image_url: draft.heroImageUrl || null,
         story: content.story,
         for_you_if: content.forYouIf,
