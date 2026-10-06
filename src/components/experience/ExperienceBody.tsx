@@ -58,6 +58,10 @@ export function ExperienceBody({
   }
   const shownGallery = galleryPhotos.slice(0, GALLERY_MAX);
   const moreGallery = galleryPhotos.length - shownGallery.length;
+  // Published retreats fill stay.imageSeeds with the gallery (or hero) seeds as
+  // a fallback, so only show stay photos that aren't already on the page.
+  const shownSeeds = new Set([...e.gallerySeeds, `${e.slug}-hero`, e.heroImageSeed]);
+  const stayPhotoSeeds = e.stay.imageSeeds.filter((s) => !shownSeeds.has(s));
   const eyebrowClass = accent ? "eyebrow" : "eyebrow text-ocean-700";
   const eyebrowStyle = accent ? { color: accent } : undefined;
   const dotStyle = accent ? { backgroundColor: accent } : undefined;
@@ -165,11 +169,11 @@ export function ExperienceBody({
             <HotelImages images={e.stay.hotels?.[0]?.images} name={e.stay.property} />
           </>
         )}
-        {e.stay.imageSeeds.length > 0 && (
+        {stayPhotoSeeds.length > 0 && (
           <PhotoGallery
             layout="grid"
             label={`${e.stay.property || e.name} photos`}
-            photos={e.stay.imageSeeds.map((s, i) => ({
+            photos={stayPhotoSeeds.map((s, i) => ({
               thumb: img(s, 400, 400),
               full: img(s, 1800, 1350),
               alt: `${e.stay.property || e.name} — photo ${i + 1}`,
