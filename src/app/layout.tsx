@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { WishlistProvider } from "@/components/wishlist/WishlistProvider";
 import { RevealScript } from "@/components/site/RevealScript";
@@ -48,6 +49,12 @@ export default function RootLayout({
           {children}
         </WishlistProvider>
         <RevealScript />
+        {/* iandi.live chat widget. */}
+        <Script
+          src="https://www.iandi.live/chat.js"
+          data-box="c3f0d19effb1457fb409"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
