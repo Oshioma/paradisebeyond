@@ -12,6 +12,7 @@ import {
 } from "@/lib/data/repository";
 import { brandFromParams, type SiteParams } from "@/lib/brand/site";
 import { OffGridHome } from "@/components/offgrid/OffGridHome";
+import { homeJsonLd } from "@/lib/seo/jsonld";
 
 export function generateMetadata({ params }: { params: SiteParams }): Metadata {
   // Paradise Beyond's homepage metadata is unchanged (inherited); the new
@@ -21,7 +22,16 @@ export function generateMetadata({ params }: { params: SiteParams }): Metadata {
 
 export default async function HomePage({ params }: { params: SiteParams }) {
   const brand = brandFromParams(params);
-  if (brand.theme === "earth") return <OffGridHome brand={brand} />;
+  if (brand.theme === "earth") {
+    return (
+      <>
+        {brand.canonicalOrigin && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: homeJsonLd(brand, brand.canonicalOrigin) }} />
+        )}
+        <OffGridHome brand={brand} />
+      </>
+    );
+  }
   return <ParadiseHome />;
 }
 
