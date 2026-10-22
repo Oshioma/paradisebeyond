@@ -10,19 +10,33 @@ import { img } from "@/lib/images";
 import { formatDateRange } from "@/lib/utils";
 import { formatFrom } from "@/lib/money";
 import { StatusPill } from "@/components/dashboard/StatusPill";
-import { listingHref } from "@/lib/brand/server";
+import { crossBrandUrl, getBrand, listingHref } from "@/lib/brand/server";
+import { PARADISE_BEYOND, SPEND_TIME_OFF_GRID } from "@/lib/brand/config";
+import { hostWords, onSite } from "@/lib/brand/hostSite";
 
-export const metadata: Metadata = { title: "My Retreats", robots: { index: false } };
+export function generateMetadata(): Metadata {
+  return { title: hostWords(getBrand()).myListings, robots: { index: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function RetreatsPage({ searchParams }: { searchParams: { submitted?: string } }) {
   const user = await requireRole("host", "/studio/retreats");
   const hostSlug = user.hostSlug ?? "";
-  const [experiences, bookings, drafts] = await Promise.all([
+  // Only this site's listings, bookings and drafts (a host may list on both).
+  const brand = getBrand();
+  const w = hostWords(brand);
+  const offGrid = brand.theme === "earth";
+  const [allExperiences, allBookings, allDrafts] = await Promise.all([
     getManagedExperiences(user),
     getHostBookings(hostSlug),
     listDraftsForHost(user.hostSlug ? "" : user.id),
   ]);
+  const experiences = onSite(allExperiences, brand.id);
+  const bookings = onSite(allBookings, brand.id);
+  const drafts = onSite(allDrafts, brand.id);
+  // Listings this host has on the OTHER site — mention them, don't show them.
+  const otherBrand = offGrid ? PARADISE_BEYOND : SPEND_TIME_OFF_GRID;
+  const elsewhere = allExperiences.length - experiences.length + (allDrafts.length - drafts.length);
 
   const bookedByDeparture = new Map<string, number>();
   for (const b of bookings) {
@@ -49,18 +63,40 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
     <div className="container-editorial py-12">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow text-ocean-700">Host Studio</p>
-          <h1 className="mt-2 text-display font-semibold text-ink">My Retreats</h1>
+          <p className="eyebrow text-ocean-700">{w.area}</p>
+          <h1 className="mt-2 text-display font-semibold text-ink">{w.myListings}</h1>
         </div>
         <Link href="/studio/retreats/new" className="rounded-full bg-clay-500 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-          + New retreat
+          {w.newListing}
         </Link>
       </header>
 
       {searchParams.submitted && (
         <div className="mt-6 rounded-xl2 border border-palm-500/40 bg-palm-500/5 p-4 text-sm text-palm-600">
-          Submitted for approval — the Paradise Beyond team will review it and be in touch.
+          Submitted for approval — the {brand.name} team will review it and be in touch.
         </div>
+      )}
+
+      {experiences.length === 0 && builderDrafts.length === 0 && (
+        <div className="mt-10 rounded-xl2 border border-dashed border-ink/20 px-6 py-14 text-center">
+          <p className="font-display text-xl text-ink">No {w.listings} yet.</p>
+          <p className="mt-2 text-sm text-ink-muted">
+            {offGrid ? "Tell travellers about your place, what they'll help with and what you provide." : "Build your first retreat — it saves as you go."}
+          </p>
+          <Link href="/studio/retreats/new" className="mt-5 inline-flex rounded-full bg-ink px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">
+            {w.newListing.replace("+ ", "")}
+          </Link>
+        </div>
+      )}
+
+      {elsewhere > 0 && (
+        <p className="mt-6 text-sm text-ink-muted">
+          You also have {elsewhere} {elsewhere === 1 ? "listing" : "listings"} on {otherBrand.name}.{" "}
+          <a href={crossBrandUrl(otherBrand, "/studio/retreats")} className="text-ink underline underline-offset-4">
+            Manage {elsewhere === 1 ? "it" : "them"} there
+          </a>
+          .
+        </p>
       )}
 
       {/* Drafts & submissions from the Retreat Builder */}
@@ -72,10 +108,10 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
               <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl2 border border-ink/10 bg-sand-50 p-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="font-medium text-ink">{d.name || "Untitled retreat"}</p>
+                    <p className="font-medium text-ink">{d.name || `Untitled ${w.listing}`}</p>
                     <StatusPill status={d.status} />
                   </div>
-                  <p className="text-sm text-ink-muted">{d.duration} days · {d.locationLabel || "location TBC"} · updated {d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : "—"}</p>
+                  <p className="text-sm text-ink-muted">{offGrid ? "" : `${d.duration} days · `}{d.locationLabel || "location TBC"} · updated {d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : "—"}</p>
                 </div>
                 {d.status === "draft" || d.status === "changes_requested" ? (
                   <Link href={`/studio/retreats/new?id=${d.id}`} className="rounded-full bg-ink px-5 py-2 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-ink-soft">Continue</Link>
@@ -106,13 +142,13 @@ export default async function RetreatsPage({ searchParams }: { searchParams: { s
               <div className="flex-1 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="eyebrow text-ocean-700">{e.location} · {e.duration} days</p>
+                    <p className="eyebrow text-ocean-700">{offGrid ? e.location : `${e.location} · ${e.duration} days`}</p>
                     <h2 className="mt-1 font-display text-2xl font-semibold text-ink">{e.name}</h2>
                   </div>
                   <span className="rounded-full bg-palm-500/15 px-3 py-1 text-[0.66rem] uppercase tracking-eyebrow text-palm-600">Published</span>
                 </div>
                 <div className="mt-4 space-y-2">
-                  <p className="eyebrow text-ink-muted">Departures</p>
+                  <p className="eyebrow text-ink-muted">{w.dates}</p>
                   {e.departures.map((d) => {
                     const booked = bookedByDeparture.get(d.id) ?? (d.capacity - d.spacesRemaining);
                     return (

@@ -14,10 +14,13 @@ export function CustomDomainEditor({
   slug,
   name,
   currentDomain,
+  listing = "retreat",
 }: {
   slug: string;
   name: string;
   currentDomain: string;
+  /** What the site calls a listing ("retreat" on Paradise Beyond). */
+  listing?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(currentDomain);
@@ -92,13 +95,13 @@ export function CustomDomainEditor({
             </table>
           </div>
           <p className="mt-2">
-            It can take a little while for DNS to spread and the secure certificate to be issued. Until then, your
-            retreat also stays reachable at its short address above.
+            It can take a little while for DNS to spread and the secure certificate to be issued. Until then, your{" "}
+            {listing} also stays reachable at its short address above.
           </p>
         </div>
       ) : (
         <p className="mt-2 text-xs text-ink-muted">
-          Already own a domain? Connect it and guests reach this retreat at your own web address.
+          Already own a domain? Connect it and guests reach this {listing} at your own web address.
         </p>
       )}
     </div>

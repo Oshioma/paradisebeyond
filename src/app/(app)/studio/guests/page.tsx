@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
+import { getBrand } from "@/lib/brand/server";
+import { hostWords, onSite } from "@/lib/brand/hostSite";
 import { getHostBookings } from "@/lib/data/bookings";
 import { isPastVisit, getInviteSendTimes } from "@/lib/memories/store";
 import { formatDateRange } from "@/lib/utils";
@@ -13,7 +15,9 @@ export const metadata: Metadata = { title: "Past guests", robots: { index: false
  */
 export default async function StudioGuestsPage() {
   const user = await requireRole("host", "/studio/guests");
-  const bookings = (await getHostBookings(user.hostSlug ?? "")).filter(isPastVisit);
+  const brand = getBrand();
+  const w = hostWords(brand);
+  const bookings = onSite(await getHostBookings(user.hostSlug ?? ""), brand.id).filter(isPastVisit);
   const invited = await getInviteSendTimes(bookings.map((b) => b.id));
 
   const groups = new Map<string, GuestGroup>();
@@ -36,12 +40,12 @@ export default async function StudioGuestsPage() {
   return (
     <div className="container-editorial py-12">
       <header>
-        <p className="eyebrow text-ocean-700">Host Studio</p>
-        <h1 className="mt-2 text-display font-semibold text-ink">Past guests</h1>
+        <p className="eyebrow text-ocean-700">{w.area}</p>
+        <h1 className="mt-2 text-display font-semibold text-ink">Past {w.guests}</h1>
         <p className="mt-3 max-w-2xl text-ink-muted">
           Send a branded email to guests who&apos;ve travelled with you. Each guest gets a personal link to add
-          their photos and review the retreat — no sign-in needed. Their photos can then appear on your retreat
-          page, allocated day by day.
+          their photos and review the {w.listing} — no sign-in needed. Their photos can then appear on your{" "}
+          {w.listing} page, allocated day by day.
         </p>
       </header>
 

@@ -11,11 +11,14 @@ export function BrandingForm({
   initialSocials,
   initialTagline,
   initialLogoUrl,
+  listing = "retreat",
 }: {
   initialColor: string;
   initialSocials: Social[];
   initialTagline: string;
   initialLogoUrl: string;
+  /** What the site calls a listing ("retreat" on Paradise Beyond). */
+  listing?: string;
 }) {
   const router = useRouter();
   const [color, setColor] = useState(initialColor || "#B4633B");
@@ -56,7 +59,7 @@ export function BrandingForm({
     <div className="space-y-8">
       <section>
         <h2 className="font-medium text-ink">Logo</h2>
-        <p className="mt-0.5 text-sm text-ink-muted">Shown on your retreat page. A transparent PNG works best.</p>
+        <p className="mt-0.5 text-sm text-ink-muted">Shown on your {listing} page. A transparent PNG works best.</p>
         <div className="mt-3 flex items-center gap-4">
           <div className="flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-xl border border-ink/10 bg-sand-100">
             {logoUrl ? (
@@ -82,7 +85,7 @@ export function BrandingForm({
 
       <section>
         <h2 className="font-medium text-ink">Tagline</h2>
-        <p className="mt-0.5 text-sm text-ink-muted">A short line under your retreat name. Optional.</p>
+        <p className="mt-0.5 text-sm text-ink-muted">A short line under your {listing} name. Optional.</p>
         <input
           value={tagline}
           onChange={(e) => setTagline(e.target.value)}
