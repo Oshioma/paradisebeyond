@@ -44,6 +44,8 @@ export async function getMessages(bookingId: string): Promise<Message[]> {
 
 export interface Conversation {
   bookingId: string;
+  /** The booking's marketplace, so each site's inbox shows only its own. */
+  marketplace?: string;
   guestName: string;
   experienceName: string;
   lastBody: string;
@@ -62,6 +64,7 @@ export async function getHostConversations(hostSlug: string): Promise<Conversati
     const last = msgs[msgs.length - 1];
     convos.push({
       bookingId: b.id,
+      marketplace: b.marketplace,
       guestName: b.guestName,
       experienceName: b.experience.name,
       lastBody: last.body,

@@ -4,7 +4,8 @@ import { requireRole } from "@/lib/auth/session";
 import { getExperiencesByHost, getHost } from "@/lib/data/repository";
 import { getHostBookings } from "@/lib/data/bookings";
 import { formatMoney } from "@/lib/money";
-import { listingHref } from "@/lib/brand/server";
+import { getBrand, listingHref } from "@/lib/brand/server";
+import { hostWords, onSite } from "@/lib/brand/hostSite";
 
 export const metadata: Metadata = { title: "Host Studio", robots: { index: false } };
 
@@ -14,8 +15,11 @@ export default async function StudioPage() {
   // another host's experiences/bookings.
   const hostSlug = user.hostSlug ?? "";
   const host = await getHost(hostSlug);
-  const experiences = await getExperiencesByHost(hostSlug);
-  const bookings = await getHostBookings(hostSlug);
+  // Only this site's listings and bookings (a host may list on both sites).
+  const brand = getBrand();
+  const w = hostWords(brand);
+  const experiences = onSite(await getExperiencesByHost(hostSlug), brand.id);
+  const bookings = onSite(await getHostBookings(hostSlug), brand.id);
 
   const upcomingDepartures = experiences.flatMap((e) => e.departures).length;
   const guests = bookings.reduce((sum, b) => sum + b.guestCount, 0);
@@ -28,10 +32,10 @@ export default async function StudioPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow text-ocean-700">Welcome, {user.name.split(" ")[0]}</p>
-          <h1 className="mt-2 text-display font-semibold text-ink">Host Studio</h1>
+          <h1 className="mt-2 text-display font-semibold text-ink">{w.area}</h1>
         </div>
         <Link href="/studio/retreats/new" className="rounded-full bg-clay-500 px-6 py-3 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-clay-600">
-          + New retreat
+          {w.newListing}
         </Link>
       </header>
 
@@ -49,28 +53,28 @@ export default async function StudioPage() {
         </div>
       ) : (
         <div className="mt-6 rounded-xl2 border border-clay-500/30 bg-clay-500/5 p-4 text-sm text-ink-muted">
-          Your host profile isn&apos;t linked yet. Once the team finishes setting up your host account, your retreats and bookings appear here.
+          Your host profile isn&apos;t linked yet. Once the team finishes setting up your host account, your {w.listings} and bookings appear here.
         </div>
       )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Live retreats" value={String(experiences.length)} />
-        <StatCard label="Upcoming departures" value={String(upcomingDepartures)} />
-        <StatCard label="Guests booked" value={String(guests)} />
+        <StatCard label={`Live ${w.listings}`} value={String(experiences.length)} />
+        <StatCard label={w.openDates} value={String(upcomingDepartures)} />
+        <StatCard label={`${w.guests[0].toUpperCase()}${w.guests.slice(1)} booked`} value={String(guests)} />
         <StatCard label="Your earnings" value={formatMoney(netMinor, currency)} sub={`of ${formatMoney(grossMinor, currency)} gross`} />
       </div>
 
       <div className="mt-12 grid gap-8 lg:grid-cols-2">
-        <Panel title="Your retreats" href="/studio/retreats" cta="Manage">
+        <Panel title={`Your ${w.listings}`} href="/studio/retreats" cta="Manage">
           {experiences.length === 0 ? (
-            <Empty>No retreats yet. Create your first.</Empty>
+            <Empty>No {w.listings} yet. Create your first.</Empty>
           ) : (
             <ul className="divide-y divide-ink/10">
               {experiences.map((e) => (
                 <li key={e.slug} className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-medium text-ink">{e.name}</p>
-                    <p className="text-sm text-ink-muted">{e.duration} days · {e.departures.length} departures</p>
+                    <p className="text-sm text-ink-muted">{brand.theme === "earth" ? `${e.location} · ${e.departures.length} open dates` : `${e.duration} days · ${e.departures.length} departures`}</p>
                   </div>
                   <Link href={listingHref(e)} className="text-xs uppercase tracking-eyebrow text-ink hover:underline">
                     View
@@ -90,7 +94,7 @@ export default async function StudioPage() {
                 <li key={b.id} className="flex items-center justify-between py-3">
                   <div>
                     <p className="font-medium text-ink">{b.guestName}</p>
-                    <p className="text-sm text-ink-muted">{b.experience.name} · {b.guestCount} guests</p>
+                    <p className="text-sm text-ink-muted">{b.experience.name} · {b.guestCount} {w.guests}</p>
                   </div>
                   <span className="text-sm font-medium text-palm-600">{formatMoney(b.hostNetMinor, b.currency)}</span>
                 </li>

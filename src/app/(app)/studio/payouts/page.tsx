@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
+import { getBrand } from "@/lib/brand/server";
+import { hostWords } from "@/lib/brand/hostSite";
 import { isStripeEnabled } from "@/lib/payments/stripe";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { startOnboarding, refreshPayoutStatus } from "./actions";
@@ -10,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function PayoutsPage({ searchParams }: { searchParams: { error?: string; done?: string } }) {
   const user = await requireRole("host", "/studio/payouts");
+  const brand = getBrand();
+  const w = hostWords(brand);
 
   let host: { stripe_account_id?: string | null; stripe_onboarded?: boolean } | null = null;
   if (isSupabaseConfigured()) {
@@ -35,11 +39,11 @@ export default async function PayoutsPage({ searchParams }: { searchParams: { er
   return (
     <div className="container-editorial py-12">
       <header>
-        <p className="eyebrow text-ocean-700">Host Studio</p>
+        <p className="eyebrow text-ocean-700">{w.area}</p>
         <h1 className="mt-2 text-display font-semibold text-ink">Payouts</h1>
         <p className="mt-3 max-w-2xl text-ink-muted">
-          Get paid directly. Connect your Stripe account and guest payments flow
-          to you automatically — minus Paradise Beyond&apos;s commission, which is
+          Get paid directly. Connect your Stripe account and {w.guests === "guests" ? "guest" : "traveller"} payments flow
+          to you automatically — minus {brand.name}&apos;s commission, which is
           taken at the point of sale. We never hold your funds.
         </p>
       </header>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/auth/session";
+import { getBrand } from "@/lib/brand/server";
+import { hostWords, onSite } from "@/lib/brand/hostSite";
 import { getManagedExperiences } from "@/lib/data/repository";
 import { getExperienceIdsBySlugs, getPhotosForExperienceIds } from "@/lib/memories/store";
 import { PhotoManager } from "@/components/host/PhotoManager";
@@ -12,24 +14,26 @@ export const metadata: Metadata = { title: "Guest photos", robots: { index: fals
  */
 export default async function StudioPhotosPage() {
   const user = await requireRole("host", "/studio/photos");
-  const experiences = await getManagedExperiences(user);
+  const brand = getBrand();
+  const w = hostWords(brand);
+  const experiences = onSite(await getManagedExperiences(user), brand.id);
   const idsBySlug = await getExperienceIdsBySlugs(experiences.map((e) => e.slug));
   const photos = await getPhotosForExperienceIds(Object.values(idsBySlug));
 
   return (
     <div className="container-editorial py-12">
       <header>
-        <p className="eyebrow text-ocean-700">Host Studio</p>
+        <p className="eyebrow text-ocean-700">{w.area}</p>
         <h1 className="mt-2 text-display font-semibold text-ink">Guest photos</h1>
         <p className="mt-3 max-w-2xl text-ink-muted">
-          Photos your guests share appear here. Published photos show in the retreat&apos;s &ldquo;Guest
+          Photos your guests share appear here. Published photos show in the {w.listing}&apos;s &ldquo;Guest
           memories&rdquo; gallery; allocate a photo to a day and it appears under that day of the itinerary too.
         </p>
       </header>
 
       {experiences.length === 0 ? (
         <p className="mt-10 rounded-xl2 border border-dashed border-ink/20 py-16 text-center text-ink-muted">
-          No live retreats yet.
+          No live {w.listings} yet.
         </p>
       ) : (
         <div className="mt-10 space-y-10">
