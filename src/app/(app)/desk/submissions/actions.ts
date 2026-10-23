@@ -21,19 +21,25 @@ export async function reviewSubmission(formData: FormData): Promise<void> {
   const status = String(formData.get("status") ?? "") as RetreatStatus;
   const notes = String(formData.get("notes") ?? "") || undefined;
   if (!id || !ALLOWED.includes(status)) redirect("/desk/submissions?error=Invalid+request");
+  // Feedback goes back to the submission that was acted on (and scrolls to it),
+  // so on a phone the result isn't hidden at the top of a long page.
+  const back = (q: string) => `/desk/submissions?${q}&id=${encodeURIComponent(id)}#s-${encodeURIComponent(id)}`;
 
   const { isSupabaseConfigured } = await import("@/lib/supabase/config");
 
   let publishedSlug: string | undefined;
   if (status === "approved") {
     if (!isSupabaseConfigured()) {
-      redirect("/desk/submissions?error=" + encodeURIComponent("Publishing requires a live Supabase connection (demo mode is read-only)."));
+      redirect(back("error=" + encodeURIComponent("Publishing requires a live Supabase connection (demo mode is read-only).")));
     }
     const draft = await getDraft(id);
-    if (!draft) redirect("/desk/submissions?error=Draft+not+found");
+    if (!draft) redirect(back("error=Draft+not+found"));
     const { publishDraft } = await import("@/lib/retreat/publish");
     const res = await publishDraft(draft!, admin.id);
-    if (!res.ok) redirect("/desk/submissions?error=" + encodeURIComponent(res.error));
+    if (!res.ok) {
+      console.error(`[desk/submissions] publish failed for ${id}: ${res.error}`);
+      redirect(back("error=" + encodeURIComponent(res.error)));
+    }
     publishedSlug = res.slug;
   }
 
@@ -56,7 +62,7 @@ export async function reviewSubmission(formData: FormData): Promise<void> {
   revalidatePath("/desk");
   if (publishedSlug) {
     revalidateSitePath(`/experiences/${publishedSlug}`);
-    redirect(`/desk/submissions?published=${encodeURIComponent(publishedSlug)}`);
+    redirect(back(`published=${encodeURIComponent(publishedSlug)}`));
   }
-  redirect(`/desk/submissions?status=${encodeURIComponent(status)}`);
+  redirect(back(`status=${encodeURIComponent(status)}`));
 }
