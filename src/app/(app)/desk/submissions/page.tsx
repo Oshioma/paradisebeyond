@@ -8,7 +8,7 @@ import { reviewSubmission } from "./actions";
 export const metadata: Metadata = { title: "Retreat submissions", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-export default async function SubmissionsPage({ searchParams }: { searchParams: { published?: string; error?: string; status?: string } }) {
+export default async function SubmissionsPage({ searchParams }: { searchParams: { published?: string; error?: string; status?: string; id?: string } }) {
   await requireRole("admin", "/desk/submissions");
   const submissions = await listSubmissions();
 
@@ -24,18 +24,18 @@ export default async function SubmissionsPage({ searchParams }: { searchParams: 
         </p>
       </header>
 
-      {searchParams.published && (
+      {searchParams.published && !searchParams.id && (
         <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl2 border border-palm-500/40 bg-palm-500/5 p-4 text-sm text-palm-600">
           <span>✓ Published — it&apos;s now live in the catalogue.</span>
           <a href={`/experiences/${searchParams.published}`} className="rounded-full bg-palm-500 px-4 py-1.5 text-xs uppercase tracking-eyebrow text-sand-50 hover:bg-palm-600">View experience</a>
         </div>
       )}
-      {searchParams.error && (
+      {searchParams.error && !searchParams.id && (
         <div className="mt-6 rounded-xl2 border border-clay-500/50 bg-clay-500/10 p-4 text-sm text-clay-600">
           ✗ {searchParams.error}
         </div>
       )}
-      {searchParams.status && !searchParams.published && (
+      {searchParams.status && !searchParams.published && !searchParams.id && (
         <div className="mt-6 rounded-xl2 border border-ink/15 bg-sand-100 p-4 text-sm text-ink-soft">
           Submission updated — status set to {searchParams.status.replace(/_/g, " ")}.
         </div>
@@ -48,7 +48,7 @@ export default async function SubmissionsPage({ searchParams }: { searchParams: 
       ) : (
         <div className="mt-10 space-y-5">
           {submissions.map((s) => (
-            <div key={s.id} className="rounded-xl2 border border-ink/10 bg-sand-50 p-6">
+            <div key={s.id} id={`s-${s.id}`} className="scroll-mt-24 rounded-xl2 border border-ink/10 bg-sand-50 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-3">
@@ -72,6 +72,24 @@ export default async function SubmissionsPage({ searchParams }: { searchParams: 
                 <p><span className="font-medium text-ink">Rooms:</span> {s.rooms.map((r) => r.name).filter(Boolean).join(", ") || "—"}</p>
               </div>
               {s.reviewNotes && <p className="mt-3 rounded-lg bg-clay-500/10 px-3 py-2 text-sm text-clay-600">Note to host: {s.reviewNotes}</p>}
+
+              {/* The result of the last action on THIS submission, right where it was taken. */}
+              {searchParams.id === s.id && searchParams.error && (
+                <p role="alert" className="mt-4 rounded-lg border border-clay-500/50 bg-clay-500/10 px-3 py-2 text-sm text-clay-600">
+                  ✗ Not published: {searchParams.error}
+                </p>
+              )}
+              {searchParams.id === s.id && searchParams.published && (
+                <p className="mt-4 rounded-lg border border-palm-500/40 bg-palm-500/5 px-3 py-2 text-sm text-palm-600">
+                  ✓ Published — it&apos;s now live.{" "}
+                  <a href={`/experiences/${searchParams.published}`} className="underline underline-offset-4">View it</a>
+                </p>
+              )}
+              {searchParams.id === s.id && searchParams.status && !searchParams.published && (
+                <p className="mt-4 rounded-lg bg-sand-100 px-3 py-2 text-sm text-ink-soft">
+                  Updated — status set to {searchParams.status.replace(/_/g, " ")}.
+                </p>
+              )}
 
               <form action={reviewSubmission} className="mt-5 flex flex-wrap items-center gap-2 border-t border-ink/10 pt-4">
                 <input type="hidden" name="id" value={s.id} />
