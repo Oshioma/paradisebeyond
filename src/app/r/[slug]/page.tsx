@@ -13,6 +13,7 @@ import { ReservePanel } from "@/components/experience/ReservePanel";
 import { ExperienceBody } from "@/components/experience/ExperienceBody";
 import { getExperienceReviews } from "@/lib/data/reviews";
 import { getPublishedPhotos } from "@/lib/memories/store";
+import { shareImageFor } from "@/lib/shareImage";
 
 export const dynamic = "force-dynamic";
 
@@ -43,16 +44,16 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!e) return { title: "Retreat" };
   const base = siteUrl();
   const url = `${base}/experiences/${e.slug}`;
-  // Reuse the main page's branded share card, and canonicalise to the one
-  // authoritative URL so the subdomain / path / main page aren't seen as
-  // duplicate content.
-  const ogImage = `${base}/experiences/${e.slug}/opengraph-image`;
+  // Link previews (WhatsApp etc.) show the retreat's main photo, sized to
+  // 1200×630; canonicalise to the one authoritative URL so the subdomain /
+  // path / main page aren't seen as duplicate content.
+  const ogImage = await shareImageFor(e, base);
   return {
     title: `${e.name} · ${e.location}`,
     description: e.strapline,
     alternates: { canonical: url },
     openGraph: { title: `${e.name} · ${e.location}`, description: e.strapline, url, images: [ogImage] },
-    twitter: { card: "summary_large_image", title: `${e.name} · Paradise Beyond`, description: e.strapline, images: [ogImage] },
+    twitter: { card: "summary_large_image", title: `${e.name} · Paradise Beyond`, description: e.strapline, images: [ogImage.url] },
   };
 }
 
